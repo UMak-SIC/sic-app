@@ -29,8 +29,24 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## CI and Deployments
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+GitHub Actions runs `pnpm lint` and `pnpm build` for changes to this app. The workflow is defined in [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Vercel handles deployments through its Git integration; no GitHub CD workflow is required. Configure the Vercel project with `app` as its Root Directory and `main` as its Production Branch.
+
+- Pushes to `main` create production deployments.
+- Pushes to `staging` create Vercel Preview deployments for the staging environment.
+- Pull requests create their own Vercel Preview deployments.
+
+Set production secrets in Vercel's Production environment and staging or PR secrets in its Preview environment. A `staging` deployment is a Preview deployment by default. If it must instead be a separate production deployment, add an explicit Vercel CLI/API CD workflow.
+
+### Staging Services
+
+Staging is viable on the free tiers for internal QA and light traffic, but it must not share production identities, data, or storage:
+
+- **Clerk:** use a separate development instance for staging. Staging users and webhook configuration must be isolated from production.
+- **Neon:** use a separate staging database branch or project. Never connect staging to the production database.
+- **Filebase:** use a separate staging bucket. If that is not possible, use a dedicated `staging/` prefix and credentials limited to that prefix.
+
+Configure the staging service credentials as Vercel Preview environment variables and production credentials as Production variables. Free tiers make this setup practical for a small team, but their deployment, database, identity, storage, and request quotas are capacity limits rather than an isolation boundary.
