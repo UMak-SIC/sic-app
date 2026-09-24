@@ -10,8 +10,9 @@ By participating, you agree to uphold our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20 or later)
+- [Node.js](https://nodejs.org/) (v22 or later)
 - [Git](https://git-scm.com/)
+- Corepack (included with supported Node.js distributions; used to run the pinned pnpm version)
 - A code editor (VS Code recommended)
 
 ### Local Development Setup
@@ -21,15 +22,21 @@ By participating, you agree to uphold our [Code of Conduct](CODE_OF_CONDUCT.md).
 git clone https://github.com/UMak-SIC/sic-app.git
 cd sic-app
 
-# Install dependencies
-npm install
+# Enter the Next.js app
+cd app
+
+# Enable Corepack and install the pinned pnpm version and dependencies
+corepack enable
+pnpm install
 
 # Start the development server
-npm run dev
+pnpm dev
 ```
 
 The site should now be running at `http://localhost:3000` (or whichever port
-your framework uses).
+your framework uses). Use pnpm for app scripts and dependency changes; the
+app pins pnpm `11.26.0` in `app/package.json` and tracks dependencies in
+`app/pnpm-lock.yaml`.
 
 ## Branching Strategy
 
