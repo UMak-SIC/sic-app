@@ -3,3 +3,6 @@ utils/
 
 # Tree
 TREE.md
+.neon
+.env.local
+node_modules/
