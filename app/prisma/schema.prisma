@@ -5,3 +5,239 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum EventStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  CLOSED    @map("closed")
+}
+
+enum RosterEntryStatus {
+  PENDING  @map("pending")
+  ATTENDED @map("attended")
+  ABSENT   @map("absent")
+}
+
+enum DeliveryStatus {
+  QUEUED  @map("queued")
+  SENDING @map("sending")
+  SENT    @map("sent")
+  BOUNCED @map("bounced")
+  FAILED  @map("failed")
+}
+
+enum QueueJobStatus {
+  QUEUED     @map("queued")
+  PROCESSING @map("processing")
+  COMPLETED  @map("completed")
+  FAILED     @map("failed")
+}
+
+enum EmailProvider {
+  MAILGUN @map("mailgun")
+  BREVO   @map("brevo")
+}
+
+enum CampaignAssetRole {
+  HEADER     @map("header")
+  INLINE     @map("inline")
+  ATTACHMENT @map("attachment")
+}
+
+model Admin {
+  clerkUserId String   @id @map("clerk_user_id")
+  // The initial migration adds CHECK (singleton) so the unique value permits one row.
+  singleton   Boolean  @unique @default(true)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  createdEvents        Event[]            @relation("EventCreator")
+  scannedRosterEntries EventRosterEntry[] @relation("RosterEntryScanner")
+  createdCampaigns     Campaign[]         @relation("CampaignCreator")
+  uploadedAssets       Asset[]            @relation("AssetUploader")
+
+  @@map("admins")
+}
+
+model Attendee {
+  id              String   @id @default(uuid()) @db.Uuid
+  normalizedEmail String   @unique @map("normalized_email")
+  displayEmail    String   @map("display_email")
+  name            String
+  studentId       String   @unique @map("student_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rosterEntries EventRosterEntry[]
+
+  @@map("attendees")
+}
+
+model Event {
+  id           String      @id @default(uuid()) @db.Uuid
+  name         String
+  details      String      @db.Text
+  imageAssetId String?     @map("image_asset_id") @db.Uuid
+  startsAt     DateTime    @map("starts_at") @db.Timestamptz(6)
+  endsAt       DateTime    @map("ends_at") @db.Timestamptz(6)
+  status       EventStatus @default(DRAFT)
+  createdById  String      @map("created_by_admin_id")
+  closedAt     DateTime?   @map("closed_at") @db.Timestamptz(6)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  imageAsset    Asset?             @relation("EventImage", fields: [imageAssetId], references: [id], onDelete: Restrict)
+  createdBy     Admin              @relation("EventCreator", fields: [createdById], references: [clerkUserId], onDelete: Restrict)
+  rosterEntries EventRosterEntry[]
+  campaigns     Campaign[]
+
+  @@index([status, startsAt])
+  @@map("events")
+}
+
+model EventRosterEntry {
+  id               String            @id @default(uuid()) @db.Uuid
+  eventId          String            @map("event_id") @db.Uuid
+  attendeeId       String            @map("attendee_id") @db.Uuid
+  status           RosterEntryStatus @default(PENDING)
+  arrivedAt        DateTime?         @map("arrived_at") @db.Timestamptz(6)
+  scannedByAdminId String?           @map("scanned_by_admin_id")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event          Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee       Attendee        @relation(fields: [attendeeId], references: [id], onDelete: Restrict)
+  scannedByAdmin Admin?          @relation("RosterEntryScanner", fields: [scannedByAdminId], references: [clerkUserId], onDelete: Restrict)
+  deliveries     EmailDelivery[]
+
+  @@unique([eventId, attendeeId])
+  @@unique([eventId, id])
+  @@index([eventId, status])
+  @@map("event_roster_entries")
+}
+
+model Campaign {
+  id          String   @id @default(uuid()) @db.Uuid
+  eventId     String   @map("event_id") @db.Uuid
+  subject     String
+  markdown    String   @db.Text
+  createdById String   @map("created_by_admin_id")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event           Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy       Admin           @relation("CampaignCreator", fields: [createdById], references: [clerkUserId], onDelete: Restrict)
+  assets          CampaignAsset[]
+  emailDeliveries EmailDelivery[]
+
+  @@unique([eventId, id])
+  @@index([eventId, createdAt])
+  @@map("campaigns")
+}
+
+model CampaignAsset {
+  id         String            @id @default(uuid()) @db.Uuid
+  campaignId String            @map("campaign_id") @db.Uuid
+  assetId    String            @map("asset_id") @db.Uuid
+  role       CampaignAssetRole
+  position   Int               @default(0)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  asset    Asset    @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@unique([campaignId, assetId, role])
+  @@index([campaignId, role, position])
+  @@map("campaign_assets")
+}
+
+model EmailDelivery {
+  id                String         @id @default(uuid()) @db.Uuid
+  eventId           String         @map("event_id") @db.Uuid
+  campaignId        String         @map("campaign_id") @db.Uuid
+  rosterEntryId     String         @map("roster_entry_id") @db.Uuid
+  status            DeliveryStatus @default(QUEUED)
+  provider          EmailProvider?
+  idempotencyKey    String         @unique @map("idempotency_key")
+  providerMessageId String?        @map("provider_message_id")
+  failureCode       String?        @map("failure_code")
+  failureMessage    String?        @map("failure_message") @db.Text
+  sentAt            DateTime?      @map("sent_at") @db.Timestamptz(6)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  campaign    Campaign          @relation(fields: [eventId, campaignId], references: [eventId, id], onDelete: Cascade)
+  rosterEntry EventRosterEntry  @relation(fields: [eventId, rosterEntryId], references: [eventId, id], onDelete: Cascade)
+  queueJob    QueueJob?
+  attempts    DeliveryAttempt[]
+
+  @@unique([campaignId, rosterEntryId])
+  @@index([campaignId, status])
+  @@map("email_deliveries")
+}
+
+model QueueJob {
+  id            String         @id @default(uuid()) @db.Uuid
+  deliveryId    String         @unique @map("delivery_id") @db.Uuid
+  status        QueueJobStatus @default(QUEUED)
+  scheduledAt   DateTime       @default(now()) @map("scheduled_at") @db.Timestamptz(6)
+  lockedAt      DateTime?      @map("locked_at") @db.Timestamptz(6)
+  lockExpiresAt DateTime?      @map("lock_expires_at") @db.Timestamptz(6)
+  lockedBy      String?        @map("locked_by")
+  retryCount    Int            @default(0) @map("retry_count")
+  maxRetries    Int            @default(3) @map("max_retries")
+  lastError     String?        @map("last_error") @db.Text
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  delivery EmailDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@map("queue_jobs")
+}
+
+model DeliveryAttempt {
+  id                String        @id @default(uuid()) @db.Uuid
+  deliveryId        String        @map("delivery_id") @db.Uuid
+  attemptNumber     Int           @map("attempt_number")
+  provider          EmailProvider
+  providerMessageId String?       @map("provider_message_id")
+  httpStatus        Int?          @map("http_status")
+  requestPayload    Json?         @map("request_payload")
+  responsePayload   Json?         @map("response_payload")
+  errorMessage      String?       @map("error_message") @db.Text
+  attemptedAt       DateTime      @default(now()) @map("attempted_at") @db.Timestamptz(6)
+
+  delivery EmailDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryId, attemptNumber])
+  @@index([deliveryId, attemptedAt])
+  @@map("delivery_attempts")
+}
+
+model ProviderDailyUsage {
+  id            String        @id @default(uuid()) @db.Uuid
+  provider      EmailProvider
+  usageDate     DateTime      @map("usage_date") @db.Date
+  reservedCount Int           @default(0) @map("reserved_count")
+  sentCount     Int           @default(0) @map("sent_count")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([provider, usageDate])
+  @@map("provider_daily_usage")
+}
+
+model Asset {
+  id               String   @id @default(uuid()) @db.Uuid
+  objectKey        String   @unique @map("object_key")
+  originalFilename String   @map("original_filename")
+  mediaType        String   @map("media_type")
+  byteSize         BigInt   @map("byte_size")
+  uploadedById     String   @map("uploaded_by_admin_id")
+  uploadedAt       DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+
+  uploadedBy     Admin           @relation("AssetUploader", fields: [uploadedById], references: [clerkUserId], onDelete: Restrict)
+  eventImages    Event[]         @relation("EventImage")
+  campaignAssets CampaignAsset[]
+
+  @@map("assets")
+}
