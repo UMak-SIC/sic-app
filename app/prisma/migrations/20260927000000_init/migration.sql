@@ -6,7 +6,7 @@ CREATE TYPE "EmailProvider" AS ENUM ('mailgun', 'brevo');
 CREATE TYPE "CampaignAssetRole" AS ENUM ('header', 'inline', 'attachment');
 
 CREATE TABLE "admins" (
-  "clerk_user_id" TEXT NOT NULL PRIMARY KEY,
+  "neon_auth_user_id" TEXT NOT NULL PRIMARY KEY,
   "singleton" BOOLEAN NOT NULL DEFAULT true UNIQUE CHECK ("singleton"),
   "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -148,19 +148,19 @@ CREATE INDEX "queue_jobs_status_scheduled_at_idx" ON "queue_jobs" ("status", "sc
 CREATE INDEX "delivery_attempts_delivery_id_attempted_at_idx" ON "delivery_attempts" ("delivery_id", "attempted_at");
 
 ALTER TABLE "events" ADD CONSTRAINT "events_image_asset_id_fkey" FOREIGN KEY ("image_asset_id") REFERENCES "assets"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "events" ADD CONSTRAINT "events_created_by_admin_id_fkey" FOREIGN KEY ("created_by_admin_id") REFERENCES "admins"("clerk_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "events" ADD CONSTRAINT "events_created_by_admin_id_fkey" FOREIGN KEY ("created_by_admin_id") REFERENCES "admins"("neon_auth_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "event_roster_entries" ADD CONSTRAINT "event_roster_entries_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "event_roster_entries" ADD CONSTRAINT "event_roster_entries_attendee_id_fkey" FOREIGN KEY ("attendee_id") REFERENCES "attendees"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "event_roster_entries" ADD CONSTRAINT "event_roster_entries_scanned_by_admin_id_fkey" FOREIGN KEY ("scanned_by_admin_id") REFERENCES "admins"("clerk_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "event_roster_entries" ADD CONSTRAINT "event_roster_entries_scanned_by_admin_id_fkey" FOREIGN KEY ("scanned_by_admin_id") REFERENCES "admins"("neon_auth_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_event_id_fkey" FOREIGN KEY ("event_id") REFERENCES "events"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_created_by_admin_id_fkey" FOREIGN KEY ("created_by_admin_id") REFERENCES "admins"("clerk_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "campaigns" ADD CONSTRAINT "campaigns_created_by_admin_id_fkey" FOREIGN KEY ("created_by_admin_id") REFERENCES "admins"("neon_auth_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "campaign_assets" ADD CONSTRAINT "campaign_assets_campaign_id_fkey" FOREIGN KEY ("campaign_id") REFERENCES "campaigns"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "campaign_assets" ADD CONSTRAINT "campaign_assets_asset_id_fkey" FOREIGN KEY ("asset_id") REFERENCES "assets"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "email_deliveries" ADD CONSTRAINT "email_deliveries_event_id_campaign_id_fkey" FOREIGN KEY ("event_id", "campaign_id") REFERENCES "campaigns"("event_id", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "email_deliveries" ADD CONSTRAINT "email_deliveries_event_id_roster_entry_id_fkey" FOREIGN KEY ("event_id", "roster_entry_id") REFERENCES "event_roster_entries"("event_id", "id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "queue_jobs" ADD CONSTRAINT "queue_jobs_delivery_id_fkey" FOREIGN KEY ("delivery_id") REFERENCES "email_deliveries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "delivery_attempts" ADD CONSTRAINT "delivery_attempts_delivery_id_fkey" FOREIGN KEY ("delivery_id") REFERENCES "email_deliveries"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "assets" ADD CONSTRAINT "assets_uploaded_by_admin_id_fkey" FOREIGN KEY ("uploaded_by_admin_id") REFERENCES "admins"("clerk_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "assets" ADD CONSTRAINT "assets_uploaded_by_admin_id_fkey" FOREIGN KEY ("uploaded_by_admin_id") REFERENCES "admins"("neon_auth_user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 CREATE FUNCTION prevent_delivery_attempt_mutation() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

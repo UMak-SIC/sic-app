@@ -1,5 +1,4 @@
 allowBuilds:
-  '@clerk/shared': false
   '@prisma/engines': true
   prisma: true
   sharp: false

@@ -45,7 +45,7 @@ Set production secrets in Vercel's Production environment and staging or PR secr
 
 Staging is viable on the free tiers for internal QA and light traffic, but it must not share production identities, data, or storage:
 
-- **Clerk:** use a separate development instance for staging. Staging users and webhook configuration must be isolated from production.
+- **Neon Managed Better Auth:** use a separate staging database branch or project so staging users and sessions are isolated from production.
 - **Neon:** use a separate staging database branch or project. Never connect staging to the production database.
 - **Filebase:** use a separate staging bucket. If that is not possible, use a dedicated `staging/` prefix and credentials limited to that prefix.
 
