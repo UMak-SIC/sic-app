@@ -1,8 +1,7 @@
 ## Purpose
 
-<!-- Describe what this PR does and why. Reference related issues. Feature PRs
-targeting dev must also be linked manually from the GitHub Development sidebar. -->
-Related: #[issue-number]
+<!-- Describe what this PR does and why. Link to any related issues. -->
+Closes #[issue-number]
 
 ## Files Touched
 
