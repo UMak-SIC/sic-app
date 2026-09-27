@@ -5,8 +5,8 @@
 ### Admin
 
 The single authorised application operator. The Admin authenticates through
-Clerk and has a corresponding Neon record keyed by the Clerk user ID for audit
-references.
+Neon Managed Better Auth and has a corresponding Neon record keyed by the Neon
+Auth user ID for audit references.
 
 ### Attendee
 

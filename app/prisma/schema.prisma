@@ -45,7 +45,7 @@ enum CampaignAssetRole {
 }
 
 model Admin {
-  clerkUserId String   @id @map("clerk_user_id")
+  neonAuthUserId String   @id @map("neon_auth_user_id")
   // The initial migration adds CHECK (singleton) so the unique value permits one row.
   singleton   Boolean  @unique @default(true)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -86,7 +86,7 @@ model Event {
   updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   imageAsset    Asset?             @relation("EventImage", fields: [imageAssetId], references: [id], onDelete: Restrict)
-  createdBy     Admin              @relation("EventCreator", fields: [createdById], references: [clerkUserId], onDelete: Restrict)
+  createdBy     Admin              @relation("EventCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
   rosterEntries EventRosterEntry[]
   campaigns     Campaign[]
 
@@ -106,7 +106,7 @@ model EventRosterEntry {
 
   event          Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendee       Attendee        @relation(fields: [attendeeId], references: [id], onDelete: Restrict)
-  scannedByAdmin Admin?          @relation("RosterEntryScanner", fields: [scannedByAdminId], references: [clerkUserId], onDelete: Restrict)
+  scannedByAdmin Admin?          @relation("RosterEntryScanner", fields: [scannedByAdminId], references: [neonAuthUserId], onDelete: Restrict)
   deliveries     EmailDelivery[]
 
   @@unique([eventId, attendeeId])
@@ -125,7 +125,7 @@ model Campaign {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   event           Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdBy       Admin           @relation("CampaignCreator", fields: [createdById], references: [clerkUserId], onDelete: Restrict)
+  createdBy       Admin           @relation("CampaignCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
   assets          CampaignAsset[]
   emailDeliveries EmailDelivery[]
 
@@ -235,7 +235,7 @@ model Asset {
   uploadedById     String   @map("uploaded_by_admin_id")
   uploadedAt       DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
 
-  uploadedBy     Admin           @relation("AssetUploader", fields: [uploadedById], references: [clerkUserId], onDelete: Restrict)
+  uploadedBy     Admin           @relation("AssetUploader", fields: [uploadedById], references: [neonAuthUserId], onDelete: Restrict)
   eventImages    Event[]         @relation("EventImage")
   campaignAssets CampaignAsset[]
 
