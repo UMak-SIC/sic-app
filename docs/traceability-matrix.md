@@ -27,12 +27,12 @@ This document provides bidirectional traceability between product requirements i
 ---
 
 ### EPIC-02: Authentication & Administrator Authorization
-**Target Subsystem**: `Auth & Route Protection` | **Scope**: Clerk integration, single-admin allowlist mapping (`clerk_user_id`), Next.js middleware route protection, and access denial.
+**Target Subsystem**: `Auth & Route Protection` | **Scope**: Neon Managed Better Auth integration, single-admin authorization mapping (`neon_auth_user_id`), Next.js route protection, and access denial.
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0201** | Install and configure `@clerk/nextjs` with environment keys and login flow | `app/app/(auth)`, `app/middleware.ts` | US-01, DMA-01 | Unauthenticated visitors attempting to access admin routes are redirected to Clerk sign-in. | `[ ] Planned` |
-| **TSK-0202** | Implement admin authorization guard validating authenticated user against Neon `admins` table (`clerk_user_id`) | `app/lib/auth.ts`, `app/middleware.ts` | US-01, US-02, DMA-01 | Authorized admin session resolves successfully; authenticated non-admin receives 403 response. | `[ ] Planned` |
+| **TSK-0201** | Enable Neon Managed Better Auth and configure `@neondatabase/auth` with environment values, catch-all auth handler, and email/password sign-in flow | `app/app/(auth)`, `app/app/api/auth/[...path]/route.ts`, `app/lib/auth/server.ts`, `app/middleware.ts` | US-01, DMA-01 | Unauthenticated visitors attempting to access admin routes are redirected to the Neon Auth sign-in route; a valid email/password session is established. | `[ ] Planned` |
+| **TSK-0202** | Implement admin authorization guard validating the Neon Auth session user against Neon `admins` (`neon_auth_user_id`) | `app/lib/auth.ts`, `app/middleware.ts` | US-01, US-02, DMA-01 | Authorized admin session resolves successfully; an authenticated non-admin receives 403 response. | `[ ] Planned` |
 | **TSK-0203** | Build unauthorized access denial page with clear operator messaging | `app/app/unauthorized/page.tsx` | US-02 | Non-allowlisted user sees access-denied screen with no admin navigation or confidential data rendered. | `[ ] Planned` |
 
 ---
@@ -131,7 +131,7 @@ This document provides bidirectional traceability between product requirements i
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-1001** | Implement scheduled data retention policy purging/anonymizing records older than 5 years | `app/lib/services/retention-service.ts` | DMA-12 | Running retention job deletes or anonymizes attendee and delivery records past 5-year threshold. | `[ ] Planned` |
-| **TSK-1002** | Implement deterministic mock/fake adapters for Clerk, Mailgun, Brevo, and Cloudflare R2 | `app/tests/fakes/` | Testing Decisions, NFR-04 | Full test harness runs offline without live cloud credentials. | `[ ] Planned` |
+| **TSK-1002** | Implement deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Cloudflare R2 | `app/tests/fakes/` | Testing Decisions, NFR-04 | Full test harness runs offline without live cloud credentials. | `[ ] Planned` |
 | **TSK-1003** | Implement end-to-end automated test suite covering full admin workflow (event $\to$ campaign $\to$ scan $\to$ CSV) | `app/tests/e2e/workflow.test.ts` | Testing Decisions | Playwright/Vitest E2E executes sign-in, event publish, recipient import, campaign send, QR check-in, and export. | `[ ] Planned` |
 
 ---
@@ -180,7 +180,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 
 | Requirement ID | Requirement Summary | Assigned Task ID(s) | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **DMA-01** | `admins` table keyed by `clerk_user_id`; exactly one record; credentials owned by Clerk | TSK-0102, TSK-0201, TSK-0202 | `[ ] Planned` |
+| **DMA-01** | `admins` table keyed by `neon_auth_user_id`; exactly one record; credentials and sessions owned by Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202 | `[ ] Planned` |
 | **DMA-02** | `attendees` table with UUID PK, normalized email, display email, required name, required unique `student_id`; conflict preview and overwrite | TSK-0102, TSK-0501, TSK-0503, TSK-0504 | `[ ] Planned` |
 | **DMA-03** | `events` table with UUID PK, name, details, R2 banner ref, UTC timestamps, org timezone display, status | TSK-0102, TSK-0401, TSK-0402 | `[ ] Planned` |
 | **DMA-04** | `event_roster_entries` replaces standalone attendance; unique `(event_id, attendee_id)`, status: `pending` \| `attended` \| `absent`, `arrived_at`, `scanned_by_admin_id` | TSK-0102, TSK-0801, TSK-0903 | `[ ] Planned` |
@@ -202,6 +202,6 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **NFR-01** | First-party Render queue API and worker microservice with mutual authentication | TSK-0701 | `[ ] Planned` |
 | **NFR-02** | HTTP APIs only for email delivery (Render blocks SMTP ports) | TSK-0703, TSK-0704 | `[ ] Planned` |
 | **NFR-03** | Zero-trust client security: browser clients never access provider credentials or R2 private keys | TSK-0301, TSK-0302 | `[ ] Planned` |
-| **NFR-04** | Deterministic mock/fake adapters for Clerk, Mailgun, Brevo, and R2 | TSK-1002 | `[ ] Planned` |
+| **NFR-04** | Deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and R2 | TSK-1002 | `[ ] Planned` |
 | **NFR-05** | Configurable provider quotas (configurable environment limits for Mailgun & Brevo) | TSK-0705 | `[ ] Planned` |
 | **NFR-06** | Single organization timezone support across display formatting and check-in bounds | TSK-0401, TSK-0402, TSK-0902 | `[ ] Planned` |
