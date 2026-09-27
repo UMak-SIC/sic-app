@@ -18,6 +18,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Testing
+
+```bash
+pnpm test      # Vitest unit and integration tests
+pnpm test:e2e  # Playwright Chromium smoke and browser tests
+```
+
+Unit tests run offline by default. To add a Neon integration test, copy
+`.env.test.example` to `.env.test` and set `TEST_DATABASE_URL` to a dedicated
+test branch. The test setup truncates application tables before and after each
+test, so never use a development, staging, or production database URL.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
