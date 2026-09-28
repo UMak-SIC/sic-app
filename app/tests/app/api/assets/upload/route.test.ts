@@ -1,13 +1,16 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { afterEach, expect, test, vi } from "vitest";
 
-const { requireAdmin, send, validateUpload } = vi.hoisted(() => ({
+const { createAsset, requireAdmin, send, validateUpload } = vi.hoisted(() => ({
+  createAsset: vi.fn(),
   requireAdmin: vi.fn(),
   send: vi.fn(),
   validateUpload: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/require-admin", () => ({ requireAdmin }));
+
+vi.mock("@/lib/services/asset-service", () => ({ createAsset }));
 
 vi.mock("@/lib/storage/neon-storage-client", () => ({
   getNeonStorageClient: () => ({ send }),
@@ -23,6 +26,7 @@ import { POST as publicUpload } from "@/app/api/assets/public/upload/route";
 
 afterEach(() => {
   vi.resetAllMocks();
+  createAsset.mockResolvedValue({ id: "asset-id" });
   requireAdmin.mockResolvedValue({ adminId: "admin-id" });
   validateUpload.mockResolvedValue({
     valid: true,
@@ -51,6 +55,7 @@ test("uploads validated private assets under an opaque key", async () => {
     mediaType: "image/webp",
   });
   send.mockResolvedValueOnce({});
+  createAsset.mockResolvedValueOnce({ id: "asset-id" });
   const file = new File(
     [new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
     "banner.png",
@@ -61,6 +66,7 @@ test("uploads validated private assets under an opaque key", async () => {
 
   expect(response.status).toBe(201);
   await expect(response.json()).resolves.toMatchObject({
+    assetId: "asset-id",
     originalFilename: "banner.png",
     objectKey: expect.stringMatching(/^assets\/[0-9a-f-]+\.webp$/),
     mediaType: "image/webp",
@@ -73,6 +79,13 @@ test("uploads validated private assets under an opaque key", async () => {
     ContentLength: 3,
     ContentType: "image/webp",
     Key: expect.stringMatching(/^assets\/[0-9a-f-]+\.webp$/),
+  });
+  expect(createAsset).toHaveBeenCalledWith({
+    objectKey: expect.stringMatching(/^assets\/[0-9a-f-]+\.webp$/),
+    originalFilename: "banner.png",
+    mediaType: "image/webp",
+    byteSize: 3,
+    uploadedById: "admin-id",
   });
 });
 
@@ -92,7 +105,9 @@ test("requires an administrator to write public assets", async () => {
   const response = await publicUpload(uploadRequest(file));
 
   expect(response.status).toBe(201);
+  await expect(response.json()).resolves.toMatchObject({ assetId: "asset-id" });
   expect(send.mock.calls[0][0].input).toMatchObject({ Bucket: "public-images" });
+  expect(createAsset).toHaveBeenCalledOnce();
 });
 
 test("rejects a spoofed MIME type without writing to storage", async () => {
@@ -112,6 +127,7 @@ test("rejects a spoofed MIME type without writing to storage", async () => {
     error: "File contents are not valid for its declared media type.",
   });
   expect(send).not.toHaveBeenCalled();
+  expect(createAsset).not.toHaveBeenCalled();
 });
 
 test("rejects a non-multipart request without writing to storage", async () => {
@@ -128,6 +144,7 @@ test("rejects a non-multipart request without writing to storage", async () => {
     error: "Request must contain multipart form data.",
   });
   expect(send).not.toHaveBeenCalled();
+  expect(createAsset).not.toHaveBeenCalled();
 });
 
 test("denies unauthenticated requests before parsing or writing uploads", async () => {
@@ -143,6 +160,7 @@ test("denies unauthenticated requests before parsing or writing uploads", async 
   expect(response.status).toBe(401);
   expect(validateUpload).not.toHaveBeenCalled();
   expect(send).not.toHaveBeenCalled();
+  expect(createAsset).not.toHaveBeenCalled();
 });
 
 test("rejects requests whose declared multipart body is too large", async () => {
@@ -160,4 +178,23 @@ test("rejects requests whose declared multipart body is too large", async () => 
   await expect(response.json()).resolves.toEqual({ error: "Upload request is too large." });
   expect(validateUpload).not.toHaveBeenCalled();
   expect(send).not.toHaveBeenCalled();
+  expect(createAsset).not.toHaveBeenCalled();
+});
+
+test("deletes the uploaded object when metadata persistence fails", async () => {
+  const persistenceError = new Error("Database unavailable");
+  send.mockResolvedValueOnce({}).mockResolvedValueOnce({});
+  createAsset.mockRejectedValueOnce(persistenceError);
+  const file = new File([new Uint8Array([1, 2, 3])], "banner.png", {
+    type: "image/png",
+  });
+
+  await expect(POST(uploadRequest(file))).rejects.toThrow(persistenceError);
+
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(send.mock.calls[1][0]).toBeInstanceOf(DeleteObjectCommand);
+  expect(send.mock.calls[1][0].input).toMatchObject({
+    Bucket: "private-images",
+    Key: expect.stringMatching(/^assets\/[0-9a-f-]+\.webp$/),
+  });
 });

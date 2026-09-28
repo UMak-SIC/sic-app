@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { createAsset } from "@/lib/services/asset-service";
 
 import { getNeonStorageClient } from "./neon-storage-client";
 import {
@@ -82,7 +83,9 @@ export async function uploadAsset(
 
   const objectKey = `assets/${randomUUID()}.${validation.extension}`;
 
-  await getNeonStorageClient().send(
+  const storage = getNeonStorageClient();
+
+  await storage.send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: objectKey,
@@ -91,14 +94,32 @@ export async function uploadAsset(
       ContentType: validation.mediaType,
     }),
   );
-
-  return Response.json(
-    {
+  try {
+    const asset = await createAsset({
       objectKey,
       originalFilename: file.name,
       mediaType: validation.mediaType,
       byteSize: validation.bytes.byteLength,
-    },
-    { status: 201 },
-  );
+      uploadedById: authorization.adminId,
+    });
+
+    return Response.json(
+      {
+        assetId: asset.id,
+        objectKey,
+        originalFilename: file.name,
+        mediaType: validation.mediaType,
+        byteSize: validation.bytes.byteLength,
+      },
+      { status: 201 },
+    );
+  } catch (error) {
+    try {
+      await storage.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }));
+    } catch {
+      // Preserve the metadata persistence error when rollback also fails.
+    }
+
+    throw error;
+  }
 }
