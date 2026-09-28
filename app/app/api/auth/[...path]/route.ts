@@ -2,26 +2,34 @@ import { getNeonAuth } from "@/lib/auth/server";
 
 type AuthRouteContext = { params: Promise<{ path: string[] }> };
 
-function handler() {
+function getAuthHandler() {
   return getNeonAuth().handler();
 }
 
-export function GET(request: Request, context: AuthRouteContext) {
-  return handler().GET(request, context);
+function handleAuthGet(request: Request, context: AuthRouteContext) {
+  return getAuthHandler().GET(request, context);
 }
 
-export function POST(request: Request, context: AuthRouteContext) {
-  return handler().POST(request, context);
+function handleAuthPost(request: Request, context: AuthRouteContext) {
+  return getAuthHandler().POST(request, context);
 }
 
-export function PUT(request: Request, context: AuthRouteContext) {
-  return handler().PUT(request, context);
+function handleAuthPut(request: Request, context: AuthRouteContext) {
+  return getAuthHandler().PUT(request, context);
 }
 
-export function DELETE(request: Request, context: AuthRouteContext) {
-  return handler().DELETE(request, context);
+function handleAuthDelete(request: Request, context: AuthRouteContext) {
+  return getAuthHandler().DELETE(request, context);
 }
 
-export function PATCH(request: Request, context: AuthRouteContext) {
-  return handler().PATCH(request, context);
+function handleAuthPatch(request: Request, context: AuthRouteContext) {
+  return getAuthHandler().PATCH(request, context);
 }
+
+export {
+  handleAuthDelete as DELETE,
+  handleAuthGet as GET,
+  handleAuthPatch as PATCH,
+  handleAuthPost as POST,
+  handleAuthPut as PUT,
+};

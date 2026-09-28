@@ -19,6 +19,7 @@ vi.mock("@/lib/storage/upload-validation", () => ({
 }));
 
 import { POST } from "@/app/api/assets/upload/route";
+import { POST as publicUpload } from "@/app/api/assets/public/upload/route";
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -41,7 +42,7 @@ function uploadRequest(file: File) {
   });
 }
 
-test("uploads a validated file under an opaque uploads key", async () => {
+test("uploads validated private assets under an opaque key", async () => {
   requireAdmin.mockResolvedValue({ adminId: "admin-id" });
   validateUpload.mockResolvedValue({
     valid: true,
@@ -61,18 +62,37 @@ test("uploads a validated file under an opaque uploads key", async () => {
   expect(response.status).toBe(201);
   await expect(response.json()).resolves.toMatchObject({
     originalFilename: "banner.png",
-    objectKey: expect.stringMatching(/^uploads\/[0-9a-f-]+\.webp$/),
+    objectKey: expect.stringMatching(/^assets\/[0-9a-f-]+\.webp$/),
     mediaType: "image/webp",
     byteSize: 3,
   });
   expect(send).toHaveBeenCalledOnce();
   expect(send.mock.calls[0][0]).toBeInstanceOf(PutObjectCommand);
   expect(send.mock.calls[0][0].input).toMatchObject({
-    Bucket: "uploads",
+    Bucket: "private-images",
     ContentLength: 3,
     ContentType: "image/webp",
-    Key: expect.stringMatching(/^uploads\/[0-9a-f-]+\.webp$/),
+    Key: expect.stringMatching(/^assets\/[0-9a-f-]+\.webp$/),
   });
+});
+
+test("requires an administrator to write public assets", async () => {
+  requireAdmin.mockResolvedValue({ adminId: "admin-id" });
+  validateUpload.mockResolvedValue({
+    valid: true,
+    bytes: new Uint8Array([1, 2, 3]),
+    extension: "webp",
+    mediaType: "image/webp",
+  });
+  send.mockResolvedValueOnce({});
+  const file = new File([new Uint8Array([1, 2, 3])], "banner.png", {
+    type: "image/png",
+  });
+
+  const response = await publicUpload(uploadRequest(file));
+
+  expect(response.status).toBe(201);
+  expect(send.mock.calls[0][0].input).toMatchObject({ Bucket: "public-images" });
 });
 
 test("rejects a spoofed MIME type without writing to storage", async () => {
