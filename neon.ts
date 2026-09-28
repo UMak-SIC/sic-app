@@ -3,7 +3,8 @@ import { defineConfig } from "@neon/config/v1";
 export default defineConfig({
   auth: true,
   buckets: {
-    uploads: { access: "private" },
+    "private-images": { access: "private" },
+    "public-images": { access: "public_read" },
   },
   preview: {
     functions: {

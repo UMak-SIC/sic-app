@@ -43,7 +43,7 @@ This document provides bidirectional traceability between product requirements i
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-0301** | Implement AWS S3 SDK client configured for Neon Object Storage | `app/lib/storage/neon-storage-client.ts` | US-14, NFR-03 | S3 client instantiates with Neon-injected credentials without exposing secrets to client. | `[ ] Planned` |
-| **TSK-0302** | Build server-side asset upload API route with file-type (PNG/JPEG/WebP/PDF), size-limit, and media validation | `app/app/api/assets/upload/route.ts` | US-14, DMA-11 | Uploading oversized or unsupported MIME-type file returns 400 Bad Request; valid file uploads to Neon Object Storage. | `[ ] Planned` |
+| **TSK-0302** | Build administrator-only public/private asset upload API routes with PNG/JPEG/WebP to WebP conversion, PDF validation, and size limits | `app/app/api/assets/` | US-14, DMA-11 | Unauthorized uploads return 401/403; invalid media returns 400; valid images upload as WebP and PDFs upload to the selected Neon Object Storage bucket. | `[x] Completed` |
 | **TSK-0303** | Persist uploaded asset metadata (key, original filename, media type, byte size, uploader reference) in `assets` | `app/lib/services/asset-service.ts` | DMA-11 | Database record in `assets` matches uploaded file properties and returns stable asset UUID reference. | `[ ] Planned` |
 
 ---
