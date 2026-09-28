@@ -1,26 +1,250 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core Brand & Structural Tokens - Light Mode */
+  --ink: #12333a;
+  --muted: #607579;
+  --muted-light: #8ca3a7;
+  --canvas: #e8f1f1;
+  --paper: #fbfdfd;
+  --card: #ffffff;
+  --line: #cfe0e0;
+  --line-subtle: #e7eeee;
+
+  /* Accent - Cyan */
+  --cyan: #087f8c;
+  --cyan-hover: #076d78;
+  --cyan-soft: #d9f1f0;
+  --cyan-muted: #e0f3f3;
+  --cyan-border: #aedbd9;
+
+  /* Semantic Feedback Tokens */
+  --green: #2da482;
+  --green-hover: #269374;
+  --green-soft: #f0faf3;
+  --green-border: #aee3d2;
+
+  --amber: #9c6016;
+  --amber-soft: #fbf0df;
+  --amber-border: #f0d5ab;
+
+  --red: #a43d49;
+  --red-soft: #ffe9eb;
+  --red-border: #eebfc5;
+
+  /* Subtle Surface & SSO Tokens */
+  --surface-subtle: #f3f3f3;
+  --surface-subtle-hover: #e8e8e8;
+
+  /* Zen Illustration Background Gradient Scale */
+  --zen-from: #f2fded;
+  --zen-via: #e5f8ee;
+  --zen-to: #f4fdf5;
+
+  /* Corner Radius Scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* shadcn UI Token Mappings */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--green);
+  --primary-foreground: #ffffff;
+  --secondary: var(--green-soft);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted-light);
+  --accent: var(--green-soft);
+  --accent-foreground: var(--ink);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--green);
+  --chart-1: #087f8c;
+  --chart-2: #176c59;
+  --chart-3: #9c6016;
+  --chart-4: #607579;
+  --chart-5: #12333a;
+  --radius: var(--radius-md);
+
+  /* Sidebar Tokens */
+  --sidebar: var(--ink);
+  --sidebar-foreground: var(--paper);
+  --sidebar-primary: var(--cyan);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: var(--paper);
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: var(--cyan);
+}
+
+.dark {
+  /* Core Brand & Structural Tokens - Dark Class Support */
+  --ink: #f0f7f7;
+  --muted: #96aeb1;
+  --muted-light: #6a8286;
+  --canvas: #0a1c20;
+  --paper: #0f272c;
+  --card: #132e34;
+  --line: #22434a;
+  --line-subtle: #19383e;
+
+  /* Accent - Cyan */
+  --cyan: #22b8c9;
+  --cyan-hover: #1ca1b1;
+  --cyan-soft: #163e44;
+  --cyan-muted: #13383e;
+  --cyan-border: #235861;
+
+  /* Semantic Feedback Tokens */
+  --green: #29a388;
+  --green-soft: #133930;
+  --green-border: #1d5548;
+
+  --amber: #d98d2b;
+  --amber-soft: #3b2810;
+  --amber-border: #664317;
+
+  --red: #d95d6b;
+  --red-soft: #3d171c;
+  --red-border: #5e242c;
+
+  /* shadcn UI Token Mappings - Dark */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card-foreground: var(--ink);
+  --popover: var(--paper);
+  --popover-foreground: var(--ink);
+  --primary: var(--green);
+  --primary-foreground: #0a1c20;
+  --secondary: var(--green-soft);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted-light);
+  --accent: var(--green-soft);
+  --accent-foreground: var(--ink);
+  --destructive: var(--red);
+  --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--green);
+  --chart-1: #22b8c9;
+  --chart-2: #29a388;
+  --chart-3: #d98d2b;
+  --chart-4: #96aeb1;
+  --chart-5: #f0f7f7;
+
+  /* Sidebar Tokens - Dark */
+  --sidebar: #061417;
+  --sidebar-foreground: var(--paper);
+  --sidebar-primary: var(--cyan);
+  --sidebar-primary-foreground: #0a1c20;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: var(--paper);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--cyan);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
+  --color-line: var(--line);
+  --color-line-subtle: var(--line-subtle);
+  --color-canvas: var(--canvas);
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+
+  --color-cyan: var(--cyan);
+  --color-cyan-hover: var(--cyan-hover);
+  --color-cyan-soft: var(--cyan-soft);
+  --color-cyan-muted: var(--cyan-muted);
+  --color-cyan-border: var(--cyan-border);
+
+  --color-green: var(--green);
+  --color-green-hover: var(--green-hover);
+  --color-green-soft: var(--green-soft);
+  --color-green-border: var(--green-border);
+
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-subtle-hover: var(--surface-subtle-hover);
+  --color-zen-from: var(--zen-from);
+  --color-zen-via: var(--zen-via);
+  --color-zen-to: var(--zen-to);
+
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-amber-border: var(--amber-border);
+
+  --color-red: var(--red);
+  --color-red-soft: var(--red-soft);
+  --color-red-border: var(--red-border);
+
+  --font-display: var(--font-agrandir), sans-serif;
+  --font-sans: var(--font-montserrat), sans-serif;
+  --font-heading: var(--font-agrandir), sans-serif;
+
+  --radius-xs: var(--radius-xs);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+  }
 }

@@ -6,3 +6,6 @@ TREE.md
 .neon
 .env.local
 node_modules/
+
+#mockups 
+mockup/
