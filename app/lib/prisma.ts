@@ -5,22 +5,21 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient } from "@prisma/client";
 import ws from "ws";
 
-const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required to initialize Prisma.");
-}
-
-neonConfig.webSocketConstructor = ws;
-
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
 };
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+export function getPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is required to initialize Prisma.");
+  }
+
+  neonConfig.webSocketConstructor = ws;
+  globalForPrisma.prisma ??= new PrismaClient({
     adapter: new PrismaNeon({ connectionString }),
   });
 
-globalForPrisma.prisma = prisma;
+  return globalForPrisma.prisma;
+}
