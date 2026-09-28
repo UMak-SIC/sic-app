@@ -41,6 +41,6 @@ separate from the technical queue work used to process it.
 
 ### Asset
 
-A file stored in Filebase and referenced by an Event or Campaign. Asset
+A file stored in Neon Object Storage and referenced by an Event or Campaign. Asset
 metadata records its object key, original filename, media type, size, and
 uploading Admin.

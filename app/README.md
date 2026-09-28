@@ -59,6 +59,6 @@ Staging is viable on the free tiers for internal QA and light traffic, but it mu
 
 - **Neon Managed Better Auth:** use a separate staging database branch or project so staging users and sessions are isolated from production.
 - **Neon:** use a separate staging database branch or project. Never connect staging to the production database.
-- **Filebase:** use a separate staging bucket. If that is not possible, use a dedicated `staging/` prefix and credentials limited to that prefix.
+- **Neon Object Storage:** use a separate staging database branch or project. Its bucket state branches with the database, keeping staging uploads isolated from production.
 
 Configure the staging service credentials as Vercel Preview environment variables and production credentials as Production variables. Free tiers make this setup practical for a small team, but their deployment, database, identity, storage, and request quotas are capacity limits rather than an isolation boundary.

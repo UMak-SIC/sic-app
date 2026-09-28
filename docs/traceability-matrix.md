@@ -37,13 +37,13 @@ This document provides bidirectional traceability between product requirements i
 
 ---
 
-### EPIC-03: Filebase Object Storage & Asset Management
-**Target Subsystem**: `Storage & Asset Service` | **Scope**: S3-compatible Filebase client, upload API route with MIME/size validation, and metadata persistence in `assets`.
+### EPIC-03: Neon Object Storage & Asset Management
+**Target Subsystem**: `Storage & Asset Service` | **Scope**: S3-compatible Neon Object Storage client, upload API route with MIME/size validation, and metadata persistence in `assets`.
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0301** | Implement AWS S3 SDK client configured for Filebase bucket endpoints | `app/lib/storage/filebase-client.ts` | US-14, NFR-03 | S3 client instantiates and successfully connects to Filebase credentials without exposing secrets to client. | `[ ] Planned` |
-| **TSK-0302** | Build server-side asset upload API route with file-type (PNG/JPEG/WebP/PDF), size-limit, and media validation | `app/app/api/assets/upload/route.ts` | US-14, DMA-11 | Uploading oversized or unsupported MIME-type file returns 400 Bad Request; valid file uploads to Filebase. | `[ ] Planned` |
+| **TSK-0301** | Implement AWS S3 SDK client configured for Neon Object Storage | `app/lib/storage/neon-storage-client.ts` | US-14, NFR-03 | S3 client instantiates with Neon-injected credentials without exposing secrets to client. | `[ ] Planned` |
+| **TSK-0302** | Build server-side asset upload API route with file-type (PNG/JPEG/WebP/PDF), size-limit, and media validation | `app/app/api/assets/upload/route.ts` | US-14, DMA-11 | Uploading oversized or unsupported MIME-type file returns 400 Bad Request; valid file uploads to Neon Object Storage. | `[ ] Planned` |
 | **TSK-0303** | Persist uploaded asset metadata (key, original filename, media type, byte size, uploader reference) in `assets` | `app/lib/services/asset-service.ts` | DMA-11 | Database record in `assets` matches uploaded file properties and returns stable asset UUID reference. | `[ ] Planned` |
 
 ---
@@ -54,7 +54,7 @@ This document provides bidirectional traceability between product requirements i
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-0401** | Implement Event domain service managing draft, published, and closed lifecycle transitions | `app/lib/services/event-service.ts` | US-03, US-04, US-05, DMA-03 | Event created as draft; publishing validates required fields; closed state prevents editing. | `[ ] Planned` |
-| **TSK-0402** | Build admin event management UI (list, create/edit form, image upload, timezone-aware datetime picker) | `app/app/events/page.tsx`, `app/components/events/` | US-03, US-04, US-05 | Admin creates and edits event; UI displays organization timezone and links uploaded Filebase banner. | `[ ] Planned` |
+| **TSK-0402** | Build admin event management UI (list, create/edit form, image upload, timezone-aware datetime picker) | `app/app/events/page.tsx`, `app/components/events/` | US-03, US-04, US-05 | Admin creates and edits event; UI displays organization timezone and links uploaded Neon Object Storage banner. | `[ ] Planned` |
 | **TSK-0403** | Implement `/api/cron/close-events` endpoint secured by dedicated high-entropy secret header | `app/app/api/cron/close-events/route.ts` | US-06, DMA-06 | Requests without `X-Cron-Secret` header return 401 Unauthorized; valid requests trigger closure logic. | `[ ] Planned` |
 | **TSK-0404** | Implement event closure transition updating expired events to `closed` and pending roster entries to `absent` | `app/lib/services/event-close-service.ts` | US-06, DMA-04, DMA-06 | Events past `ends_at` transition to `closed`; all `pending` roster entries atomically update to `absent`. | `[ ] Planned` |
 
@@ -78,7 +78,7 @@ This document provides bidirectional traceability between product requirements i
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0601** | Implement safe Markdown-to-HTML compiler supporting headings, code blocks, blockquotes, and Filebase images | `app/lib/email/markdown-compiler.ts` | US-12, US-13, US-14 | Unit tests verify Markdown renders structured HTML with sanitized tags and embedded Filebase image links. | `[ ] Planned` |
+| **TSK-0601** | Implement safe Markdown-to-HTML compiler supporting headings, code blocks, blockquotes, and Neon Object Storage images | `app/lib/email/markdown-compiler.ts` | US-12, US-13, US-14 | Unit tests verify Markdown renders structured HTML with sanitized tags and embedded Neon Object Storage image links. | `[ ] Planned` |
 | **TSK-0602** | Implement HMAC-SHA256 signed QR ticket generator and validator bound to `(event_id, roster_entry_id)` | `app/lib/security/qr-signer.ts` | US-15, DMA-07 | Signed token contains no raw email/internal ID; verification validates signature and check-in window expiry. | `[ ] Planned` |
 | **TSK-0603** | Implement QR code image renderer converting signed ticket into embedded email CID image / data URL | `app/lib/email/qr-image-generator.ts` | US-15 | Generates readable QR code image buffer containing only the opaque signed token. | `[ ] Planned` |
 | **TSK-0604** | Build email composer UI with recipient preview drawer rendering personalized Markdown, image, and QR code | `app/app/campaigns/new/page.tsx`, `app/components/email/` | US-12, US-16 | Preview reflects selected recipient attributes, rendered HTML markup, and dynamic QR ticket placement. | `[ ] Planned` |
@@ -131,7 +131,7 @@ This document provides bidirectional traceability between product requirements i
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-1001** | Implement scheduled data retention policy purging/anonymizing records older than 5 years | `app/lib/services/retention-service.ts` | DMA-12 | Running retention job deletes or anonymizes attendee and delivery records past 5-year threshold. | `[ ] Planned` |
-| **TSK-1002** | Implement deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Filebase | `app/tests/fakes/` | Testing Decisions, NFR-04 | Full test harness runs offline without live cloud credentials. | `[ ] Planned` |
+| **TSK-1002** | Implement deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Neon Object Storage | `app/tests/fakes/` | Testing Decisions, NFR-04 | Full test harness runs offline without live cloud credentials. | `[ ] Planned` |
 | **TSK-1003** | Implement end-to-end automated test suite covering full admin workflow (event $\to$ campaign $\to$ scan $\to$ CSV) | `app/tests/e2e/workflow.test.ts` | Testing Decisions | Playwright/Vitest E2E executes sign-in, event publish, recipient import, campaign send, QR check-in, and export. | `[ ] Planned` |
 
 ---
@@ -157,7 +157,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **US-11** | Recipient emails normalized and deduplicated case-insensitively | TSK-0501 | `[ ] Planned` |
 | **US-12** | Email composer with subject and Markdown body | TSK-0601, TSK-0604 | `[ ] Planned` |
 | **US-13** | Markdown blocks safely rendered to email HTML | TSK-0601 | `[ ] Planned` |
-| **US-14** | Filebase image upload (header, inline, attachments) | TSK-0301, TSK-0302, TSK-0303 | `[ ] Planned` |
+| **US-14** | Neon Object Storage image upload (header, inline, attachments) | TSK-0301, TSK-0302, TSK-0303 | `[ ] Planned` |
 | **US-15** | Recipient email contains event-specific opaque QR code | TSK-0602, TSK-0603 | `[ ] Planned` |
 | **US-16** | Rendered email preview with selected recipient data | TSK-0604 | `[ ] Planned` |
 | **US-17** | Send test email to single email address | TSK-0605 | `[ ] Planned` |
@@ -182,7 +182,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | :--- | :--- | :--- | :--- |
 | **DMA-01** | `admins` table keyed by `neon_auth_user_id`; exactly one record; credentials and sessions owned by Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202 | `[ ] Planned` |
 | **DMA-02** | `attendees` table with UUID PK, normalized email, display email, required name, required unique `student_id`; conflict preview and overwrite | TSK-0102, TSK-0501, TSK-0503, TSK-0504 | `[ ] Planned` |
-| **DMA-03** | `events` table with UUID PK, name, details, Filebase banner ref, UTC timestamps, org timezone display, status | TSK-0102, TSK-0401, TSK-0402 | `[ ] Planned` |
+| **DMA-03** | `events` table with UUID PK, name, details, Neon Object Storage banner ref, UTC timestamps, org timezone display, status | TSK-0102, TSK-0401, TSK-0402 | `[ ] Planned` |
 | **DMA-04** | `event_roster_entries` replaces standalone attendance; unique `(event_id, attendee_id)`, status: `pending` \| `attended` \| `absent`, `arrived_at`, `scanned_by_admin_id` | TSK-0102, TSK-0801, TSK-0903 | `[ ] Planned` |
 | **DMA-05** | Check-in window rule: scan accepted 2 hours before `starts_at` until 2 hours after `ends_at` | TSK-0602, TSK-0902 | `[ ] Planned` |
 | **DMA-06** | Event-close scheduler calls endpoint with high-entropy secret; marks still-pending entries `absent` | TSK-0403, TSK-0404 | `[ ] Planned` |
@@ -190,7 +190,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **DMA-08** | `campaigns` & `email_deliveries` (`queued` \| `sending` \| `sent` \| `bounced` \| `failed`) | TSK-0102, TSK-0707, TSK-0801 | `[ ] Planned` |
 | **DMA-09** | `queue_jobs` (worker mechanics, lock state, retries) & `delivery_attempts` (immutable HTTP log) | TSK-0102, TSK-0702, TSK-0707 | `[ ] Planned` |
 | **DMA-10** | `provider_daily_usage` transactional quota tracking & reservation (Mailgun $\to$ Brevo $\to$ hold) | TSK-0102, TSK-0705, TSK-0706 | `[ ] Planned` |
-| **DMA-11** | `assets` table for Filebase object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303 | `[ ] Planned` |
+| **DMA-11** | `assets` table for Neon Object Storage object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303 | `[ ] Planned` |
 | **DMA-12** | Data retention rule: 5-year maximum retention, then delete or anonymize | TSK-1001 | `[ ] Planned` |
 
 ---
@@ -201,7 +201,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | :--- | :--- | :--- | :--- |
 | **NFR-01** | First-party Render queue API and worker microservice with mutual authentication | TSK-0701 | `[ ] Planned` |
 | **NFR-02** | HTTP APIs only for email delivery (Render blocks SMTP ports) | TSK-0703, TSK-0704 | `[ ] Planned` |
-| **NFR-03** | Zero-trust client security: browser clients never access provider credentials or Filebase access keys | TSK-0301, TSK-0302 | `[ ] Planned` |
-| **NFR-04** | Deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Filebase | TSK-1002 | `[ ] Planned` |
+| **NFR-03** | Zero-trust client security: browser clients never access provider credentials or Neon Object Storage access keys | TSK-0301, TSK-0302 | `[ ] Planned` |
+| **NFR-04** | Deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Neon Object Storage | TSK-1002 | `[ ] Planned` |
 | **NFR-05** | Configurable provider quotas (configurable environment limits for Mailgun & Brevo) | TSK-0705 | `[ ] Planned` |
 | **NFR-06** | Single organization timezone support across display formatting and check-in bounds | TSK-0401, TSK-0402, TSK-0902 | `[ ] Planned` |
