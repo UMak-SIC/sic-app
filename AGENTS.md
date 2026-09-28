@@ -1,3 +1,10 @@
+# Pull Request Templates
+
+Before creating or editing a pull request, read `.github/PULL_REQUEST_TEMPLATE.md`
+from the intended base branch and use every template section. Mark checkboxes only
+for verification actually performed; use `Related issue: #<number>` rather than a
+closing keyword when the pull request targets `dev`.
+
 # Pull Request Issue Links
 
 Feature pull requests target `dev`, not the repository's default branch. GitHub
