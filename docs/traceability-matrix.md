@@ -22,7 +22,7 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0101** | Initialize Prisma ORM, Neon database connection pooling, and package scripts | `app/prisma`, `app/package.json` | Implementation Decisions | `npx prisma -v` runs cleanly; connection string successfully resolves Neon pooler. | `[ ] Planned` |
 | **TSK-0102** | Define complete Prisma schema matching Data Model Addendum (`admins`, `attendees`, `events`, `event_roster_entries`, `campaigns`, `email_deliveries`, `queue_jobs`, `delivery_attempts`, `provider_daily_usage`, `assets`) | `app/prisma/schema.prisma` | DMA-01, DMA-02, DMA-03, DMA-04, DMA-08, DMA-09, DMA-10, DMA-11 | `npx prisma validate` passes; schema models all required foreign keys, enums, and unique constraints. | `[ ] Planned` |
 | **TSK-0103** | Generate and apply initial database migrations against Neon | `app/prisma/migrations` | Implementation Decisions | `prisma migrate deploy` executes up/down migrations without error. | `[ ] Planned` |
-| **TSK-0104** | Configure test runner (Vitest) with database seed/clean utilities and transactional test environment | `app/tests/setup.ts`, `app/vitest.config.ts` | Testing Decisions | Test command `npm run test` executes and reports passing test runner sanity check. | `[ ] Planned` |
+| **TSK-0104** | Configure test runner (Vitest) with database seed/clean utilities and transactional test environment | `app/tests/setup.ts`, `app/vitest.config.mts` | Testing Decisions | Test command `pnpm test` executes and reports passing test runner sanity check. | `[ ] Planned` |
 
 ---
 
@@ -31,8 +31,8 @@ This document provides bidirectional traceability between product requirements i
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0201** | Enable Neon Managed Better Auth and configure `@neondatabase/auth` with environment values, catch-all auth handler, and email/password sign-in flow | `app/app/(auth)`, `app/app/api/auth/[...path]/route.ts`, `app/lib/auth/server.ts`, `app/middleware.ts` | US-01, DMA-01 | Unauthenticated visitors attempting to access admin routes are redirected to the Neon Auth sign-in route; a valid email/password session is established. | `[ ] Planned` |
-| **TSK-0202** | Implement admin authorization guard validating the Neon Auth session user against Neon `admins` (`neon_auth_user_id`) | `app/lib/auth.ts`, `app/middleware.ts` | US-01, US-02, DMA-01 | Authorized admin session resolves successfully; an authenticated non-admin receives 403 response. | `[ ] Planned` |
+| **TSK-0201** | Enable Neon Managed Better Auth and configure `@neondatabase/auth` with environment values, catch-all auth handler, and email/password sign-in flow | `app/app/(auth)`, `app/app/api/auth/[...path]/route.ts`, `app/lib/auth/server.ts`, `app/proxy.ts` | US-01, DMA-01 | Unauthenticated visitors attempting to access admin routes are redirected to the Neon Auth sign-in route; a valid email/password session is established. | `[ ] Planned` |
+| **TSK-0202** | Implement admin authorization guard validating the Neon Auth session user against Neon `admins` (`neon_auth_user_id`) | `app/lib/auth/require-admin.ts`, `app/proxy.ts` | US-01, US-02, DMA-01 | Authorized admin session resolves successfully; an authenticated non-admin receives 403 response. | `[ ] Planned` |
 | **TSK-0203** | Build unauthorized access denial page with clear operator messaging | `app/app/unauthorized/page.tsx` | US-02 | Non-allowlisted user sees access-denied screen with no admin navigation or confidential data rendered. | `[ ] Planned` |
 
 ---
@@ -132,7 +132,7 @@ This document provides bidirectional traceability between product requirements i
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-1001** | Implement scheduled data retention policy purging/anonymizing records older than 5 years | `app/lib/services/retention-service.ts` | DMA-12 | Running retention job deletes or anonymizes attendee and delivery records past 5-year threshold. | `[ ] Planned` |
 | **TSK-1002** | Implement deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Neon Object Storage | `app/tests/fakes/` | Testing Decisions, NFR-04 | Full test harness runs offline without live cloud credentials. | `[ ] Planned` |
-| **TSK-1003** | Implement end-to-end automated test suite covering full admin workflow (event $\to$ campaign $\to$ scan $\to$ CSV) | `app/tests/e2e/workflow.test.ts` | Testing Decisions | Playwright/Vitest E2E executes sign-in, event publish, recipient import, campaign send, QR check-in, and export. | `[ ] Planned` |
+| **TSK-1003** | Implement end-to-end automated test suite covering full admin workflow (event $\to$ campaign $\to$ scan $\to$ CSV) | `app/tests/e2e/workflow.spec.ts` | Testing Decisions | Playwright E2E executes sign-in, event publish, recipient import, campaign send, QR check-in, and export. | `[ ] Planned` |
 
 ---
 
