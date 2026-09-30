@@ -191,6 +191,8 @@ export function ImportAttendeesDialog({
                 email,
                 course,
                 program: PROGRAM_NAMES[course],
+                // This parser does not read a section column, so it claims none.
+                section: null,
               },
               differingFields,
               decision: userDecision,
@@ -211,6 +213,8 @@ export function ImportAttendeesDialog({
             email,
             course,
             program: PROGRAM_NAMES[course],
+            // This parser does not read a section column, so it claims none.
+            section: null,
           });
         }
       } else {

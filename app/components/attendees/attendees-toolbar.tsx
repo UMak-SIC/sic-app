@@ -39,6 +39,12 @@ interface AttendeesToolbarProps {
   onOpenImport: () => void;
   onOpenAddStudent?: () => void;
   className?: string;
+  /**
+   * True while the API cannot serve the course or event filter, which is the
+   * case today. The controls stay visible and say so on use, rather than
+   * appearing to work while filtering a single page of results.
+   */
+  filtersUnavailable?: boolean;
 }
 
 export function AttendeesToolbar({
@@ -58,6 +64,7 @@ export function AttendeesToolbar({
   onOpenImport,
   onOpenAddStudent,
   className,
+  filtersUnavailable = false,
 }: AttendeesToolbarProps) {
   return (
     <div className={cn("flex flex-col gap-3 font-sans", className)}>
@@ -91,7 +98,14 @@ export function AttendeesToolbar({
           </div>
 
           {/* Course Filter (BSIT / BSCS / BSINS) */}
-          <Select value={courseFilter} onValueChange={onCourseFilterChange}>
+          <Select
+            value={courseFilter}
+            onValueChange={onCourseFilterChange}
+            // Muted rather than removed: the course breakdown is wanted, and the
+            // API just cannot filter by it yet. An unavailable control that says
+            // so is better than one that silently filters a single page.
+            disabled={filtersUnavailable}
+          >
             <SelectTrigger className="h-10 flex-1 sm:flex-initial sm:w-[160px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
               <div className="flex items-center gap-1.5 truncate">
                 <Funnel size={14} className="text-muted shrink-0" />
@@ -107,7 +121,7 @@ export function AttendeesToolbar({
           </Select>
 
           {/* Events Joined Filter */}
-          <Select value={eventsFilter} onValueChange={onEventsFilterChange}>
+          <Select value={eventsFilter} onValueChange={onEventsFilterChange} disabled={filtersUnavailable}>
             <SelectTrigger className="h-10 flex-1 sm:flex-initial sm:w-[150px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
               <SelectValue placeholder="All Events" />
             </SelectTrigger>
@@ -118,6 +132,11 @@ export function AttendeesToolbar({
               <SelectItem value="multiple">3+ Events Joined</SelectItem>
             </SelectContent>
           </Select>
+          {filtersUnavailable ? (
+            <span className="text-[11px] text-muted font-sans sm:self-center">
+              Course and event filters are not available yet.
+            </span>
+          ) : null}
         </div>
 
         {/* Right Side: Actions */}

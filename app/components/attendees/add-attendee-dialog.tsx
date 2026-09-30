@@ -54,6 +54,8 @@ export function AddAttendeeDialog({
       email: email.trim(),
       course,
       program: PROGRAM_NAMES[course],
+      // This dialog has no section field, so nothing is claimed about one.
+      section: null,
     });
 
     setName("");
