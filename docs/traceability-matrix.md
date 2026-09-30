@@ -74,6 +74,10 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0506** | Decide the `student_id` policy for pasted address-only imports and amend DMA-02 accordingly | `app/lib/services/attendee-service.ts`, `docs/traceability-matrix.md` | DMA-02, US-07, US-09 | `student_id` stays NOT NULL and unique; pasted input resolves only against existing attendees, and new attendees must arrive by CSV carrying a student ID and a full name | `[x] Completed` |
 | **TSK-0507** | Expose the attendee ingestion chain over admin API routes, rebuilding the conflict preview server-side at commit time | `app/lib/services/ingestion/import-request.ts`, `app/app/api/attendees/import/preview/route.ts`, `app/app/api/attendees/import/commit/route.ts` | US-07, US-09, US-10, US-11, DMA-02 | An admin can preview a CSV or pasted list, see row-level errors and conflicts, and commit only the rows they approved; the commit route never trusts a client-supplied preview and a paste cannot create an attendee | `[x] Completed` |
 
+The registry's read half is [#107](https://github.com/UMak-SIC/sic-app/issues/107), not a numbered task: `GET /api/attendees` serves the directory list and the past-attendee source, which TSK-0505 and US-08 both need. EPIC-05 previously had a write path with no read path at all.
+
+That endpoint omits `course`, `program` and per-event `shortCode`. No schema column holds any of them — `Attendee` has no `course` or `program` and `Event` has no `short_code` — so they are left out rather than returned empty, because a blank cell is indistinguishable from a student who genuinely has nothing recorded. TSK-0505 and US-08 stay `[ ] Planned` until the selector itself exists.
+
 ---
 
 ### EPIC-06: Email Composer, Markdown Engine & QR Ticket Generation
