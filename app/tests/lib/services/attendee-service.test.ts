@@ -22,6 +22,8 @@ function record(overrides: Partial<IngestionRecord> = {}): IngestionRecord {
     row: 1,
     name: null,
     studentId: null,
+    course: null,
+    program: null,
     displayEmail,
     normalizedEmail: displayEmail.toLowerCase(),
     ...overrides,
@@ -90,6 +92,61 @@ test("updates by the existing UUID so roster-entry references survive", async ()
   });
   expect(result.updatedIds).toEqual(["attendee-1"]);
   expect(result.createdIds).toEqual([]);
+});
+
+test("applies a changed course and program", async () => {
+  update.mockResolvedValue({ id: "attendee-1" });
+
+  await applyAttendeeImport(
+    preview({
+      updates: [
+        {
+          record: record(),
+          attendeeId: "attendee-1",
+          matchedBy: "studentId",
+          changes: [
+            { field: "course", current: "BSIT", proposed: "BSCS" },
+            { field: "program", current: "BS Information Technology", proposed: "BS Computer Science" },
+          ],
+        },
+      ],
+    }),
+  );
+
+  expect(update).toHaveBeenCalledWith({
+    where: { id: "attendee-1" },
+    data: { course: "BSCS", program: "BS Computer Science" },
+    select: { id: true },
+  });
+});
+
+test("stores the course and program of a newly created attendee", async () => {
+  create.mockResolvedValue({ id: "attendee-new" });
+
+  await applyAttendeeImport(
+    preview({
+      newAttendees: [
+        record({
+          row: 1,
+          name: "Ana Reyes",
+          studentId: "2023-4",
+          displayEmail: "Ana@Example.com",
+          normalizedEmail: "ana@example.com",
+          course: "BSINS",
+          program: "BS Information Systems",
+        }),
+      ],
+    }),
+  );
+
+  expect(create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({
+        course: "BSINS",
+        program: "BS Information Systems",
+      }),
+    })
+  );
 });
 
 test("recomputes the normalized email whenever the display email changes", async () => {
@@ -165,6 +222,8 @@ test("creates new attendees with both email columns", async () => {
       studentId: "2023-4",
       normalizedEmail: "ana@example.com",
       displayEmail: "Ana@Example.com",
+      course: null,
+      program: null,
     },
     select: { id: true },
   });

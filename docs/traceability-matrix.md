@@ -76,7 +76,14 @@ This document provides bidirectional traceability between product requirements i
 
 The registry's read half is [#107](https://github.com/UMak-SIC/sic-app/issues/107), not a numbered task: `GET /api/attendees` serves the directory list and the past-attendee source, which TSK-0505 and US-08 both need. EPIC-05 previously had a write path with no read path at all.
 
-That endpoint omits `course`, `program` and per-event `shortCode`. No schema column holds any of them — `Attendee` has no `course` or `program` and `Event` has no `short_code` — so they are left out rather than returned empty, because a blank cell is indistinguishable from a student who genuinely has nothing recorded. TSK-0505 and US-08 stay `[ ] Planned` until the selector itself exists.
+`attendees.course` and `attendees.program` are nullable free text, added per the decision on [#109](https://github.com/UMak-SIC/sic-app/issues/109) so the course-reach KPI can group on them. Two decisions are worth recording because they are easy to undo by accident:
+
+- **They are stored as written, never coerced to a fixed set.** The previous client-side parser defaulted any unrecognised course to `BSIT`, which invented a value and folded every other course into one bucket — destroying the signal the KPI is for. Casing is preserved for the same reason, and an over-long value is a row error rather than a truncation.
+- **They are two nullable scalars, not a join table.** The question of single- versus multi-valued was raised in #109 and not answered; two scalars were chosen because the KPI needs only `course` and the UI already treats course and program as 1:1. The accepted limitation is that a student in two programs is not representable.
+
+`Event.short_code` was **not** added. #109 recorded that the event already has a unique id, so the abbreviation earned nothing, and it has been removed from the UI instead (`EventBadgeItem` and the seed literals in the attendees page).
+
+TSK-0505 and US-08 stay `[ ] Planned` until the selector itself exists.
 
 ---
 

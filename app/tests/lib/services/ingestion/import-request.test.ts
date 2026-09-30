@@ -33,6 +33,8 @@ function record(row: number, overrides: Partial<IngestionRecord> = {}): Ingestio
     row,
     name: "Ada Lovelace",
     studentId: `S-${row}`,
+    course: null,
+    program: null,
     normalizedEmail: `person${row}@example.com`,
     displayEmail: `person${row}@example.com`,
     ...overrides,

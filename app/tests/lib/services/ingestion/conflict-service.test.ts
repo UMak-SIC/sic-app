@@ -16,19 +16,23 @@ function record({ row, ...rest }: Partial<IngestionRecord> & { row: number }): I
     row,
     name: null,
     studentId: null,
+    course: null,
+    program: null,
     displayEmail,
     normalizedEmail: displayEmail.toLowerCase(),
     ...rest,
   };
 }
 
-function attendee(overrides: Partial<Record<string, string>> = {}) {
+function attendee(overrides: Partial<Record<string, string | null>> = {}) {
   return {
     id: "attendee-1",
     name: "Existing Name",
     studentId: "2023-1",
     normalizedEmail: "existing@example.com",
     displayEmail: "existing@example.com",
+    course: null,
+    program: null,
     ...overrides,
   };
 }
@@ -39,6 +43,87 @@ function returns(...rows: ReturnType<typeof attendee>[]) {
 
 afterEach(() => {
   vi.resetAllMocks();
+});
+
+test("reports a changed course as a change", async () => {
+  returns(attendee({ course: "BSIT" }));
+
+  const { updates } = await previewAttendeeConflicts([
+    record({
+      row: 1,
+      name: "Existing Name",
+      studentId: "2023-1",
+      displayEmail: "existing@example.com",
+      course: "BSCS",
+    }),
+  ]);
+
+  expect(updates[0].changes).toEqual([{ field: "course", current: "BSIT", proposed: "BSCS" }]);
+});
+
+test("reports a changed program as a change", async () => {
+  returns(attendee({ program: "BS Information Technology" }));
+
+  const { updates } = await previewAttendeeConflicts([
+    record({
+      row: 1,
+      name: "Existing Name",
+      studentId: "2023-1",
+      displayEmail: "existing@example.com",
+      program: "BS Computer Science",
+    }),
+  ]);
+
+  expect(updates[0].changes).toEqual([
+    { field: "program", current: "BS Information Technology", proposed: "BS Computer Science" },
+  ]);
+});
+
+test("does not report a course change when the import carried no course", async () => {
+  returns(attendee({ course: "BSIT" }));
+
+  // A CSV with no course column must not offer to blank every existing course,
+  // which is what a naive null-vs-value diff would do.
+  const { updates } = await previewAttendeeConflicts([
+    record({
+      row: 1,
+      name: "Existing Name",
+      studentId: "2023-1",
+      displayEmail: "existing@example.com",
+    }),
+  ]);
+
+  expect(updates[0].changes).toEqual([]);
+});
+
+test("does not report a change when the course already matches", async () => {
+  returns(attendee({ course: "BSIT", program: "BS Information Technology" }));
+
+  const { updates } = await previewAttendeeConflicts([
+    record({
+      row: 1,
+      name: "Existing Name",
+      studentId: "2023-1",
+      displayEmail: "existing@example.com",
+      course: "BSIT",
+      program: "BS Information Technology",
+    }),
+  ]);
+
+  expect(updates[0].changes).toEqual([]);
+});
+
+test("selects course and program from the database", async () => {
+  returns();
+
+  await previewAttendeeConflicts([record({ row: 1, studentId: "2023-1" })]);
+
+  // The diff reads the current value, so the columns have to be selected.
+  expect(findMany).toHaveBeenCalledWith(
+    expect.objectContaining({
+      select: expect.objectContaining({ course: true, program: true }),
+    })
+  );
 });
 
 test("returns empty results and skips the query for an empty import", async () => {

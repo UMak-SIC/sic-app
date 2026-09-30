@@ -1,5 +1,7 @@
 import {
+  validateAttendeeCourse,
   validateAttendeeName,
+  validateAttendeeProgram,
   validateEmail,
   validateStudentId,
   type AttendeeField,
@@ -10,6 +12,13 @@ export type IngestionRecord = {
   row: number;
   name: string | null;
   studentId: string | null;
+  /**
+   * Free text, null when the source omits the column. Grouped on for the
+   * "which courses do our events reach" KPI, so it is stored as written rather
+   * than coerced to a fixed set of values.
+   */
+  course: string | null;
+  program: string | null;
   normalizedEmail: string;
   displayEmail: string;
 };
@@ -33,6 +42,9 @@ type ColumnMap = {
   name: number;
   email: number;
   studentId: number;
+  /** Absent is -1, which readCell turns into null rather than an empty string. */
+  course: number;
+  program: number;
 };
 
 type CsvRow = {
@@ -52,10 +64,15 @@ const HEADER_ALIASES: Record<string, keyof ColumnMap> = {
   emailaddress: "email",
   studentid: "studentId",
   id: "studentId",
+  // "degree" is a common alternative spelling in registrar exports, so it maps to
+  // the same column rather than being silently dropped.
+  course: "course",
+  program: "program",
+  degree: "program",
 };
 
 // Positional fallback when the CSV has no header row.
-const POSITIONAL: ColumnMap = { name: 0, email: 1, studentId: 2 };
+const POSITIONAL: ColumnMap = { name: 0, email: 1, studentId: 2, course: 3, program: 4 };
 
 function splitCsvRows(text: string): CsvRow[] {
   const rows: CsvRow[] = [];
@@ -134,7 +151,7 @@ function normalizeHeader(value: string): string {
 }
 
 function detectColumns(header: string[]): ColumnMap | null {
-  const map: ColumnMap = { name: -1, email: -1, studentId: -1 };
+  const map: ColumnMap = { name: -1, email: -1, studentId: -1, course: -1, program: -1 };
 
   header.forEach((cell, index) => {
     const alias = HEADER_ALIASES[normalizeHeader(cell)];
@@ -171,6 +188,10 @@ function buildRecord(
   rawName: string | null,
   rawEmail: string | null,
   rawStudentId: string | null,
+  // Optional because pasted input resolves only against existing attendees
+  // (DMA-02), so it never carries a course or program of its own.
+  rawCourse: string | null = null,
+  rawProgram: string | null = null,
 ): BuildOutcome {
   if (rawEmail === null) {
     return { error: { row, field: "email", message: "Email address is required." } };
@@ -206,11 +227,37 @@ function buildRecord(
     studentId = validated.studentId;
   }
 
+  let course: string | null = null;
+
+  if (rawCourse !== null) {
+    const validated = validateAttendeeCourse(rawCourse);
+
+    if (!validated.valid) {
+      return { error: { row, field: validated.field, message: validated.error } };
+    }
+
+    course = validated.value;
+  }
+
+  let program: string | null = null;
+
+  if (rawProgram !== null) {
+    const validated = validateAttendeeProgram(rawProgram);
+
+    if (!validated.valid) {
+      return { error: { row, field: validated.field, message: validated.error } };
+    }
+
+    program = validated.value;
+  }
+
   return {
     record: {
       row,
       name,
       studentId,
+      course,
+      program,
       normalizedEmail: email.normalizedEmail,
       displayEmail: email.displayEmail,
     },
@@ -381,6 +428,8 @@ export function parseCsv(input: string): ParseResult {
         readCell(row.cells, columns.name),
         readCell(row.cells, columns.email),
         readCell(row.cells, columns.studentId),
+        readCell(row.cells, columns.course),
+        readCell(row.cells, columns.program),
       ),
       records,
       errors,

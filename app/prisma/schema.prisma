@@ -69,6 +69,10 @@ model Attendee {
   displayEmail    String   @map("display_email")
   name            String
   studentId       String   @unique @map("student_id")
+  // Free text, grouped on for the "which courses do our events reach" KPI.
+  // Nullable because DMA-02 does not require it and a CSV may omit the column.
+  course          String?  @map("course")
+  program         String?  @map("program")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

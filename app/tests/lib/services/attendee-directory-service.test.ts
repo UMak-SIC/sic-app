@@ -33,6 +33,8 @@ function attendee(overrides: Record<string, unknown> = {}) {
     name: "Andrea Santos",
     studentId: "2023-00182",
     displayEmail: "andrea.santos@umak.edu.ph",
+    course: null,
+    program: null,
     createdAt: new Date("2026-09-12T00:00:00.000Z"),
     rosterEntries: [attended, pending],
     ...overrides,
@@ -60,6 +62,8 @@ test("returns the directory shape the table already expects", async () => {
       // displayEmail, not normalizedEmail: DMA-02 keeps the normalised form for
       // matching and the display form for what a human sees.
       email: "andrea.santos@umak.edu.ph",
+      course: null,
+      program: null,
       joinedDate: new Date("2026-09-12T00:00:00.000Z"),
       events: [
         {
@@ -82,20 +86,21 @@ test("returns the directory shape the table already expects", async () => {
   ]);
 });
 
-test("returns no course, program or event short code", async () => {
-  // The UI's AttendeeItem carries all three, but no schema column holds any of
-  // them. They are omitted rather than sent empty, because a blank cell that
-  // looks like real data is worse than a missing field.
+test("returns no event short code", async () => {
+  // #109 resolved this the other way from course/program: the event already has
+  // a unique id, so the badge is dropped from the UI rather than given a column.
   const { attendees } = await listAttendees();
 
   expect(Object.keys(attendees[0]).sort()).toEqual([
     "attendanceRate",
     "attendedEventsCount",
+    "course",
     "email",
     "events",
     "id",
     "joinedDate",
     "name",
+    "program",
     "studentId",
     "totalEventsJoined",
   ]);
@@ -105,6 +110,28 @@ test("returns no course, program or event short code", async () => {
     "name",
     "startsAt",
   ]);
+});
+
+test("carries course and program for the course-reach KPI", async () => {
+  findMany.mockResolvedValue([attendee({ course: "BSIT", program: "BS Information Technology" })]);
+
+  const { attendees } = await listAttendees();
+
+  expect(attendees[0]).toMatchObject({
+    course: "BSIT",
+    program: "BS Information Technology",
+  });
+});
+
+test("reports a null course rather than an empty string", async () => {
+  // An empty string is indistinguishable from a student who genuinely has no
+  // course, and would create an empty bucket in the KPI.
+  findMany.mockResolvedValue([attendee({ course: null, program: null })]);
+
+  const { attendees } = await listAttendees();
+
+  expect(attendees[0].course).toBeNull();
+  expect(attendees[0].program).toBeNull();
 });
 
 test("reports a zero rate for an attendee on no roster", async () => {

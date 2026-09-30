@@ -18,6 +18,10 @@ describe("parseCsv", () => {
         row: 2,
         name: "Juan Dela Cruz",
         studentId: "2023-1",
+        // The CSV carried no course or program column, so both are null rather
+        // than an empty string, which would create an empty KPI bucket.
+        course: null,
+        program: null,
         normalizedEmail: "juan@example.com",
         displayEmail: "juan@example.com",
       },
@@ -25,6 +29,8 @@ describe("parseCsv", () => {
         row: 3,
         name: "Maria Santos",
         studentId: "2023-2",
+        course: null,
+        program: null,
         normalizedEmail: "maria@example.com",
         displayEmail: "maria@example.com",
       },
@@ -204,6 +210,79 @@ describe("parsePastedRecipients", () => {
       studentId: "2023-8",
       normalizedEmail: "ben@example.com",
     });
+  });
+
+  test("reads course and program from named columns", () => {
+    const result = parseCsv(
+      [
+        "Name,Email,Student ID,Course,Program",
+        "Ana Reyes,ana@example.com,2023-1,BSIT,BS Information Technology",
+      ].join("\n"),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.records[0]).toMatchObject({
+      course: "BSIT",
+      program: "BS Information Technology",
+    });
+  });
+
+  test("maps a degree column onto program", () => {
+    // Registrar exports spell it either way; dropping it would lose the value.
+    const result = parseCsv(
+      ["Name,Email,Student ID,Course,Degree", "Ana,ana@example.com,2023-1,BSIT,BS Information Technology"].join(
+        "\n",
+      ),
+    );
+
+    expect(result.records[0]).toMatchObject({ course: "BSIT", program: "BS Information Technology" });
+  });
+
+  test("reads course and program positionally when there is no header", () => {
+    const result = parseCsv("Ana Reyes,ana@example.com,2023-1,BSCS,BS Computer Science");
+
+    expect(result.records[0]).toMatchObject({ course: "BSCS", program: "BS Computer Science" });
+  });
+
+  test("keeps an unrecognised course exactly as written", () => {
+    // The previous client-side parser silently coerced anything it did not
+    // recognise to BSIT, which invented a course nobody wrote and merged every
+    // other bucket into it.
+    const result = parseCsv(
+      ["Name,Email,Student ID,Course", "Ana,ana@example.com,2023-1,Bachelor of Science in Tourism"].join("\n"),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.records[0]).toMatchObject({ course: "Bachelor of Science in Tourism" });
+  });
+
+  test("preserves the author's own casing of a course", () => {
+    const result = parseCsv(
+      ["Name,Email,Student ID,Course", "Ana,ana@example.com,2023-1,bs information technology"].join("\n"),
+    );
+
+    // The KPI groups on the stored string, so lowercasing here would silently
+    // merge buckets an organizer meant to keep apart.
+    expect(result.records[0]).toMatchObject({ course: "bs information technology" });
+  });
+
+  test("rejects a course that is too long rather than truncating it", () => {
+    const result = parseCsv(
+      ["Name,Email,Student ID,Course", `Ana,ana@example.com,2023-1,${"C".repeat(101)}`].join("\n"),
+    );
+
+    // Truncating would store a different string from the one the registrar
+    // exported, and the KPI would group on it.
+    expect(result.records).toEqual([]);
+    expect(result.errors[0]).toMatchObject({ field: "course" });
+  });
+
+  test("treats an empty course cell as absent", () => {
+    const result = parseCsv(
+      ["Name,Email,Student ID,Course,Program", "Ana,ana@example.com,2023-1,,BSIT"].join("\n"),
+    );
+
+    expect(result.records[0]).toMatchObject({ course: null, program: "BSIT" });
   });
 
   test("reports each malformed entry and keeps the rest", () => {
