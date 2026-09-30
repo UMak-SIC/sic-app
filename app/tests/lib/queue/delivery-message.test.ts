@@ -35,10 +35,19 @@ function delivery(overrides: Record<string, unknown> = {}) {
     campaign: {
       subject: "Your pass",
       markdown: "Hi {{student_name}}",
-      event: { name: "UMak SIC Summit", startsAt: new Date("2026-10-01T09:00:00.000Z") },
+      event: {
+        name: "UMak SIC Summit",
+        startsAt: new Date("2026-10-01T09:00:00.000Z"),
+        venue: "Audio Visual Room",
+      },
     },
     rosterEntry: {
-      attendee: { name: "Ada Lovelace", studentId: "S-001", displayEmail: "Ada@Example.com" },
+      attendee: {
+        name: "Ada Lovelace",
+        studentId: "S-001",
+        displayEmail: "Ada@Example.com",
+        section: "BSIT-2A",
+      },
     },
     ...overrides,
   };
@@ -68,39 +77,121 @@ test("tolerates whitespace inside the braces and matches case-insensitively", ()
 });
 
 test("strips an unknown token rather than mailing the braces to an attendee", () => {
-  // Event has no venue column, so a body interpolating {{venue}} has no value.
-  // Leaving the placeholder in would put "{{venue}}" in front of a recipient.
-  const result = applyTemplate("Join us at {{venue}}!", { student_name: "Ada" });
+  // Nothing in the schema supplies a room number, so a body interpolating one has
+  // no value. Leaving the placeholder in would put "{{room}}" in front of a
+  // recipient.
+  const result = applyTemplate("Join us at {{room}}!", { student_name: "Ada" });
+
+  expect(result.text).toBe("Join us at !");
+  expect(result.unknownTokens).toEqual(["room"]);
+});
+
+test("treats an empty value as no value", () => {
+  // A token whose column is null for this delivery is reported the same way an
+  // unsupported one is, so the operator learns the event is missing a venue
+  // instead of wondering why the email reads oddly.
+  const result = applyTemplate("Join us at {{venue}}!", { venue: "" });
 
   expect(result.text).toBe("Join us at !");
   expect(result.unknownTokens).toEqual(["venue"]);
 });
 
 test("reports each unknown token once, in first-seen order", () => {
-  const result = applyTemplate("{{venue}} {{student_name}} {{venue}} {{room}}", {
+  const result = applyTemplate("{{room}} {{student_name}} {{room}} {{block}}", {
     student_name: "Ada",
   });
 
-  expect(result.unknownTokens).toEqual(["venue", "room"]);
+  expect(result.unknownTokens).toEqual(["room", "block"]);
 });
 
 test("substitutes every value the schema can supply", () => {
   const values = buildTemplateValues({
-    attendee: { name: "Ada Lovelace", studentId: "S-001" },
-    event: { name: "UMak SIC Summit", startsAt: new Date("2026-10-01T09:00:00.000Z") },
+    attendee: { name: "Ada Lovelace", studentId: "S-001", section: "BSIT-2A" },
+    event: {
+      name: "UMak SIC Summit",
+      startsAt: new Date("2026-10-01T09:00:00.000Z"),
+      venue: "Audio Visual Room",
+    },
   });
 
   expect(Object.keys(values).sort()).toEqual([
     "event_name",
     "event_time",
+    "section",
     "student_id",
     "student_name",
+    "venue",
   ]);
   expect(values.student_name).toBe("Ada Lovelace");
   expect(values.event_name).toBe("UMak SIC Summit");
+  expect(values.section).toBe("BSIT-2A");
+  expect(values.venue).toBe("Audio Visual Room");
   // Formatted in the organization timezone rather than UTC.
   expect(values.event_time).not.toBe("Invalid Date");
   expect(values.event_time).toContain("2026");
+});
+
+test("omits a section or venue that was never recorded", () => {
+  const values = buildTemplateValues({
+    attendee: { name: "Ada Lovelace", studentId: "S-001", section: null },
+    event: { name: "UMak SIC Summit", startsAt: new Date("2026-10-01T09:00:00.000Z"), venue: null },
+  });
+
+  // Absent rather than empty, so applyTemplate reports it instead of leaving a
+  // dangling "in the " in the sentence.
+  expect(values).not.toHaveProperty("section");
+  expect(values).not.toHaveProperty("venue");
+});
+
+test("resolves a section and venue into the sent body", async () => {
+  findUnique.mockResolvedValue(
+    delivery({
+      campaign: {
+        subject: "Your pass",
+        markdown: "Hi {{student_name}} of {{section}}, join us at {{venue}}.",
+        event: {
+          name: "UMak SIC Summit",
+          startsAt: new Date("2026-10-01T09:00:00.000Z"),
+          venue: "Audio Visual Room",
+        },
+      },
+    })
+  );
+
+  await createDeliveryMessageResolver()(job);
+
+  expect(compileMarkdown).toHaveBeenCalledWith(
+    "Hi Ada Lovelace of BSIT-2A, join us at Audio Visual Room.",
+  );
+});
+
+test("warns when a placeholder could not be resolved", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  findUnique.mockResolvedValue(
+    delivery({
+      campaign: {
+        subject: "Your pass",
+        markdown: "Join us at {{venue}}.",
+        event: { name: "UMak SIC Summit", startsAt: new Date("2026-10-01T09:00:00.000Z"), venue: null },
+      },
+    })
+  );
+
+  await createDeliveryMessageResolver()(job);
+
+  // The sent email shows "Join us at ." with no explanation, so the warning is
+  // the only signal that the event has no venue.
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining("venue"));
+  warn.mockRestore();
+});
+
+test("stays quiet when every placeholder resolved", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+  await createDeliveryMessageResolver()(job);
+
+  expect(warn).not.toHaveBeenCalled();
+  warn.mockRestore();
 });
 
 test("resolves a delivery into an addressed, compiled message", async () => {

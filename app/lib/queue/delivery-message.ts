@@ -33,14 +33,21 @@ export type TemplateResult = {
 /**
  * Substitutes `{{ token }}` placeholders.
  *
- * An unknown token is removed rather than left in place. Leaving it would put a
- * literal `{{venue}}` in front of an attendee, which is the kind of thing that
- * only surfaces after a real send. The names are returned so a caller can surface
- * them, and the composer can validate against the supported set before saving.
+ * A token with no value is removed rather than left in place. Leaving it would
+ * put a literal `{{venue}}` in front of an attendee, which is the kind of thing
+ * that only surfaces after a real send. The names are returned so a caller can
+ * surface them, and the composer can validate against the supported set before
+ * saving.
  *
- * The supported set is deliberately small: it is exactly the fields the schema
- * can supply. `venue` is not among them, because `Event` has no venue column, so
- * a campaign body that interpolates one gets it stripped rather than invented.
+ * "No value" covers two cases that are deliberately treated alike: a token the
+ * schema has no column for, and a token whose column is null for this delivery —
+ * an event with no `venue`, an attendee with no `section`. Substituting an empty
+ * string for the second case would leave a dangling "in the " in the sentence,
+ * and reporting it lets the operator see that the event is missing a venue
+ * rather than wondering why the email reads oddly.
+ *
+ * The supported set is exactly the fields the schema can supply. It grew to
+ * include `venue` and `section` once those columns existed (#110, #109).
  */
 export function applyTemplate(
   markdown: string,
@@ -55,7 +62,7 @@ export function applyTemplate(
     // author clearly meant. Unknown tokens are reported as the author wrote them.
     const value = values[token.toLowerCase()];
 
-    if (value === undefined) {
+    if (value === undefined || value === "") {
       if (!unknownTokens.includes(token)) {
         unknownTokens.push(token);
       }
@@ -75,19 +82,24 @@ export function applyTemplate(
  * `attendee.displayEmail` is the address used deliberately: DMA-02 keeps
  * `normalizedEmail` for uniqueness and matching, and `displayEmail` for what a
  * human sees and what gets sent.
+ *
+ * `section` and `venue` are omitted entirely when null, so `applyTemplate`
+ * reports them as having no value rather than substituting an empty string.
  */
 export function buildTemplateValues({
   attendee,
   event,
 }: {
-  attendee: { name: string; studentId: string };
-  event: { name: string; startsAt: Date };
+  attendee: { name: string; studentId: string; section: string | null };
+  event: { name: string; startsAt: Date; venue: string | null };
 }): TemplateValues {
   return {
     student_name: attendee.name,
     student_id: attendee.studentId,
+    ...(attendee.section ? { section: attendee.section } : {}),
     event_name: event.name,
     event_time: formatOrganizationDate(event.startsAt),
+    ...(event.venue ? { venue: event.venue } : {}),
   };
 }
 
@@ -109,13 +121,18 @@ export function createDeliveryMessageResolver(): ResolveMessage {
           select: {
             subject: true,
             markdown: true,
-            event: { select: { name: true, startsAt: true } },
+            event: { select: { name: true, startsAt: true, venue: true } },
           },
         },
         rosterEntry: {
           select: {
             attendee: {
-              select: { name: true, studentId: true, displayEmail: true },
+              select: {
+                name: true,
+                studentId: true,
+                displayEmail: true,
+                section: true,
+              },
             },
           },
         },
@@ -138,10 +155,20 @@ export function createDeliveryMessageResolver(): ResolveMessage {
       throw new Error(`Delivery ${delivery.id} has no recipient address.`);
     }
 
-    const { text } = applyTemplate(
+    const { text, unknownTokens } = applyTemplate(
       campaign.markdown,
       buildTemplateValues({ attendee, event: campaign.event })
     );
+
+    // Worth logging rather than swallowing: a token with no value means either the
+    // author used something the schema cannot supply, or the event or attendee is
+    // missing an attribute the body assumes. Both are invisible in the sent email
+    // otherwise, and the operator has no other way to learn the body is wrong.
+    if (unknownTokens.length > 0) {
+      console.warn(
+        `Delivery ${delivery.id} to ${attendee.displayEmail} dropped unresolved placeholder(s): ${unknownTokens.join(", ")}`,
+      );
+    }
 
     return {
       to: attendee.displayEmail,
