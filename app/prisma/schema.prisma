@@ -88,6 +88,10 @@ model Event {
   id           String      @id @default(uuid()) @db.Uuid
   name         String
   details      String      @db.Text
+  /// Where the event happens. Free text, so it can hold a building, a room, or
+  /// both. Nullable because a draft may not know yet, and an event held online
+  /// has no room. Substituted for {{venue}} in campaign email (see #110).
+  venue        String?     @map("venue")
   imageAssetId String?     @map("image_asset_id") @db.Uuid
   startsAt     DateTime    @map("starts_at") @db.Timestamptz(6)
   endsAt       DateTime    @map("ends_at") @db.Timestamptz(6)
