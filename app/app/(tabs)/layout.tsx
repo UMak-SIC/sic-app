@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/auth/require-admin";
@@ -23,6 +24,21 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Stop prerendering here, before the auth call below.
+  //
+  // requireAdmin() reads the session through the Neon Auth SDK, which does not
+  // go through next/headers directly, so Next's static analysis sees no
+  // request-time API and tries to prerender these pages at build time. On a
+  // build host without NEON_AUTH_BASE_URL that threw "NEON_AUTH_BASE_URL is
+  // required to initialize Neon Auth" and failed the build on /attendees.
+  // Locally the same call returned a 401 and redirected, which Next tolerates,
+  // so the failure only ever appeared on the deploy host.
+  //
+  // connection() is the documented way to say "this output depends on the
+  // request" when no request-time API is visible. These pages are authorized per
+  // request, so they must never be baked.
+  await connection();
+
   const auth = await requireAdmin();
 
   if (auth instanceof Response) {
