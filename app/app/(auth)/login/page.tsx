@@ -26,11 +26,15 @@ export default function LoginPage() {
   // The form used to call preventDefault and nothing else, so signing in was
   // impossible even though the route behind it works.
   //
-  // This goes through the SDK's browser client rather than a hand-rolled fetch
-  // to /api/auth/sign-in/email. A raw fetch gets rejected with INVALID_ORIGIN,
-  // because better-auth validates the request Origin against trustedOrigins and
-  // the app's own origin is not on that list. The client is the supported path
-  // and takes no arguments; it talks to the same-origin catch-all.
+  // This goes through the SDK's browser client, which is the documented path:
+  // it takes no arguments and talks to the same-origin catch-all, and while Auth
+  // is managed by Neon the client is not interchangeable with a hand-rolled
+  // fetch. An earlier version of this comment claimed a raw fetch is rejected
+  // with INVALID_ORIGIN. That was never established. The 403 seen at the time
+  // came from serving on 127.0.0.1, which is not on the trusted-origins
+  // allowlist, not from using fetch. Localhost is pre-approved and a plain fetch
+  // to the same endpoint succeeds from it. The client is used because it is
+  // documented, not because the alternative is proven broken.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);

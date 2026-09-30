@@ -41,7 +41,9 @@ test("reports a failed sign-in in plain language and stays signed out", async ({
 
   // The charter bans surfacing API error strings and backend terminology, so
   // whatever the failure was, it has to read as an operator instruction. The
-  // endpoint really does answer {"message":"Invalid origin","code":"INVALID_ORIGIN"}.
+  // endpoint does answer raw codes — depending on the host it can be
+  // {"message":"Invalid origin","code":"INVALID_ORIGIN"} or
+  // {"code":"INVALID_EMAIL_OR_PASSWORD"} — and none of that should reach a user.
   await expect(error).not.toContainText(
     /invalid|unauthorized|forbidden|api|origin|401|403|error code/i
   );
