@@ -34,7 +34,7 @@ jobs:
       - run: pnpm test
       - name: Reject browser-exposed service credentials
         run: |
-          if rg -n --glob '!app/api/**' --glob '*.{ts,tsx}' 'NEXT_PUBLIC_(AWS|NEON_AUTH|MAILGUN|BREVO|RETENTION_CRON_SECRET)|process\.env\.(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|NEON_AUTH_COOKIE_SECRET|MAILGUN|BREVO|RETENTION_CRON_SECRET)' app; then
+          if rg -n --glob '!app/api/**' --glob '*.{ts,tsx}' 'NEXT_PUBLIC_(AWS|NEON_AUTH|MAILGUN|BREVO|RETENTION_CRON_SECRET|QR_TICKET_SECRET)|process\.env\.(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|NEON_AUTH_COOKIE_SECRET|MAILGUN|BREVO|RETENTION_CRON_SECRET|QR_TICKET_SECRET)' app; then
             exit 1
           fi
       - run: pnpm lint
