@@ -26,7 +26,7 @@ export default function OverviewPage() {
         className="mt-1 sm:mt-3"
         title={
           <>
-            Good Day, <span className="font-bold">Joey!</span>
+            Welcome back, <span className="font-bold">Joey!</span>
           </>
         }
         description="Here is what needs attention today."
