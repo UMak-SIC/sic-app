@@ -17,6 +17,7 @@ function parseEventInput(body: unknown) {
     typeof input.details !== "string" ||
     typeof input.startsAt !== "string" ||
     typeof input.endsAt !== "string" ||
+    (input.venue !== undefined && input.venue !== null && typeof input.venue !== "string") ||
     (input.imageAssetId !== undefined && input.imageAssetId !== null && typeof input.imageAssetId !== "string")
   ) {
     throw new EventLifecycleError("Please complete the event details.");
@@ -25,6 +26,8 @@ function parseEventInput(body: unknown) {
   return {
     name: input.name,
     details: input.details,
+    // Optional and free text, so absent is null rather than an empty string.
+    venue: input.venue ?? null,
     startsAt: new Date(input.startsAt),
     endsAt: new Date(input.endsAt),
     imageAssetId: input.imageAssetId ?? null,

@@ -23,9 +23,9 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSIT",
     program: "BS Information Technology",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
-      { id: "evt_2", title: "Cloud Computing 101", shortCode: "C101", date: "23 Oct", attended: true },
-      { id: "evt_3", title: "UX Sprint Workshop", shortCode: "UX", date: "05 Nov", attended: true },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
+      { id: "evt_2", title: "Cloud Computing 101", date: "23 Oct", attended: true },
+      { id: "evt_3", title: "UX Sprint Workshop", date: "05 Nov", attended: true },
     ],
     totalEventsJoined: 3,
     attendedEventsCount: 3,
@@ -40,8 +40,8 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSCS",
     program: "BS Computer Science",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
-      { id: "evt_4", title: "Annual Tech Summit", shortCode: "TS", date: "18 Nov", attended: false },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
+      { id: "evt_4", title: "Annual Tech Summit", date: "18 Nov", attended: false },
     ],
     totalEventsJoined: 2,
     attendedEventsCount: 1,
@@ -56,7 +56,7 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSINS",
     program: "BS Information Systems",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
     ],
     totalEventsJoined: 1,
     attendedEventsCount: 1,
@@ -71,10 +71,10 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSIT",
     program: "BS Information Technology",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
-      { id: "evt_2", title: "Cloud Computing 101", shortCode: "C101", date: "23 Oct", attended: true },
-      { id: "evt_3", title: "UX Sprint Workshop", shortCode: "UX", date: "05 Nov", attended: false },
-      { id: "evt_4", title: "Annual Tech Summit", shortCode: "TS", date: "18 Nov", attended: true },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
+      { id: "evt_2", title: "Cloud Computing 101", date: "23 Oct", attended: true },
+      { id: "evt_3", title: "UX Sprint Workshop", date: "05 Nov", attended: false },
+      { id: "evt_4", title: "Annual Tech Summit", date: "18 Nov", attended: true },
     ],
     totalEventsJoined: 4,
     attendedEventsCount: 3,
@@ -89,8 +89,8 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSINS",
     program: "BS Information Systems",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
-      { id: "evt_3", title: "UX Sprint Workshop", shortCode: "UX", date: "05 Nov", attended: true },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
+      { id: "evt_3", title: "UX Sprint Workshop", date: "05 Nov", attended: true },
     ],
     totalEventsJoined: 2,
     attendedEventsCount: 2,
@@ -105,7 +105,7 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSCS",
     program: "BS Computer Science",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: false },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: false },
     ],
     totalEventsJoined: 1,
     attendedEventsCount: 0,
@@ -120,9 +120,9 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSIT",
     program: "BS Information Technology",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
-      { id: "evt_2", title: "Cloud Computing 101", shortCode: "C101", date: "23 Oct", attended: true },
-      { id: "evt_4", title: "Annual Tech Summit", shortCode: "TS", date: "18 Nov", attended: true },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
+      { id: "evt_2", title: "Cloud Computing 101", date: "23 Oct", attended: true },
+      { id: "evt_4", title: "Annual Tech Summit", date: "18 Nov", attended: true },
     ],
     totalEventsJoined: 3,
     attendedEventsCount: 3,
@@ -150,8 +150,8 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSIT",
     program: "BS Information Technology",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
-      { id: "evt_2", title: "Cloud Computing 101", shortCode: "C101", date: "23 Oct", attended: true },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
+      { id: "evt_2", title: "Cloud Computing 101", date: "23 Oct", attended: true },
     ],
     totalEventsJoined: 2,
     attendedEventsCount: 2,
@@ -166,7 +166,7 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSINS",
     program: "BS Information Systems",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: false },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: false },
     ],
     totalEventsJoined: 1,
     attendedEventsCount: 0,
@@ -181,9 +181,9 @@ const INITIAL_DIRECTORY_DATA: AttendeeItem[] = [
     course: "BSCS",
     program: "BS Computer Science",
     assignedEvents: [
-      { id: "evt_1", title: "General Assembly 2026", shortCode: "GA", date: "17 Oct", attended: true },
-      { id: "evt_3", title: "UX Sprint Workshop", shortCode: "UX", date: "05 Nov", attended: true },
-      { id: "evt_4", title: "Annual Tech Summit", shortCode: "TS", date: "18 Nov", attended: true },
+      { id: "evt_1", title: "General Assembly 2026", date: "17 Oct", attended: true },
+      { id: "evt_3", title: "UX Sprint Workshop", date: "05 Nov", attended: true },
+      { id: "evt_4", title: "Annual Tech Summit", date: "18 Nov", attended: true },
     ],
     totalEventsJoined: 3,
     attendedEventsCount: 3,
@@ -303,18 +303,18 @@ export default function AttendeesPage() {
 
   // Batch / Single Add to Event
   const handleConfirmAddToEvent = (eventId: string) => {
-    const eventTitles: Record<string, { title: string; shortCode: string; date: string }> = {
-      evt_1: { title: "General Assembly 2026", shortCode: "GA", date: "17 Oct" },
-      evt_2: { title: "Cloud Computing 101", shortCode: "C101", date: "23 Oct" },
-      evt_3: { title: "UX Sprint Workshop", shortCode: "UX", date: "05 Nov" },
-      evt_4: { title: "Annual Tech Summit", shortCode: "TS", date: "18 Nov" },
+    const eventTitles: Record<string, { title: string; date: string }> = {
+      evt_1: { title: "General Assembly 2026", date: "17 Oct" },
+      evt_2: { title: "Cloud Computing 101", date: "23 Oct" },
+      evt_3: { title: "UX Sprint Workshop", date: "05 Nov" },
+      evt_4: { title: "Annual Tech Summit", date: "18 Nov" },
     };
 
     const targetIds = targetStudentForEvent
       ? [targetStudentForEvent.id]
       : selectedIds;
 
-    const eventInfo = eventTitles[eventId] || { title: "Special Event", shortCode: "EVT", date: "TBD" };
+    const eventInfo = eventTitles[eventId] || { title: "Special Event", date: "TBD" };
 
     setStudents((prev) =>
       prev.map((s) => {
@@ -326,7 +326,6 @@ export default function AttendeesPage() {
           {
             id: eventId,
             title: eventInfo.title,
-            shortCode: eventInfo.shortCode,
             date: eventInfo.date,
             attended: false,
           },

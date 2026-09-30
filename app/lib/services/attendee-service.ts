@@ -77,6 +77,18 @@ export async function applyAttendeeImport(
           data.displayEmail = change.proposed;
           data.normalizedEmail = normalizeEmail(change.proposed);
         }
+
+        if (change.field === "course") {
+          data.course = change.proposed;
+        }
+
+        if (change.field === "program") {
+          data.program = change.proposed;
+        }
+
+        if (change.field === "section") {
+          data.section = change.proposed;
+        }
       }
 
       // Updating by the existing UUID is what preserves roster-entry references.
@@ -105,6 +117,9 @@ export async function applyAttendeeImport(
           studentId: record.studentId,
           normalizedEmail: record.normalizedEmail,
           displayEmail: record.displayEmail,
+          course: record.course,
+          program: record.program,
+          section: record.section,
         },
         select: { id: true },
       });

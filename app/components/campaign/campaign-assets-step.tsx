@@ -39,6 +39,8 @@ interface CampaignAssetsStepProps {
   attachments: CampaignAssetItem[];
   testEmailAddress: string;
   studentCount?: number;
+  /** The event's own venue, substituted for {{venue}}. Null drops the token. */
+  eventVenue?: string | null;
   onBannerImageChange: (image: CampaignAssetItem | null) => void;
   onAttachmentsChange: (attachments: CampaignAssetItem[]) => void;
   onTestEmailAddressChange: (email: string) => void;
@@ -71,6 +73,7 @@ export function CampaignAssetsStep({
   attachments = [DEFAULT_DOC],
   testEmailAddress = "admin@umak.edu.ph",
   studentCount = 114,
+  eventVenue = null,
   onBannerImageChange,
   onAttachmentsChange,
   onTestEmailAddressChange,
@@ -207,11 +210,14 @@ export function CampaignAssetsStep({
       .replace(/{{section}}/g, activeStudent.section)
       .replace(/{{event_name}}/g, "UMak SIC General Assembly")
       .replace(/{{event_time}}/g, "Saturday, 17 Oct 2026 at 2:00 PM")
-      .replace(/{{venue}}/g, "Audio Visual Room")
+      // Previously a hardcoded room. It now reads the event's own venue, and is
+      // dropped when the event has none — the same substitution the delivery
+      // resolver performs, so the preview cannot promise a venue a send omits.
+      .replace(/{{venue}}/g, eventVenue ?? "")
       // Still a placeholder: the QR pass is not built, so it renders as nothing
       // rather than pretending to be a ticket.
       .replace(/{{qr_ticket_pass}}/g, "");
-  }, [messageContent, activeStudent]);
+  }, [messageContent, activeStudent, eventVenue]);
 
   return (
     <div className="flex flex-col gap-6 w-full font-sans">
