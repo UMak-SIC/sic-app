@@ -28,7 +28,13 @@ test("reports a failed sign-in in plain language and stays signed out", async ({
     }
   });
 
-  await page.goto("/login");
+  // `waitUntil: "commit"` rather than the default "load": the subject here is the
+  // message a wrong password produces, not whether every asset on the sign-in page
+  // finished downloading. Waiting on "load" couples this to the page's logo going
+  // through the image optimizer, which on a cold CI container is slow enough to blow
+  // the 30s budget and fail a test whose subject passed. The assertions below retry
+  // on their own, so nothing is checked before the DOM is ready.
+  await page.goto("/login", { waitUntil: "commit" });
 
   await page.getByLabel(/email/i).fill("nobody@example.com");
   await page.getByLabel("Password", { exact: true }).fill("definitely-not-the-password");
@@ -62,7 +68,7 @@ test("reports an unreachable sign-in service instead of failing silently", async
 }) => {
   await page.route("**/api/auth/**", (route) => route.abort("failed"));
 
-  await page.goto("/login");
+  await page.goto("/login", { waitUntil: "commit" });
 
   await page.getByLabel(/email/i).fill("nobody@example.com");
   await page.getByLabel("Password", { exact: true }).fill("definitely-not-the-password");
