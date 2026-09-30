@@ -71,12 +71,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      cn:
-        specifier: ^0.4.0
-        version: 0.4.0
-      lucide-react:
-        specifier: ^1.48.0
-        version: 1.48.0(react@19.2.8)
       marked:
         specifier: ^18.0.14
         version: 18.0.14
@@ -2970,11 +2964,6 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  cn@0.4.0:
-    resolution: {integrity: sha512-qOAeUhPwPzBxx6jaeQdo646XIKliKHc2j1ZF7Ngb1o0pJZKH5gq8FkA0aVdUdPFUDXNXyUCXpCtoJISo6dhizg==}
-    engines: {node: '>=20'}
-    hasBin: true
-
   code-block-writer@13.0.3:
     resolution: {integrity: sha512-Oofo0pq3IKnsFtuHqSF7TqBfr71aeyZDVJ0HpmqB7FBM2qEigL0iPONSCZSO9pE9dZTAxANe5XHG9Uy0YMv8cg==}
 
@@ -4419,11 +4408,6 @@ packages:
 
   lucide-react@0.555.0:
     resolution: {integrity: sha512-D8FvHUGbxWBRQM90NZeIyhAvkFfsh3u9ekrMvJ30Z6gnpBHS6HC6ldLg7tL45hwiIz/u66eKDtdA23gwwGsAHA==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-
-  lucide-react@1.48.0:
-    resolution: {integrity: sha512-R0CIKY/fXiC6y9xRBADgsK+VW2p/pcTJOMhLZf1T+uG+vJUvyUR02nGOgmIIC7MPkiNK4Ox8QDnbqF8rJYWPZQ==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -8737,8 +8721,6 @@ snapshots:
 
   cn@0.2.6: {}
 
-  cn@0.4.0: {}
-
   code-block-writer@13.0.3: {}
 
   color-convert@2.0.1:
@@ -10241,10 +10223,6 @@ snapshots:
   lru.min@1.1.5: {}
 
   lucide-react@0.555.0(react@19.2.8):
-    dependencies:
-      react: 19.2.8
-
-  lucide-react@1.48.0(react@19.2.8):
     dependencies:
       react: 19.2.8
 
