@@ -4,6 +4,7 @@ import { getPrismaClient } from "@/lib/prisma";
 
 type CreateAssetInput = {
   objectKey: string;
+  storageBucket: "PRIVATE_IMAGES" | "PUBLIC_IMAGES";
   originalFilename: string;
   mediaType: string;
   byteSize: number;
@@ -12,6 +13,7 @@ type CreateAssetInput = {
 
 export async function createAsset({
   objectKey,
+  storageBucket,
   originalFilename,
   mediaType,
   byteSize,
@@ -20,6 +22,7 @@ export async function createAsset({
   return getPrismaClient().asset.create({
     data: {
       objectKey,
+      storageBucket,
       originalFilename,
       mediaType,
       byteSize: BigInt(byteSize),

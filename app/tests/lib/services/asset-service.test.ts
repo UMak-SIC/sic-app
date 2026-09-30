@@ -18,6 +18,7 @@ test("persists validated asset metadata and returns its UUID", async () => {
   await expect(
     createAsset({
       objectKey: "assets/asset.webp",
+      storageBucket: "PUBLIC_IMAGES",
       originalFilename: "banner.png",
       mediaType: "image/webp",
       byteSize: 3,
@@ -28,6 +29,7 @@ test("persists validated asset metadata and returns its UUID", async () => {
   expect(create).toHaveBeenCalledWith({
     data: {
       objectKey: "assets/asset.webp",
+      storageBucket: "PUBLIC_IMAGES",
       originalFilename: "banner.png",
       mediaType: "image/webp",
       byteSize: BigInt(3),

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides bidirectional traceability between product requirements in the PRD, architectural specifications in the Data Model Addendum, and atomic implementation tasks executed across the SIC web application and delivery microservice.
+This document provides bidirectional traceability between product requirements in the PRD, architectural specifications in the Data Model Addendum, and atomic implementation tasks executed in the SIC Next.js application and queue components.
 
 ### Status Legend
 - `[ ] Planned` — Not yet started
@@ -22,7 +22,7 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0101** | Initialize Prisma ORM, Neon database connection pooling, and package scripts | `app/prisma`, `app/package.json` | Implementation Decisions | `npx prisma -v` runs cleanly; connection string successfully resolves Neon pooler. | `[ ] Planned` |
 | **TSK-0102** | Define complete Prisma schema matching Data Model Addendum (`admins`, `attendees`, `events`, `event_roster_entries`, `campaigns`, `email_deliveries`, `queue_jobs`, `delivery_attempts`, `provider_daily_usage`, `assets`) | `app/prisma/schema.prisma` | DMA-01, DMA-02, DMA-03, DMA-04, DMA-08, DMA-09, DMA-10, DMA-11 | `npx prisma validate` passes; schema models all required foreign keys, enums, and unique constraints. | `[ ] Planned` |
 | **TSK-0103** | Generate and apply initial database migrations against Neon | `app/prisma/migrations` | Implementation Decisions | `prisma migrate deploy` executes up/down migrations without error. | `[ ] Planned` |
-| **TSK-0104** | Configure test runner (Vitest) with database seed/clean utilities and transactional test environment | `app/tests/setup.ts`, `app/vitest.config.ts` | Testing Decisions | Test command `npm run test` executes and reports passing test runner sanity check. | `[ ] Planned` |
+| **TSK-0104** | Configure test runner (Vitest) with database seed/clean utilities and transactional test environment | `app/tests/setup.ts`, `app/vitest.config.mts` | Testing Decisions | Test command `pnpm test` executes and reports passing test runner sanity check. | `[ ] Planned` |
 
 ---
 
@@ -31,8 +31,8 @@ This document provides bidirectional traceability between product requirements i
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0201** | Enable Neon Managed Better Auth and configure `@neondatabase/auth` with environment values, catch-all auth handler, and email/password sign-in flow | `app/app/(auth)`, `app/app/api/auth/[...path]/route.ts`, `app/lib/auth/server.ts`, `app/middleware.ts` | US-01, DMA-01 | Unauthenticated visitors attempting to access admin routes are redirected to the Neon Auth sign-in route; a valid email/password session is established. | `[ ] Planned` |
-| **TSK-0202** | Implement admin authorization guard validating the Neon Auth session user against Neon `admins` (`neon_auth_user_id`) | `app/lib/auth.ts`, `app/middleware.ts` | US-01, US-02, DMA-01 | Authorized admin session resolves successfully; an authenticated non-admin receives 403 response. | `[ ] Planned` |
+| **TSK-0201** | Enable Neon Managed Better Auth and configure `@neondatabase/auth` with environment values, catch-all auth handler, and email/password sign-in flow | `app/app/(auth)`, `app/app/api/auth/[...path]/route.ts`, `app/lib/auth/server.ts`, `app/proxy.ts` | US-01, DMA-01 | Unauthenticated visitors attempting to access admin routes are redirected to the Neon Auth sign-in route; a valid email/password session is established. | `[ ] Planned` |
+| **TSK-0202** | Implement admin authorization guard validating the Neon Auth session user against Neon `admins` (`neon_auth_user_id`) | `app/lib/auth/require-admin.ts`, `app/proxy.ts` | US-01, US-02, DMA-01 | Authorized admin session resolves successfully; an authenticated non-admin receives 403 response. | `[ ] Planned` |
 | **TSK-0203** | Build unauthorized access denial page with clear operator messaging | `app/app/unauthorized/page.tsx` | US-02 | Non-allowlisted user sees access-denied screen with no admin navigation or confidential data rendered. | `[ ] Planned` |
 
 ---
@@ -44,7 +44,7 @@ This document provides bidirectional traceability between product requirements i
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-0301** | Implement AWS S3 SDK client configured for Neon Object Storage | `app/lib/storage/neon-storage-client.ts` | US-14, NFR-03 | S3 client instantiates with Neon-injected credentials without exposing secrets to client. | `[ ] Planned` |
 | **TSK-0302** | Build administrator-only public/private asset upload API routes with PNG/JPEG/WebP to WebP conversion, PDF validation, and size limits | `app/app/api/assets/` | US-14, DMA-11 | Unauthorized uploads return 401/403; invalid media returns 400; valid images upload as WebP and PDFs upload to the selected Neon Object Storage bucket. | `[x] Completed` |
-| **TSK-0303** | Persist uploaded asset metadata (key, original filename, media type, byte size, uploader reference) in `assets` | `app/lib/services/asset-service.ts` | DMA-11 | Database record in `assets` matches uploaded file properties and returns stable asset UUID reference. | `[x] Completed` |
+| **TSK-0303** | Persist uploaded asset metadata (bucket, key, original filename, media type, byte size, uploader reference) in `assets` | `app/lib/services/asset-service.ts` | DMA-11 | Database record in `assets` matches uploaded file properties and returns stable asset UUID reference. | `[x] Completed` |
 
 ---
 
@@ -53,10 +53,10 @@ This document provides bidirectional traceability between product requirements i
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0401** | Implement Event domain service managing draft, published, and closed lifecycle transitions | `app/lib/services/event-service.ts` | US-03, US-04, US-05, DMA-03 | Event created as draft; publishing validates required fields; closed state prevents editing. | `[ ] Planned` |
+| **TSK-0401** | Implement Event domain service managing draft, published, and closed lifecycle transitions | `app/lib/services/event-service.ts` | US-03, US-04, US-05, DMA-03 | Event created as draft; publishing validates required fields; closed state prevents editing. | `[x] Completed` |
 | **TSK-0402** | Build admin event management UI (list, create/edit form, image upload, timezone-aware datetime picker) | `app/app/events/page.tsx`, `app/components/events/` | US-03, US-04, US-05 | Admin creates and edits event; UI displays organization timezone and links uploaded Neon Object Storage banner. | `[ ] Planned` |
-| **TSK-0403** | Implement `/api/cron/close-events` endpoint secured by dedicated high-entropy secret header | `app/app/api/cron/close-events/route.ts` | US-06, DMA-06 | Requests without `X-Cron-Secret` header return 401 Unauthorized; valid requests trigger closure logic. | `[ ] Planned` |
-| **TSK-0404** | Implement event closure transition updating expired events to `closed` and pending roster entries to `absent` | `app/lib/services/event-close-service.ts` | US-06, DMA-04, DMA-06 | Events past `ends_at` transition to `closed`; all `pending` roster entries atomically update to `absent`. | `[ ] Planned` |
+| **TSK-0403** | Implement `/api/cron/close-events` endpoint secured by dedicated high-entropy secret header | `app/app/api/cron/close-events/route.ts` | US-06, DMA-06 | Requests without `X-Cron-Secret` header return 401 Unauthorized; valid requests trigger closure logic. | `[x] Completed` |
+| **TSK-0404** | Implement event closure transition updating expired events to `closed` and pending roster entries to `absent` | `app/lib/services/event-close-service.ts` | US-06, DMA-04, DMA-06 | Events past `ends_at` transition to `closed`; all `pending` roster entries atomically update to `absent`. | `[x] Completed` |
 
 ---
 
@@ -86,23 +86,23 @@ This document provides bidirectional traceability between product requirements i
 
 ---
 
-### EPIC-07: Render Delivery Queue Microservice & Dual Provider Failover
-**Target Subsystem**: `Queue Worker Microservice` | **Scope**: First-party Render queue API and background worker, mutual authentication, transactional `provider_daily_usage` quota reservation, Mailgun HTTP API adapter, Brevo HTTP API adapter, retry mechanism, and delivery attempt logging.
+### EPIC-07: Delivery Queue & Dual Provider Failover
+**Target Subsystem**: `Next.js queue worker` | **Scope**: First-party Next.js queue API and background worker, shared-secret authentication, transactional `provider_daily_usage` quota reservation, Mailgun HTTP API adapter, Brevo HTTP API adapter, retry mechanism, and delivery attempt logging.
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0701** | Build standalone Render queue worker application with mutually authenticated shared-secret API endpoint | `queue-worker/src/server.ts`, `queue-worker/src/auth.ts` | US-18, NFR-01 | Requests without valid bearer token/secret return 401; authenticated requests enqueue jobs to `queue_jobs`. | `[ ] Planned` |
-| **TSK-0702** | Implement worker job claim engine with `SKIP LOCKED` row-level database locking | `queue-worker/src/worker.ts` | US-18, DMA-09 | Concurrent worker executions never claim the same `queue_jobs` record; idempotency key prevents duplicate sends. | `[ ] Planned` |
-| **TSK-0703** | Implement Mailgun HTTP API client adapter respecting daily quota (default 100/day) | `queue-worker/src/providers/mailgun.ts` | US-21, NFR-02 | Dispatches email via Mailgun HTTP endpoint; correctly handles 200 OK and error responses without using SMTP. | `[ ] Planned` |
-| **TSK-0704** | Implement Brevo HTTP API client adapter for overflow delivery (default 300/day) | `queue-worker/src/providers/brevo.ts` | US-22, NFR-02 | Dispatches email via Brevo transactional HTTP API when selected by failover engine without using SMTP. | `[ ] Planned` |
-| **TSK-0705** | Implement transactional `provider_daily_usage` quota reservation and automatic Mailgun $\to$ Brevo failover | `queue-worker/src/services/quota-manager.ts` | US-21, US-22, DMA-10, NFR-05 | Unit tests assert Mailgun is used for first 100 sends; switches to Brevo for next 300; limits are configurable. | `[ ] Planned` |
-| **TSK-0706** | Implement quota exhaustion hold leaving excess jobs queued until the next daily quota window | `queue-worker/src/services/exhaustion-handler.ts` | US-23, DMA-10 | When both quotas are depleted, remaining jobs stay `queued` without throwing unrecoverable error. | `[ ] Planned` |
-| **TSK-0707** | Implement immutable `delivery_attempts` logging and `email_deliveries` status transition updates | `queue-worker/src/services/delivery-logger.ts` | US-19, US-20, DMA-08, DMA-09 | Every HTTP attempt logs status code, timestamp, and provider payload; updates delivery to `sent` or `failed`. | `[ ] Planned` |
+| **TSK-0701** | Build Next.js queue worker API with shared-secret authentication | `app/app/api/internal/queue-jobs/route.ts`, `app/lib/auth/require-queue-worker.ts` | US-18, NFR-01 | `POST /api/internal/queue-jobs` requests without a valid `X-Queue-Worker-Secret` return 401 before parsing their body; authenticated requests enqueue jobs to `queue_jobs` idempotently. | `[x] Completed` |
+| **TSK-0702** | Implement Next.js worker job claim engine with `SKIP LOCKED` row-level database locking | `app/lib/queue/claim-jobs.ts` | US-18, DMA-09 | A transaction claims scheduled or expired-lease jobs with `SKIP LOCKED`; concurrent workers cannot claim the same job, and each claim gets a five-minute lease. | `[/] In Progress` |
+| **TSK-0703** | Implement Mailgun HTTP API client adapter respecting daily quota (default 100/day) | `app/lib/queue/providers/mailgun.ts` | US-21, NFR-02 | Dispatches email via Mailgun HTTP endpoint; correctly handles 200 OK and error responses without using SMTP. | `[ ] Planned` |
+| **TSK-0704** | Implement Brevo HTTP API client adapter for overflow delivery (default 300/day) | `app/lib/queue/providers/brevo.ts` | US-22, NFR-02 | Dispatches email via Brevo transactional HTTP API when selected by failover engine without using SMTP. | `[ ] Planned` |
+| **TSK-0705** | Implement transactional `provider_daily_usage` quota reservation and automatic Mailgun $\to$ Brevo failover | `app/lib/queue/quota-manager.ts` | US-21, US-22, DMA-10, NFR-05 | Unit tests assert Mailgun is used for first 100 sends; switches to Brevo for next 300; limits are configurable. | `[ ] Planned` |
+| **TSK-0706** | Move queue jobs to a dead-letter state after retries exceed the configured limit | `app/lib/queue/delivery-logger.ts` | US-23, DMA-10 | A failed job remains queued through its configured retries; when `retry_count > max_retries`, its queue job becomes `dead_letter` and its delivery becomes `failed`. | `[/] In Progress` |
+| **TSK-0707** | Implement immutable `delivery_attempts` logging and `email_deliveries` status transition updates | `app/lib/queue/delivery-logger.ts` | US-19, US-20, DMA-08, DMA-09 | Every provider attempt is logged transactionally; a successful provider response updates the delivery to `sent`, and a dead-lettered delivery becomes `failed`. | `[/] In Progress` |
 
 ---
 
 ### EPIC-08: Campaign Management & Delivery Dashboard
-**Target Subsystem**: `Campaign Management UI` | **Scope**: Campaign creation bound to event and roster entries, submission to Render queue, live campaign metrics dashboard, per-recipient failure detail modal, safe retry dispatch.
+**Target Subsystem**: `Campaign Management UI` | **Scope**: Campaign creation bound to event and roster entries, submission to the delivery queue, live campaign metrics dashboard, per-recipient failure detail modal, safe retry dispatch.
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -132,7 +132,7 @@ This document provides bidirectional traceability between product requirements i
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-1001** | Implement scheduled data retention policy purging/anonymizing records older than 5 years | `app/lib/services/retention-service.ts` | DMA-12 | Running retention job deletes or anonymizes attendee and delivery records past 5-year threshold. | `[ ] Planned` |
 | **TSK-1002** | Implement deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Neon Object Storage | `app/tests/fakes/` | Testing Decisions, NFR-04 | Full test harness runs offline without live cloud credentials. | `[ ] Planned` |
-| **TSK-1003** | Implement end-to-end automated test suite covering full admin workflow (event $\to$ campaign $\to$ scan $\to$ CSV) | `app/tests/e2e/workflow.test.ts` | Testing Decisions | Playwright/Vitest E2E executes sign-in, event publish, recipient import, campaign send, QR check-in, and export. | `[ ] Planned` |
+| **TSK-1003** | Implement end-to-end automated test suite covering full admin workflow (event $\to$ campaign $\to$ scan $\to$ CSV) | `app/tests/e2e/workflow.spec.ts` | Testing Decisions | Playwright E2E executes sign-in, event publish, recipient import, campaign send, QR check-in, and export. | `[ ] Planned` |
 
 ---
 
@@ -199,8 +199,8 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 
 | Requirement ID | Requirement Summary | Assigned Task ID(s) | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **NFR-01** | First-party Render queue API and worker microservice with mutual authentication | TSK-0701 | `[ ] Planned` |
-| **NFR-02** | HTTP APIs only for email delivery (Render blocks SMTP ports) | TSK-0703, TSK-0704 | `[ ] Planned` |
+| **NFR-01** | First-party Next.js queue API and worker with shared-secret authentication | TSK-0701 | `[ ] Planned` |
+| **NFR-02** | HTTP APIs only for email delivery; SMTP is not used | TSK-0703, TSK-0704 | `[ ] Planned` |
 | **NFR-03** | Zero-trust client security: browser clients never access provider credentials or Neon Object Storage access keys | TSK-0301, TSK-0302 | `[ ] Planned` |
 | **NFR-04** | Deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Neon Object Storage | TSK-1002 | `[ ] Planned` |
 | **NFR-05** | Configurable provider quotas (configurable environment limits for Mailgun & Brevo) | TSK-0705 | `[ ] Planned` |

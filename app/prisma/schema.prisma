@@ -27,10 +27,11 @@ enum DeliveryStatus {
 }
 
 enum QueueJobStatus {
-  QUEUED     @map("queued")
-  PROCESSING @map("processing")
-  COMPLETED  @map("completed")
-  FAILED     @map("failed")
+  QUEUED      @map("queued")
+  PROCESSING  @map("processing")
+  COMPLETED   @map("completed")
+  FAILED      @map("failed")
+  DEAD_LETTER @map("dead_letter")
 }
 
 enum EmailProvider {
@@ -42,6 +43,11 @@ enum CampaignAssetRole {
   HEADER     @map("header")
   INLINE     @map("inline")
   ATTACHMENT @map("attachment")
+}
+
+enum AssetBucket {
+  PRIVATE_IMAGES @map("private-images")
+  PUBLIC_IMAGES  @map("public-images")
 }
 
 model Admin {
@@ -229,6 +235,7 @@ model ProviderDailyUsage {
 model Asset {
   id               String   @id @default(uuid()) @db.Uuid
   objectKey        String   @unique @map("object_key")
+  storageBucket    AssetBucket? @map("storage_bucket")
   originalFilename String   @map("original_filename")
   mediaType        String   @map("media_type")
   byteSize         BigInt   @map("byte_size")
