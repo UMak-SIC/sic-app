@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "cd app && pnpm dev",
+    "build": "cd app && pnpm build",
+    "start": "cd app && pnpm start",
+    "lint": "cd app && pnpm lint",
+    "test": "cd app && pnpm test"
   },
   "dependencies": {
     "@neon/config": "^1.8.2",
