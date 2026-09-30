@@ -33,6 +33,7 @@ import {
 const eventInput = {
   name: "  Welcome Night  ",
   details: "  Meet the team.  ",
+  venue: "  Audio   Visual Room  ",
   startsAt: new Date("2026-10-01T09:00:00.000Z"),
   endsAt: new Date("2026-10-01T10:00:00.000Z"),
 };
@@ -54,9 +55,43 @@ test("creates a trimmed draft event for the boundary-supplied administrator", as
       ...eventInput,
       name: "Welcome Night",
       details: "Meet the team.",
+      // Trimmed and whitespace-collapsed, so a venue reads cleanly in an email.
+      venue: "Audio Visual Room",
       createdById: "admin-id",
     },
   });
+});
+
+test("stores a blank venue as null rather than an empty string", async () => {
+  eventCreate.mockResolvedValue({ id: "event-id" });
+
+  await createEvent({ ...eventInput, venue: "   " }, "admin-id");
+
+  // An empty string would render as a blank spot in a campaign email, which is
+  // indistinguishable from a venue nobody typed.
+  expect(eventCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ venue: null }) })
+  );
+});
+
+test("leaves the venue null when the caller omits it", async () => {
+  eventCreate.mockResolvedValue({ id: "event-id" });
+  const withoutVenue: Record<string, unknown> = { ...eventInput };
+  delete withoutVenue.venue;
+
+  await createEvent(withoutVenue as typeof eventInput, "admin-id");
+
+  expect(eventCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ venue: null }) })
+  );
+});
+
+test("rejects a venue that is too long", async () => {
+  await expect(
+    createEvent({ ...eventInput, venue: "V".repeat(121) }, "admin-id"),
+  ).rejects.toThrow("Venue must be at most 120 characters.");
+
+  expect(eventCreate).not.toHaveBeenCalled();
 });
 
 test("rejects incomplete and invalid event timings before persistence", async () => {
@@ -85,7 +120,12 @@ test("updates only drafts", async () => {
   await expect(updateDraft("event-id", eventInput)).rejects.toThrow("Only draft events");
   expect(eventUpdateMany).toHaveBeenCalledWith({
     where: { id: "event-id", status: "DRAFT" },
-    data: { ...eventInput, name: "Welcome Night", details: "Meet the team." },
+    data: {
+      ...eventInput,
+      name: "Welcome Night",
+      details: "Meet the team.",
+      venue: "Audio Visual Room",
+    },
   });
 });
 

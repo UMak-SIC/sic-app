@@ -37,6 +37,7 @@ test("creates an event through the lifecycle service for the signed-in administr
     body: JSON.stringify({
       name: "General Assembly",
       details: "Annual meeting",
+      venue: "Audio Visual Room",
       startsAt: "2026-10-01T09:00:00.000Z",
       endsAt: "2026-10-01T10:00:00.000Z",
       imageAssetId: null,
@@ -46,9 +47,30 @@ test("creates an event through the lifecycle service for the signed-in administr
   expect(createEvent).toHaveBeenCalledWith({
     name: "General Assembly",
     details: "Annual meeting",
+    venue: "Audio Visual Room",
     startsAt: new Date("2026-10-01T09:00:00.000Z"),
     endsAt: new Date("2026-10-01T10:00:00.000Z"),
     imageAssetId: null,
   }, "admin-id");
   expect(response.status).toBe(201);
+});
+
+test("sends a missing venue as null so the column stays empty rather than blank", async () => {
+  requireAdmin.mockResolvedValue({ adminId: "admin-id" });
+  createEvent.mockResolvedValue({ id: "event-id", status: "DRAFT" });
+
+  await POST(new Request("https://sic.test/api/events", {
+    method: "POST",
+    body: JSON.stringify({
+      name: "Online Sync",
+      details: "Remote session",
+      startsAt: "2026-10-01T09:00:00.000Z",
+      endsAt: "2026-10-01T10:00:00.000Z",
+    }),
+  }));
+
+  expect(createEvent).toHaveBeenCalledWith(
+    expect.objectContaining({ venue: null }),
+    "admin-id"
+  );
 });

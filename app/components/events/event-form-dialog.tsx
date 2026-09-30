@@ -11,6 +11,7 @@ export type EditableEvent = {
   id: string;
   name: string;
   details: string;
+  venue: string | null;
   startsAt: string;
   endsAt: string;
   imageAssetId: string | null;
@@ -86,6 +87,9 @@ export function EventFormDialog({ event, open, onOpenChange, onSaved, timezone }
     const payload = {
       name: formData.get("name"),
       details: formData.get("details"),
+      // An empty input is sent as null so the service stores an absent venue
+      // rather than a blank string.
+      venue: String(formData.get("venue") ?? "").trim() || null,
       startsAt: toUtc(String(formData.get("startsAt")), timezone),
       endsAt: toUtc(String(formData.get("endsAt")), timezone),
       imageAssetId,
@@ -134,6 +138,11 @@ export function EventFormDialog({ event, open, onOpenChange, onSaved, timezone }
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Details
             <textarea name="details" required defaultValue={event?.details} className="min-h-28 rounded-[6px] border border-line bg-paper p-3 text-sm font-normal" />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-ink">
+            Venue
+            <input name="venue" defaultValue={event?.venue ?? ""} maxLength={120} placeholder="Building and room, or a meeting link" className="h-10 rounded-[6px] border border-line bg-paper px-3 text-sm font-normal" />
+            <span className="text-xs font-normal text-muted">Optional. Appears as {"{{venue}}"} in campaign email. Leave blank for an online event.</span>
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-semibold text-ink">

@@ -5,6 +5,8 @@ import { getPrismaClient } from "@/lib/prisma";
 type EventInput = {
   name: string;
   details: string;
+  /** Free text, so it can hold a building, a room, or both. Absent is null. */
+  venue?: string | null;
   startsAt: Date;
   endsAt: Date;
   imageAssetId?: string | null;
@@ -12,12 +14,27 @@ type EventInput = {
 
 export class EventLifecycleError extends Error {}
 
+/**
+ * Bounds the venue so one pasted paragraph cannot become a single "where" cell.
+ * A building plus a room is well inside this.
+ */
+const EVENT_VENUE_MAX_LENGTH = 120;
+
 function validateEventInput(input: EventInput): EventInput {
   const name = input.name.trim();
   const details = input.details.trim();
+  // Trimmed and collapsed so " " is stored as absent rather than as a venue an
+  // organizer never typed.
+  const venue = input.venue?.trim().replace(/\s+/g, " ") || null;
 
   if (!name || !details) {
     throw new EventLifecycleError("An event requires a name and details.");
+  }
+
+  if (venue && venue.length > EVENT_VENUE_MAX_LENGTH) {
+    throw new EventLifecycleError(
+      `Venue must be at most ${EVENT_VENUE_MAX_LENGTH} characters.`,
+    );
   }
 
   if (
@@ -28,7 +45,7 @@ function validateEventInput(input: EventInput): EventInput {
     throw new EventLifecycleError("An event must end after it starts.");
   }
 
-  return { ...input, name, details };
+  return { ...input, name, details, venue };
 }
 
 async function validateBanner(imageAssetId: string | null | undefined): Promise<void> {
