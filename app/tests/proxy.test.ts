@@ -7,10 +7,18 @@ const { getNeonAuth, middleware } = vi.hoisted(() => ({
 
 vi.mock("@/lib/auth/server", () => ({ getNeonAuth }));
 
-// Next.js matcher patterns use path-to-regexp syntax where ":path*" means zero
-// or more segments. This mirrors that closely enough to assert which routes the
-// proxy guards without pulling in Next's internal matcher.
+// Next.js matcher patterns use path-to-regexp syntax. The proxy uses two
+// shapes: a named-parameter pattern such as "/checkin/:path*", and a negative
+// lookahead such as "/((?!login|api).*)". Both are translated here rather than
+// pulling in Next's internal matcher, so the assertions stay about which paths
+// the guard covers.
 function matches(pattern: string, path: string): boolean {
+  if (pattern.startsWith("/((?!")) {
+    // A negative lookahead guards everything it does not exclude, so the
+    // pattern is already a valid regular expression body.
+    return new RegExp(`^${pattern}$`).test(path);
+  }
+
   const source = pattern
     .split("/")
     .filter(Boolean)
@@ -42,7 +50,7 @@ test("delegates to the Neon Auth middleware with the sign-in route", async () =>
   const { default: proxy, config } = await import("@/proxy");
 
   expect(typeof proxy).toBe("function");
-  expect(config.matcher).toEqual(["/checkin/:path*", "/events/:path*"]);
+  expect(config.matcher).toHaveLength(1);
 
   // The auth client is resolved per request rather than at module scope, so
   // importing this module must not touch the auth environment.
@@ -54,15 +62,28 @@ test("delegates to the Neon Auth middleware with the sign-in route", async () =>
   expect(middleware).toHaveBeenCalledWith({ loginUrl: "/login" });
 });
 
-test("protects the check-in and event administration pages", async () => {
+test("guards every administration page, not just check-in and events", async () => {
   const { config } = await import("@/proxy");
 
   for (const path of [
+    // The two the original allowlist covered.
     "/checkin",
     "/checkin/some-event",
     "/events",
     "/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
     "/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance",
+    // Added by the frontend merge. These answered 200 with no session while the
+    // matcher was an allowlist, so this test is the regression guard for it.
+    "/attendees",
+    "/assets",
+    "/campaign",
+    "/campaign/new",
+    "/campaign/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
+    "/overview",
+    "/settings",
+    // The root redirects to /overview, so guarding it is what puts the whole app
+    // behind sign-in rather than only the admin screens.
+    "/",
   ]) {
     expect(
       config.matcher.some((pattern) => matches(pattern, path)),
@@ -71,15 +92,21 @@ test("protects the check-in and event administration pages", async () => {
   }
 });
 
-test("leaves the auth handler, API routes, and static assets reachable", async () => {
+test("leaves the sign-in screens, API routes, and static assets reachable", async () => {
   const { config } = await import("@/proxy");
 
   for (const path of [
-    "/",
+    // A bounced visitor has to be able to sign in.
+    "/login",
+    "/register",
+    // API routes answer JSON 401/403 from their own requireAdmin() calls and
+    // must not be turned into an HTML redirect.
     "/api/auth/sign-in/email",
     "/api/auth/get-session",
+    "/api/checkin/scan",
     "/api/internal/queue-jobs",
     "/api/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance/export",
+    // Static assets still have to load on the sign-in screen itself.
     "/_next/static/chunk.js",
     "/_next/image",
     "/favicon.ico",
