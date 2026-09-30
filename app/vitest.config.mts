@@ -4,10 +4,16 @@ import { loadEnv } from "vite";
 import { defineConfig } from "vitest/config";
 
 const testEnv = loadEnv("test", process.cwd(), "");
+const rootTestEnv = loadEnv("test", fileURLToPath(new URL("../", import.meta.url)), "");
+const testDatabaseUrl =
+  testEnv.TEST_DATABASE_URL ??
+  testEnv.NEON_TEST_DATABASE_URL ??
+  rootTestEnv.TEST_DATABASE_URL ??
+  rootTestEnv.NEON_TEST_DATABASE_URL;
 
-if (testEnv.TEST_DATABASE_URL) {
-  process.env.TEST_DATABASE_URL = testEnv.TEST_DATABASE_URL;
-  process.env.DATABASE_URL = testEnv.TEST_DATABASE_URL;
+if (testDatabaseUrl) {
+  process.env.TEST_DATABASE_URL = testDatabaseUrl;
+  process.env.DATABASE_URL = testDatabaseUrl;
 }
 
 export default defineConfig({

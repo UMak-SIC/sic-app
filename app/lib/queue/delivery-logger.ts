@@ -4,8 +4,7 @@ import { DeliveryStatus, EmailProvider, Prisma, QueueJobStatus } from "@prisma/c
 
 import { getPrismaClient } from "@/lib/prisma";
 
-type RecordDeliveryAttemptInput = {
-  queueJobId: string;
+export type DeliveryAttemptResult = {
   provider: EmailProvider;
   succeeded: boolean;
   providerMessageId?: string;
@@ -15,8 +14,14 @@ type RecordDeliveryAttemptInput = {
   errorMessage?: string;
 };
 
+type RecordDeliveryAttemptInput = DeliveryAttemptResult & {
+  queueJobId: string;
+  workerId: string;
+};
+
 export async function recordDeliveryAttempt({
   queueJobId,
+  workerId,
   provider,
   succeeded,
   providerMessageId,
@@ -26,13 +31,18 @@ export async function recordDeliveryAttempt({
   errorMessage,
 }: RecordDeliveryAttemptInput): Promise<{ deadLettered: boolean }> {
   return getPrismaClient().$transaction(async (transaction) => {
-    const queueJob = await transaction.queueJob.findUnique({
-      where: { id: queueJobId },
+    const queueJob = await transaction.queueJob.findFirst({
+      where: {
+        id: queueJobId,
+        status: QueueJobStatus.PROCESSING,
+        lockedBy: workerId,
+        lockExpiresAt: { gt: new Date() },
+      },
       select: { deliveryId: true, retryCount: true, maxRetries: true },
     });
 
     if (!queueJob) {
-      throw new Error(`Queue job ${queueJobId} was not found.`);
+      throw new Error(`Queue job ${queueJobId} is not claimed by worker ${workerId}.`);
     }
 
     const retryCount = succeeded ? queueJob.retryCount : queueJob.retryCount + 1;
