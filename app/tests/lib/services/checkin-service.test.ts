@@ -1,0 +1,63 @@
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+
+const { updateMany, findUnique, transaction } = vi.hoisted(() => ({
+  updateMany: vi.fn(),
+  findUnique: vi.fn(),
+  transaction: vi.fn(),
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  getPrismaClient: () => ({ $transaction: transaction }),
+}));
+
+import { checkInRosterEntry } from "@/lib/services/checkin-service";
+
+beforeEach(() => {
+  transaction.mockImplementation((callback) => callback({ eventRosterEntry: { updateMany, findUnique } }));
+});
+
+afterEach(() => vi.resetAllMocks());
+
+test("marks a pending event roster entry attended atomically", async () => {
+  const arrivedAt = new Date("2026-10-01T10:00:00.000Z");
+  updateMany.mockResolvedValue({ count: 1 });
+
+  await expect(
+    checkInRosterEntry({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      scannedByAdminId: "admin-id",
+      arrivedAt,
+    }),
+  ).resolves.toEqual({ status: "checked_in", arrivedAt });
+
+  expect(updateMany).toHaveBeenCalledWith({
+    where: { id: "entry-id", eventId: "event-id", status: "PENDING" },
+    data: { status: "ATTENDED", arrivedAt, scannedByAdminId: "admin-id" },
+  });
+  expect(findUnique).not.toHaveBeenCalled();
+});
+
+test("reports the original arrival time when an attended ticket is scanned again", async () => {
+  const originalArrival = new Date("2026-10-01T09:57:00.000Z");
+  updateMany.mockResolvedValue({ count: 0 });
+  findUnique.mockResolvedValue({ status: "ATTENDED", arrivedAt: originalArrival });
+
+  await expect(
+    checkInRosterEntry({ eventId: "event-id", rosterEntryId: "entry-id", scannedByAdminId: "admin-id" }),
+  ).resolves.toEqual({ status: "duplicate", arrivedAt: originalArrival });
+
+  expect(findUnique).toHaveBeenCalledWith({
+    where: { eventId_id: { eventId: "event-id", id: "entry-id" } },
+    select: { status: true, arrivedAt: true },
+  });
+});
+
+test("does not treat missing or non-pending entries as successful check-ins", async () => {
+  updateMany.mockResolvedValue({ count: 0 });
+  findUnique.mockResolvedValue({ status: "ABSENT", arrivedAt: null });
+
+  await expect(
+    checkInRosterEntry({ eventId: "event-id", rosterEntryId: "entry-id", scannedByAdminId: "admin-id" }),
+  ).resolves.toEqual({ status: "unavailable" });
+});
