@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, User } from "lucide-react";
+import { CaretLeft, CaretRight, User } from "@phosphor-icons/react";
 import { useRouter, usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -15,7 +15,7 @@ export function AppHeader() {
     currentSection.charAt(0).toUpperCase() + currentSection.slice(1);
 
   return (
-    <header className="flex h-20 w-full items-center justify-between px-8 bg-transparent">
+    <header className="sticky top-0 z-30 flex h-20 w-full items-center justify-between px-8 bg-[#f8fafc]/90 backdrop-blur-md border-b border-slate-200/50 transition-colors">
       {/* Left: Navigation buttons and Breadcrumbs */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
@@ -24,14 +24,14 @@ export function AppHeader() {
             className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100/90 text-slate-600 hover:bg-slate-200/80 transition-colors shadow-2xs cursor-pointer"
             aria-label="Go back"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <CaretLeft size={16} weight="bold" />
           </button>
           <button
             onClick={() => router.forward()}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100/90 text-slate-600 hover:bg-slate-200/80 transition-colors shadow-2xs cursor-pointer"
             aria-label="Go forward"
           >
-            <ChevronRight className="h-4 w-4" />
+            <CaretRight size={16} weight="bold" />
           </button>
         </div>
 
@@ -50,7 +50,7 @@ export function AppHeader() {
           <Avatar className="h-10 w-10">
             <AvatarImage src="/images/avatar.png" alt="Charles Reyes" />
             <AvatarFallback className="bg-slate-900 text-white">
-              <User className="h-5 w-5" />
+              <User size={18} weight="bold" />
             </AvatarFallback>
           </Avatar>
         </div>

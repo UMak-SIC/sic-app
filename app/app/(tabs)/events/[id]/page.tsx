@@ -1,21 +1,13 @@
 "use client";
 
+import * as React from "react";
 import { useParams } from "next/navigation";
 import { EventDetailHeader } from "@/components/events/event-detail-header";
-import { EventSectionNav } from "@/components/events/event-section-nav";
-import { EventReadiness } from "@/components/events/event-readiness";
 import { EventVelocityChart } from "@/components/events/event-velocity-chart";
-import { EventDetails } from "@/components/events/event-details";
+import { EventCollegeDistribution } from "@/components/events/event-college-distribution";
 import { EventRoster } from "@/components/events/event-roster";
 import { EventStatus } from "@/components/events/event-status-badge";
-
-/*
- * Type system for this page:
- * - font-display (Agrandir): event title, card headings, metric numerals, attendee names.
- * - font-sans (Montserrat): every label, control, table cell, badge, and body string.
- * Never put font-display on an interactive control, and never set two display
- * elements side by side without a sans element between them.
- */
+import { LiveCheckinDialog } from "@/components/checkin/live-checkin-dialog";
 
 const EVENTS_DATABASE: Record<
   string,
@@ -33,8 +25,60 @@ const EVENTS_DATABASE: Record<
     attendedCount: number;
     checkInOpens: string;
     checkInCloses: string;
+    coverImage?: string;
   }
 > = {
+  "1": {
+    id: "1",
+    title: "UMak Tech Summit 2024",
+    venue: "UMak Grand Theater",
+    date: "15 May 2024",
+    time: "8:00 AM - 5:00 PM",
+    status: "published",
+    category: "Summit",
+    registeredCount: 250,
+    capacity: 350,
+    ticketsSent: 242,
+    attendedCount: 168,
+    checkInOpens: "7:30 AM",
+    checkInCloses: "5:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1600&q=80",
+  },
+  "2": {
+    id: "2",
+    title: "Leadership Conclave 2024",
+    venue: "Admin Bldg Auditorium",
+    date: "22 May 2024",
+    time: "8:30 AM - 11:30 AM",
+    status: "published",
+    category: "Leadership",
+    registeredCount: 150,
+    capacity: 200,
+    ticketsSent: 145,
+    attendedCount: 95,
+    checkInOpens: "8:00 AM",
+    checkInCloses: "12:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80",
+  },
+  "3": {
+    id: "3",
+    title: "SIC Innovation Showcase",
+    venue: "CCIS Lab 402",
+    date: "28 May 2024",
+    time: "1:00 PM - 4:30 PM",
+    status: "published",
+    category: "Showcase",
+    registeredCount: 180,
+    capacity: 200,
+    ticketsSent: 172,
+    attendedCount: 120,
+    checkInOpens: "12:30 PM",
+    checkInCloses: "5:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=1600&q=80",
+  },
   evt_1: {
     id: "evt_1",
     title: "UMak SIC General Assembly",
@@ -49,6 +93,8 @@ const EVENTS_DATABASE: Record<
     attendedCount: 71,
     checkInOpens: "12:00 PM",
     checkInCloses: "6:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1600&q=80",
   },
   evt_2: {
     id: "evt_2",
@@ -64,6 +110,8 @@ const EVENTS_DATABASE: Record<
     attendedCount: 0,
     checkInOpens: "11:00 AM",
     checkInCloses: "5:30 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80",
   },
   evt_3: {
     id: "evt_3",
@@ -79,6 +127,93 @@ const EVENTS_DATABASE: Record<
     attendedCount: 0,
     checkInOpens: "7:00 AM",
     checkInCloses: "2:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=1600&q=80",
+  },
+  evt_4: {
+    id: "evt_4",
+    title: "UMak Tech Summit 2026",
+    venue: "Grand Auditorium",
+    date: "05 Nov 2026",
+    time: "8:00 AM - 5:00 PM",
+    status: "draft",
+    category: "Summit",
+    registeredCount: 0,
+    capacity: 350,
+    ticketsSent: 0,
+    attendedCount: 0,
+    checkInOpens: "7:30 AM",
+    checkInCloses: "5:30 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1600&q=80",
+  },
+  evt_5: {
+    id: "evt_5",
+    title: "Cybersecurity Workshop",
+    venue: "CCIS Lab 302",
+    date: "12 Nov 2026",
+    time: "2:00 PM - 5:00 PM",
+    status: "draft",
+    category: "Workshop",
+    registeredCount: 0,
+    capacity: 50,
+    ticketsSent: 0,
+    attendedCount: 0,
+    checkInOpens: "1:30 PM",
+    checkInCloses: "5:30 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80",
+  },
+  evt_6: {
+    id: "evt_6",
+    title: "Hackathon Orientation",
+    venue: "Audio Visual Room",
+    date: "10 Sep 2026",
+    time: "1:30 PM - 4:00 PM",
+    status: "closed",
+    category: "Competition",
+    registeredCount: 142,
+    capacity: 150,
+    ticketsSent: 142,
+    attendedCount: 138,
+    checkInOpens: "1:00 PM",
+    checkInCloses: "4:30 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1600&q=80",
+  },
+  evt_7: {
+    id: "evt_7",
+    title: "Student Leadership Induction",
+    venue: "University Amphitheater",
+    date: "28 Aug 2026",
+    time: "8:30 AM - 11:30 AM",
+    status: "closed",
+    category: "Leadership",
+    registeredCount: 95,
+    capacity: 100,
+    ticketsSent: 95,
+    attendedCount: 91,
+    checkInOpens: "8:00 AM",
+    checkInCloses: "12:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1600&q=80",
+  },
+  evt_8: {
+    id: "evt_8",
+    title: "Freshmen IT Kickoff",
+    venue: "Grand Auditorium",
+    date: "14 Aug 2026",
+    time: "9:00 AM - 12:00 PM",
+    status: "closed",
+    category: "Orientation",
+    registeredCount: 280,
+    capacity: 300,
+    ticketsSent: 280,
+    attendedCount: 265,
+    checkInOpens: "8:30 AM",
+    checkInCloses: "1:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1600&q=80",
   },
   default: {
     id: "evt_1",
@@ -94,6 +229,8 @@ const EVENTS_DATABASE: Record<
     attendedCount: 71,
     checkInOpens: "12:00 PM",
     checkInCloses: "6:00 PM",
+    coverImage:
+      "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1600&q=80",
   },
 };
 
@@ -102,61 +239,87 @@ export default function EventDetailPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const event = EVENTS_DATABASE[id as string] || EVENTS_DATABASE.default;
 
+  const [isScannerOpen, setIsScannerOpen] = React.useState(false);
+  // Cross-filter state: selected college from Donut Chart filters the Attendee Roster
+  const [selectedCollege, setSelectedCollege] = React.useState<string | null>(null);
+
+  const handleExportRoster = () => {
+    const csvContent =
+      "data:text/csv;charset=utf-8,Student Name,Student ID,Email,College,Course,Status\n" +
+      "Andrea Santos,2023-00182,andrea.santos@umak.edu.ph,CCIS,BSIT,Attended\n" +
+      "Miguel Dela Cruz,2023-00491,miguel.delacruz@umak.edu.ph,CCIS,BSCS,Attended\n" +
+      "Bianca Flores,2023-00612,bianca.flores@umak.edu.ph,CCIS,BSINS,Pending\n" +
+      "Joshua Lim,2023-00823,joshua.lim@umak.edu.ph,CCIS,BSIT,Attended\n" +
+      "Patricia Reyes,2023-00911,patricia.reyes@umak.edu.ph,CCIS,BSCS,Pending";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${event.title.toLowerCase().replace(/\s+/g, "-")}-roster.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 pb-12">
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6 pb-14">
+      {/* 1. Event Hero Banner & Actions */}
       <EventDetailHeader
         title={event.title}
         venue={event.venue}
         date={event.date}
         time={event.time}
         status={event.status}
+        category={event.category}
+        capacity={event.capacity}
+        registeredCount={event.registeredCount}
+        checkInWindow={`Check-in open until ${event.checkInCloses}`}
+        coverImage={event.coverImage}
         onLaunchScanner={() => {
-          console.log("Launching live scanner for:", event.id);
+          setIsScannerOpen(true);
         }}
         onEditEvent={() => {
-          console.log("Opening edit event for:", event.id);
+          console.log("Opening edit event dialog for:", event.id);
         }}
       />
 
-      <EventSectionNav />
+      {/* 2. In-Page Section Navigator */}
+ 
 
-      <section id="readiness" className="scroll-mt-20">
-        <EventReadiness
-          registeredCount={event.registeredCount}
-          capacity={event.capacity}
-          ticketsSent={event.ticketsSent}
-          attendedCount={event.attendedCount}
-        />
-      </section>
-
+      {/* 3. Activity Timeline & College Breakdown */}
       <section
         id="activity"
-        className="grid scroll-mt-20 grid-cols-1 gap-5 lg:grid-cols-12"
+        className="grid scroll-mt-24 grid-cols-1 gap-5 lg:grid-cols-12"
       >
         <div className="lg:col-span-7">
           <EventVelocityChart className="h-full" />
         </div>
         <div className="lg:col-span-5">
-          <EventDetails
+          <EventCollegeDistribution
             className="h-full"
-            venue={event.venue}
-            date={event.date}
-            time={event.time}
-            category={event.category}
-            capacity={event.capacity}
-            checkInOpens={event.checkInOpens}
-            checkInCloses={event.checkInCloses}
+            selectedCollege={selectedCollege}
+            onSelectCollege={setSelectedCollege}
           />
         </div>
       </section>
 
-      <section id="roster" className="scroll-mt-20">
+      {/* 4. Event Attendee Roster Table */}
+      <section id="roster" className="scroll-mt-24">
         <EventRoster
-          onExport={() => {
-            console.log("Exporting roster CSV for:", event.id);
-          }}
+          selectedCollegeFilter={selectedCollege}
+          onClearCollegeFilter={() => setSelectedCollege(null)}
+          onExport={handleExportRoster}
         />
       </section>
+
+      {/* 5. Live Check-in Scanner Modal Dialog */}
+      <LiveCheckinDialog
+        open={isScannerOpen}
+        onOpenChange={setIsScannerOpen}
+        eventId={event.id}
+        eventName={event.title}
+        totalAttended={event.attendedCount}
+        totalRegistered={event.registeredCount}
+      />
     </div>
   );
 }

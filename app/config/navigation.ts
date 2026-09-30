@@ -1,17 +1,18 @@
 import {
-  LayoutDashboard,
-  CalendarDays,
+  SquaresFour,
+  CalendarBlank,
   Users,
   Megaphone,
-  FolderKanban,
-  LogOut,
-  type LucideIcon,
-} from "lucide-react";
+  FolderOpen,
+  GearSix,
+  SignOut,
+  type Icon,
+} from "@phosphor-icons/react";
 
 export interface NavItem {
   title: string;
   href: string;
-  icon: LucideIcon;
+  icon: Icon;
   badge?: string;
   exact?: boolean;
 }
@@ -28,7 +29,7 @@ export const sidebarNavSections: NavSection[] = [
       {
         title: "Overview",
         href: "/overview",
-        icon: LayoutDashboard,
+        icon: SquaresFour,
         exact: true,
       },
     ],
@@ -39,7 +40,7 @@ export const sidebarNavSections: NavSection[] = [
       {
         title: "Events",
         href: "/events",
-        icon: CalendarDays,
+        icon: CalendarBlank,
       },
       {
         title: "Attendees",
@@ -59,7 +60,7 @@ export const sidebarNavSections: NavSection[] = [
       {
         title: "Assets",
         href: "/assets",
-        icon: FolderKanban,
+        icon: FolderOpen,
       },
     ],
   },
@@ -67,9 +68,14 @@ export const sidebarNavSections: NavSection[] = [
     title: "GENERAL",
     items: [
       {
+        title: "Settings",
+        href: "/settings",
+        icon: GearSix,
+      },
+      {
         title: "Logout",
-        href: "/logout",
-        icon: LogOut,
+        href: "/login",
+        icon: SignOut,
       },
     ],
   },

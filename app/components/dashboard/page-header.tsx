@@ -26,14 +26,14 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col mt-3 sm:flex-row sm:items-center justify-between gap-4",
+        "flex flex-col mt-6 sm:mt-8 sm:flex-row sm:items-center justify-between gap-4",
         className
       )}
     >
       <div>
         <h1
           className={cn(
-            "text-3xl font-normal font-display text-slate-900 tracking-tight",
+            "text-3xl font-normal font-display text-ink tracking-tight",
             titleClassName
           )}
         >
@@ -42,7 +42,7 @@ export function PageHeader({
         {description && (
           <p
             className={cn(
-              "text-sm text-slate-500 font-sans mt-1",
+              "text-sm text-muted font-sans mt-1",
               descriptionClassName
             )}
           >
@@ -70,12 +70,19 @@ export function PageHeaderButton({
   children,
   icon,
   className,
+  variant,
   ...props
 }: PageHeaderButtonProps) {
+  const isOutline = variant === "outline";
+
   return (
     <Button
+      variant={variant}
       className={cn(
-        "inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-[#198d5d] to-[#2da482] hover:brightness-105 px-6 py-5 text-sm font-bold text-white shadow-xs transition-all cursor-pointer border-0",
+        "h-12 inline-flex items-center gap-2.5 rounded-full px-6 text-sm font-bold font-sans transition-all cursor-pointer shadow-xs",
+        isOutline
+          ? "bg-card hover:bg-green-soft text-green hover:text-green-hover border border-green hover:border-green-hover shadow-2xs"
+          : "bg-linear-to-r from-[#198d5d] to-[#2da482] hover:brightness-105 text-white border-0",
         className
       )}
       {...props}

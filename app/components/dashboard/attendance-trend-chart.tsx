@@ -35,11 +35,16 @@ const chartData = [
 
 const timeRanges = ["Last 3 months", "Last 30 days", "Last 7 days"] as const;
 
-export function AttendanceTrendChart() {
+export function AttendanceTrendChart({ className }: { className?: string }) {
   const [selectedRange, setSelectedRange] = useState<string>("Last 30 days");
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200/70 bg-white p-6 shadow-2xs">
+    <div
+      className={cn(
+        "flex flex-col min-h-[480px] sm:min-h-[520px] rounded-2xl border border-slate-200/70 bg-white p-6 sm:p-7 shadow-2xs",
+        className
+      )}
+    >
       {/* Header with Title & Filter Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -71,7 +76,7 @@ export function AttendanceTrendChart() {
       </div>
 
       {/* Chart Canvas */}
-      <div className="h-64 w-full pt-2">
+      <div className="h-[340px] sm:h-[380px] w-full pt-2">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}

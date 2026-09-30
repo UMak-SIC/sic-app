@@ -1,74 +1,108 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
 
-export function MiniCalendar() {
-  const [selectedDay, setSelectedDay] = useState<number>(15);
+interface MiniCalendarProps {
+  selectedDay?: number;
+  onSelectDay?: (day: number) => void;
+  eventDays?: number[];
+  monthName?: string;
+  className?: string;
+}
+
+export function MiniCalendar({
+  selectedDay: controlledDay,
+  onSelectDay,
+  eventDays = [15, 22, 28],
+  monthName = "May 2024",
+  className,
+}: MiniCalendarProps) {
+  const [internalDay, setInternalDay] = useState<number>(15);
+  const selectedDay = controlledDay !== undefined ? controlledDay : internalDay;
+
+  const handleSelectDay = (day: number) => {
+    if (onSelectDay) {
+      onSelectDay(day);
+    } else {
+      setInternalDay(day);
+    }
+  };
 
   const daysOfWeek = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 
   // Days configuration for May 2024 (starts on Wednesday, so 2 empty cells)
-  const emptyDaysBefore = [null, null]; // Mon, Tue empty
+  const emptyDaysBefore = [null, null];
   const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
-    <div className="flex flex-col rounded-2xl border border-slate-200/70 bg-white p-6 shadow-2xs">
+    <div
+      className={cn(
+        "flex flex-col justify-between rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xs h-[350px] sm:h-[360px]",
+        className
+      )}
+    >
       {/* Month Selector Navigation */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-3">
         <button
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Previous month"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <CaretLeft size={14} weight="bold" />
         </button>
 
-        <div className="rounded-full bg-[#1e8e6b] px-4 py-1 text-xs font-bold text-white shadow-2xs">
-          May 2024
+        <div className="rounded-full bg-[#1e8e6b] px-3.5 py-0.5 text-xs font-bold text-white shadow-2xs">
+          {monthName}
         </div>
 
         <button
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Next month"
         >
-          <ChevronRight className="h-4 w-4" />
+          <CaretRight size={14} weight="bold" />
         </button>
       </div>
 
       {/* Weekday Labels */}
-      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+      <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
         {daysOfWeek.map((day) => (
           <span
             key={day}
-            className="text-[11px] font-semibold text-slate-500 py-1"
+            className="text-[11px] font-semibold text-slate-400 py-0.5"
           >
             {day}
           </span>
         ))}
       </div>
 
-      {/* Days Grid */}
-      <div className="grid grid-cols-7 gap-1 text-center">
+      {/* Days Grid (Fixed Dimensions) */}
+      <div className="grid grid-cols-7 gap-1 text-center flex-1 content-center">
         {emptyDaysBefore.map((_, i) => (
-          <div key={`empty-${i}`} className="h-8 w-8" />
+          <div key={`empty-${i}`} className="h-8 w-8 sm:h-8.5 sm:w-8.5 mx-auto" />
         ))}
 
         {daysInMonth.map((day) => {
           const isSelected = day === selectedDay;
+          const hasEvent = eventDays.includes(day);
 
           return (
             <button
               key={day}
-              onClick={() => setSelectedDay(day)}
+              onClick={() => handleSelectDay(day)}
               className={cn(
-                "flex h-8 w-8 mx-auto items-center justify-center rounded-full text-xs font-medium transition-all duration-150 cursor-pointer",
+                "relative flex h-8 w-8 sm:h-8.5 sm:w-8.5 mx-auto items-center justify-center rounded-full text-xs font-medium transition-all duration-150 cursor-pointer",
                 isSelected
-                  ? "bg-[#1e8e6b] text-white font-bold shadow-xs scale-105"
+                  ? "bg-[#1e8e6b] text-white font-bold shadow-xs scale-105 z-10"
+                  : hasEvent
+                  ? "bg-emerald-50 text-emerald-800 font-bold border border-emerald-300/60 hover:bg-emerald-100/90"
                   : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
               )}
             >
               {day}
+              {hasEvent && !isSelected && (
+                <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-emerald-600" />
+              )}
             </button>
           );
         })}

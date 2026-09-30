@@ -970,7 +970,9 @@ Run this matrix before outputting code. This is the last filter.
 - [ ] **`useEffect` animations** have strict cleanup functions?
 - [ ] **Empty / loading / error** states provided?
 - [ ] **Cards omitted** in favor of spacing where possible?
-- [ ] **Icons** from an allowed library only (Phosphor / HugeIcons / Radix / Tabler), no hand-rolled SVG paths?
+- [ ] **Icons** from an allowed library only (Phosphor strictly in `sic-app`), no hand-rolled SVG paths, primary actions have icon + text label, icon-only buttons have `aria-label`?
+- [ ] **Zero Technical Jargon**: all user-facing copy, tooltips, error notices, and buttons use plain, operator-first language (no raw backend entities, database errors, or cloud jargon)?
+- [ ] **Project `DESIGN.md` Lock**: when working in `sic-app`, all tokens, fonts (Agrandir + Montserrat), radius scale, and single accent color (`--cyan`) strictly follow `DESIGN.md` (non-negotiable)?
 - [ ] **Motion** isolated in client-leaf components with `'use client'` at the top, memoized?
 - [ ] **No AI Tells** from Section 9 (Inter as default, AI-purple, three-equal cards, Jane Doe, Acme, "Quietly in use at")?
 - [ ] **Core Web Vitals** plausibly hit (LCP < 2.5s, INP < 200ms, CLS < 0.1)?

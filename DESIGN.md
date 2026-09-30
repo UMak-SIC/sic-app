@@ -1,15 +1,14 @@
-# UMak SIC — Design Source of Truth
+# UMak SIC — Design Source of Truth (Non-Negotiable)
 
-> This file is the single source of truth for all design decisions on this project.
-> The AI agent reads this before generating any frontend code. Do not skip sections —
-> a blank field means the agent will guess, and guessing produces slop.
+> [!IMPORTANT]
+> **NON-NEGOTIABLE CHARTER:** This document is the absolute, legally binding design and UX source of truth for the entire UMak SIC repository. All AI agents, contributors, and pull requests MUST strictly adhere to every token, rule, typography constraint, plain language standard, and UX heuristic defined herein. Skipping sections, introducing ad-hoc hex values, using unauthorized fonts/icons, or introducing technical developer jargon into user-facing copy constitutes an automatic pre-flight failure.
 
 ---
 
 ## 0. Design Read (One-Line Brief)
 
 **Design Read:**
-Reading this as: internal admin product for a single UMak SIC administrator, with a high-end and polished language, leaning toward shadcn/ui + Tailwind v4 + Monserrat + Agrandir display type.
+Reading this as: internal admin product for a single UMak SIC administrator, with a high-end and polished language, strictly locked to shadcn/ui + Tailwind v4 + Montserrat + Agrandir display typography + `@phosphor-icons/react`.
 
 ---
 
@@ -35,7 +34,7 @@ Reading this as: internal admin product for a single UMak SIC administrator, wit
 | **Component library** | `shadcn/ui` | Own the code, easy token customization |
 | **Styling engine** | Tailwind v4 | Already in project, `@tailwindcss/postcss` wired |
 | **Animation** | `motion` (v13.4.4) | Installed. Import from `motion/react` |
-| **Icon library** | `@phosphor-icons/react` | One family project-wide, `strokeWidth` standardized |
+| **Icon library** | `@phosphor-icons/react` | One family project-wide, strict size/weight tokens |
 | **shadcn status** | ⬜ Not yet initialized | Run `npx shadcn@latest init` before adding components |
 
 > **Rule:** One design system per project. Do not mix shadcn/ui with Radix Themes or any other component library.
@@ -136,28 +135,6 @@ Reading this as: internal admin product for a single UMak SIC administrator, wit
 | `--red` | `#a43d49` | `#d95d6b` | Absent / Failed / Error |
 | `--red-soft` | `#ffe9eb` | `#3d171c` | Error badge background |
 
-### Tailwind Usage
-
-Use the registered theme tokens as Tailwind utilities:
-
-```html
-<!-- Text -->
-<p class="text-ink">Primary text</p>
-<p class="text-muted">Secondary text</p>
-
-<!-- Backgrounds -->
-<div class="bg-card border border-line rounded-lg">Panel</div>
-<div class="bg-cyan-soft border border-cyan-border">Highlighted</div>
-
-<!-- Buttons -->
-<button class="bg-cyan text-white hover:bg-cyan-hover">Primary</button>
-
-<!-- Badges -->
-<span class="bg-green-soft text-green">Attended</span>
-<span class="bg-amber-soft text-amber">Draft</span>
-<span class="bg-red-soft text-red">Failed</span>
-```
-
 ---
 
 ## 5. Corner Radius (Shape System)
@@ -177,20 +154,85 @@ Use the registered theme tokens as Tailwind utilities:
 
 ---
 
-## 6. Icons
+## 6. Icons & Iconography System
 
 | Decision | Value |
 |---|---|
-| **Library** | `@phosphor-icons/react` |
-| **Default weight** | `regular` (for UI), `bold` for actions/primary CTAs |
-| **Stroke width** | N/A (Phosphor uses weight variants, not strokeWidth) |
-| **Size defaults** | `size={16}` for inline/table, `size={18}` for nav, `size={20}` for action buttons |
+| **Library** | `@phosphor-icons/react` (Exclusively) |
+| **Default weight** | `regular` (for UI, navigation, table rows), `bold` (for primary action buttons and status pills) |
+| **Special weight** | `fill` (reserved exclusively for active favorite/selected markers) |
+| **Stroke width** | Managed by Phosphor weight variants. Never override stroke width manually. |
 
-> **Rule:** Never hand-roll SVG paths. Never mix with Lucide or any other icon family.
+### Size Matrix
+
+| Token | Size | Context & Placement | Example Phosphor Icons |
+|---|---|---|---|
+| **Micro / Table** | `size={16}` | Table rows, status badges, chip indicators, inline meta | `<Check size={16} />`, `<X size={16} />`, `<Clock size={16} />` |
+| **Nav & Input** | `size={18}` | Sidebar navigation items, form input icons, dropdown menu options | `<CalendarBlank size={18} />`, `<Users size={18} />`, `<EnvelopeSimple size={18} />` |
+| **Action & Header** | `size={20}` | Primary action buttons, card headers, toolbars, modal trigger buttons | `<Plus size={20} weight="bold" />`, `<QrCode size={20} />`, `<DownloadSimple size={20} />` |
+| **Hero & Dialog** | `size={24}` | Modal dialog titles, scanner viewports, empty state graphics | `<Camera size={24} />`, `<WarningCircle size={24} />`, `<FileText size={24} />` |
+
+### Iconography Rules & UX Standards
+1. **Never use lone icons for primary actions**: Always pair icons with explicit text labels (e.g. `<Plus size={16} weight="bold" /> Create event`).
+2. **Leading vs Trailing Icons**:
+   - **Leading icon**: Communicates action intent or noun type (e.g., `<QrCode /> Check In`, `<UploadSimple /> Import CSV`).
+   - **Trailing icon**: Communicates hierarchy or navigation continuation (e.g., `View Details <ArrowRight size={14} />`, `Sort <CaretDown size={14} />`).
+3. **Accessibility**:
+   - Decorative icons accompanying text must have `aria-hidden="true"`.
+   - Standalone icon buttons (e.g. close modal, search clear) MUST have an explicit `aria-label` and `title` tooltip.
+4. **Strict Library Lock**: Never hand-roll SVG paths. Never mix Phosphor with Lucide, Feather, Heroicons, or Material Icons.
 
 ---
 
-## 7. Motion
+## 7. Plain Language & Copy Guidelines (Zero Technical Jargon)
+
+> [!CAUTION]
+> **Zero Technical Jargon Policy:** The application is operated by student leaders, university administrators, and faculty. Never expose backend database nomenclature, cloud infrastructure terminology, or API error codes to the user.
+
+### Banned Technical Jargon Lookup Table
+
+| ❌ Banned Technical / Backend Jargon | ✅ Mandatory Plain Language / Operator Term |
+|---|---|
+| `Mutate attendance tuple / record` | `Mark attendance` / `Check in attendee` |
+| `Dispatch SMTP payload / job` | `Send email` / `Send campaign` |
+| `R2 Object Blob Storage / Key` | `Uploaded files` / `Asset library` |
+| `Worker queue locked by thread` | `Processing email delivery` |
+| `RFC 5322 regex validation error` | `Please enter a valid UMak email address` |
+| `Query returned 404 / null set` | `No attendees found matching this search` |
+| `Idempotency key collision` | `Already checked in` / `Duplicate delivery prevented` |
+| `Ingest CSV payload stream` | `Import student list` |
+| `Purge schema cache` | `Refresh list` |
+| `Clerk auth token expired` | `Session expired. Please sign in again` |
+| `Trigger cron retention job` | `Automated 5-year data archiving` |
+| `ends_at + 120min threshold` | `Check-in closes 2 hours after event end` |
+
+### Human-Centered Error and Notice Styles
+- **Specific & Action-Oriented**: Tell the user what happened and how to fix it immediately (e.g., *"Camera permission was denied. Allow camera access in browser settings, then try again"* rather than *"Hardware stream error: PermissionDenied"*).
+- **Constructive Tone**: No scolding or cryptic codes. State clearly: *"1 duplicate skipped because it already exists in this roster."*
+
+---
+
+## 8. UX Best Practices & Interaction Heuristics
+
+All screens and interactions in UMak SIC are built around the Nielsen Norman 10 Usability Heuristics:
+
+1. **Visibility of System Status**:
+   - Provide instant visual feedback for all operations: active button loading spinners, batch import progress counts (`2 valid attendees ready to add`), and delivery queue counters (`92/100 sent`).
+2. **User Control and Freedom**:
+   - Every creation and editing step supports `Save draft` before publishing.
+   - Destructive actions (e.g. clearing roster, permanent deletion) require explicit confirmation dialogs.
+3. **Error Prevention & Resolution**:
+   - Email addresses and student IDs are automatically trimmed and normalized on blur.
+   - Ingestion conflicts present an interactive side-by-side diff review screen before changes are committed.
+4. **Recognition over Recall**:
+   - Search inputs include placeholder examples (`Search name, student ID, or email`).
+   - Sticky tab navigation and contextual breadcrumbs keep the operator oriented at all times.
+5. **Aesthetic and Minimalist Cockpit Design**:
+   - Visual Density is locked to `7` (Cockpit). Layouts prioritize information clarity, high tabular readability, and logical visual groupings over unnecessary decorative whitespace.
+
+---
+
+## 9. Motion & Animation
 
 | Decision | Value |
 |---|---|
@@ -209,113 +251,61 @@ Use the registered theme tokens as Tailwind utilities:
 
 ---
 
-## 8. Theme
-
-| Decision | Value |
-|---|---|
-| **Strategy** | Both light and dark, driven by `prefers-color-scheme` |
-| **Lock** | ONE theme per session. No mid-page section flips. |
-| **Implementation** | `@media (prefers-color-scheme: dark)` in `globals.css`. Already wired. |
-| **shadcn theme** | Set once in `layout.tsx` when shadcn is initialized. |
-
----
-
-## 9. Page & Layout Conventions
+## 10. Theme & Layout Architecture
 
 - **Max content width:** `max-w-[1400px] mx-auto` or `max-w-7xl`
-- **App shell:** 2-column grid — fixed sidebar (118px wide per mid-fid, may expand) + fluid content area
-- **Sidebar background:** `bg-ink text-paper` (dark teal, always — not affected by light/dark page theme)
-- **Content background:** `bg-paper`
-- **Breakpoints:** `sm 640`, `md 768`, `lg 1024`, `xl 1280`, `2xl 1536`
+- **App shell:** 2-column grid — fixed sidebar (`bg-ink text-paper`, dark teal always) + fluid content area (`bg-paper`)
 - **Viewport stability:** Always `min-h-[100dvh]`, never `h-screen`
 - **Grid over flex-math:** Use `grid grid-cols-*` instead of percentage flex-math
 
 ---
 
-## 10. App Screens Reference
+## 11. App Screens & User Flows Reference
 
-> Based on the mid-fidelity board at [`app/mid-fid.html`](./app/mid-fid.html). These are the 24 screens to implement.
+> Structured identically to the 26 mid-fidelity screens in [`app/mid-fid.html`](./app/mid-fid.html), organized into 8 tabbed user flows:
 
-| # | Screen | Section |
-|---|---|---|
-| 01 | Sign in | Auth |
-| 02 | Overview (dashboard) | Events |
-| 03 | Event detail | Events |
-| 04 | Live check-in (camera scanner) | Events |
-| 05 | Campaign delivery status | Campaigns |
-| 06 | Attendee roster | Attendees |
-| 07 | Email composer | Campaigns |
-| 08 | Create event | Events |
-| 09 | Import attendees | Attendees |
-| 10 | Asset library | Assets |
-| 11 | Delivery queue | Campaigns |
-| 12 | Scan result and export | Events |
-| 13 | Mobile check-in | Events |
-| 14 | Import conflict review | Attendees |
-| 15 | Email preview | Campaigns |
-| 16 | Delivery diagnostics | Campaigns |
-| 17 | Asset policy | Assets |
-| 18 | System settings | Settings |
-| 19 | Camera recovery states | Events |
-| 20 | Campaign recipients review | Campaigns |
-| 21 | Events list | Events |
-| 22 | Attendee directory | Attendees |
-| 23 | Composer assets | Campaigns |
-| 24 | Manual ticket code | Events |
-
----
-
-## 11. Things To Fill In
-
-### 11.1 Reference Images / Inspirations
-
-- **Reference 1**: `WEBSITE UI.jpg` — Split-view authentication portal. Left column houses the centered institutional credential access form ("Welcome back! / Enter your details below"), unified email/username inputs, and Google SSO button. Right column features a soft mint canvas (`#E8F8EE` to `#F1FBF5`) with zen administrative vector illustration, real-time floating indicator pill ("Ongoing event / 1,240 Check-ins"), and core organizational thesis: "Manage events, attendance, and event communication."
-- **Reference 2**: `WEBSITE UI (1).jpg` — Operational admin dashboard cockpit. Highlights the UMAK SIC CCIS seal header, categorized vertical sidebar, top breadcrumb bar (`Pages / Overview`), 3-card KPI summary header (Upcoming events, Participant Entries, Attendance rate), centralized multi-frequency attendance trend chart, mini monthly calendar grid, and chronological upcoming event action roster with immediate `Check In` and `View` actions.
-- **Other references**: Modern university administrative cockpit combining Linear-style high-density tabular mechanics and crisp boundaries with an institutional emerald/cyan visual identity.
-
-### 11.2 Logo Usage Rules
-
-- **Logo file**: `assets/sic_logo.png` / `assets/sic_logo_nobg.png` (UMak SIC CCIS official circular emblem)
-- **Sidebar logo size**: `32px` diameter circular avatar container paired with dual-line text locked to `text-xs font-semibold leading-tight`: line 1 `UMAK SIC`, line 2 `CCIS`.
-- **Logo treatment in dark sidebar**: Use `assets/sic_logo_nobg.png` enclosed within a subtle white badge container (`bg-white/10 ring-1 ring-white/15 p-0.5 rounded-full`) to ensure optimal contrast of the teal/green seal against `--ink`.
-- **Logo treatment on login screen**: Centered at the top of the auth card at `48px` diameter (`size-12`) with full natural colors against the white canvas, positioned directly above the `Welcome back!` H1.
-
-### 11.3 Navigation Labels (Final)
-
-Current mid-fid labels: `Overview`, `Events`, `Attendees`, `Campaigns`, `Assets`
-
-- Confirmed? ☑ **Yes** (Strictly aligned to mid-fid routes and UI categories):
-  - **Dashboard**: `Overview`
-  - **Event Operations**: `Events`, `Attendees`
-  - **Outreach**: `Campaigns`, `Assets`
-  - **General**: `Logout` (pinned to bottom sidebar base)
-
-### 11.4 Brand Voice / Copy Register
-
-- **Tone**: Professional, clear, and institutional. Avoid colloquial filler while maintaining an efficient and supportive voice for student leaders and CCIS administrators.
-- **Example greeting**: Dynamic time-of-day greeting tied to verified profile data: `"Good day, Joey"` or `"Good morning, Charles"` paired with the contextual subhead `"Here is what needs attention today."`
-- **Form error style**: Explicit, direct, and field-focused without punctuation clutter (e.g., `"Enter your UMak student email or ID"` rather than vague statements like `"Invalid input"`).
-
-### 11.5 Agrandir Narrow / Tight Usage
-
-- `Agrandir-Narrow.otf`: Sidebar section category headers (`text-[11px] uppercase tracking-wider font-semibold text-muted`) and dense data table column headers to prevent layout overflow.
-- `Agrandir-Tight.otf`: High-density metric values (`text-3xl` or `text-4xl` numerals like `150` and `78%`) and calendar date numerals to ensure crisp vertical rhythm and horizontal economy.
+| # | Screen Name | Tab | User Flow Step |
+|---|---|---|---|
+| 01 | Sign in | Auth & Access | Step 1: Institutional Credentials |
+| 02 | Account access & recovery | Auth & Access | Step 2: Session Expiry & Recovery |
+| 03 | Overview | Overview | Step 1: Daily Operations Dashboard |
+| 04 | Events catalog | Events | Step 1: Lifecycle Directory & Filter |
+| 05 | Create event | Events | Step 2: Draft Event in Timezone |
+| 06 | Event detail | Events | Step 3: Readiness & Roster Funnel |
+| 07 | Live check-in (Desktop) | Live Check-in | Step 1: Real-time Camera Scanner |
+| 08 | Mobile check-in | Live Check-in | Step 2: Phone Kiosk Check-in |
+| 09 | Camera recovery & errors | Live Check-in | Step 3: Permission & Retry States |
+| 10 | Manual ticket code | Live Check-in | Step 4: Rate-limited Fallback Entry |
+| 11 | Scan result and export | Live Check-in | Step 5: Duplicate Prevention & CSV Export |
+| 12 | Attendee directory | Attendees | Step 1: Global Identity Master List |
+| 13 | Import attendees | Attendees | Step 2: CSV Upload & Normalization |
+| 14 | Import conflict review | Attendees | Step 3: Side-by-Side Overwrite Diff |
+| 15 | Event attendee roster | Attendees | Step 4: Event-specific Roster & Outcomes |
+| 16 | Campaign performance | Campaigns & Email | Step 1: Overview & Provider Delivery |
+| 17 | Campaign recipients | Campaigns & Email | Step 2: Eligibility & Exclusion Filters |
+| 18 | Email composer | Campaigns & Email | Step 3: Markdown & Recipient Tags |
+| 19 | Composer assets & test send | Campaigns & Email | Step 4: File Attachments & Test Email |
+| 20 | Email preview & QR ticket | Campaigns & Email | Step 5: Recipient Preview Dialog |
+| 21 | Delivery queue | Campaigns & Email | Step 6: Mailgun / Brevo Capacity Queue |
+| 22 | Delivery diagnostics | Campaigns & Email | Step 7: Per-recipient Logs & Retries |
+| 23 | Provider limits & quotas | Campaigns & Email | Step 8: Quota Windows & Contracts |
+| 24 | Asset library | Assets | Step 1: File Storage & R2 Browser |
+| 25 | Asset policy | Assets | Step 2: Upload Limits & Delete Lock |
+| 26 | System settings | System & Admin | Step 1: Auto-close & 5-Year Retention |
 
 ---
 
-## 12. Pre-Flight Checklist (Run Before Every Screen)
+## 12. Pre-Flight Checklist (Mandatory Non-Negotiable Gate)
 
-The skill has a 50+ item pre-flight. These are the ones most relevant to **this specific project**:
+Before claiming any task complete or submitting a pull request, every item below MUST be verified:
 
-- [ ] Using only `--ink` / `--cyan` / semantic tokens — no hardcoded hex values in components
-- [ ] All headings use `font-display` (Agrandir), all body uses `font-sans` (Montserrat)
-- [ ] All corners follow the radius scale — no random `rounded-xl` where `rounded-[9px]` is specified
-- [ ] Sidebar always `bg-ink`, never affected by light/dark page theme
-- [ ] Badge pills always `rounded-full`
-- [ ] Icon size matches context (`size={16}` table, `size={18}` nav, `size={20}` actions)
-- [ ] No `h-screen` — always `min-h-[100dvh]`
-- [ ] All motion components have `'use client'` and cleanup functions
-- [ ] `useReducedMotion()` checked before any animation fires
-- [ ] No em-dashes (`—`) anywhere in visible text
-- [ ] Button labels on one line at desktop, no wrapping
-- [ ] WCAG AA contrast on all buttons and form inputs
+- [ ] **Design Tokens**: Using only `--ink` / `--cyan` / semantic tokens — zero hardcoded hex values in components.
+- [ ] **Typography**: All headings use `font-display` (Agrandir), all body uses `font-sans` (Montserrat). No serif typefaces.
+- [ ] **Corner Radius**: Strictly adheres to the 6-tier radius scale (`rounded-[4px]`, `rounded-[6px]`, `rounded-[9px]`, `rounded-[12px]`, `rounded-[16px]`, `rounded-full`).
+- [ ] **Icon Library**: Exclusively `@phosphor-icons/react` with strict weight (`regular`/`bold`) and size tokens (`16px`, `18px`, `20px`, `24px`).
+- [ ] **Icon Pairing & Accessibility**: Action buttons have icon + label; standalone icon buttons have `aria-label` and `title`.
+- [ ] **Zero Technical Jargon**: All user-facing text, tooltips, error notices, and buttons use plain, operator-first language. No raw database, cloud, or worker jargon.
+- [ ] **Viewport & Layout**: Always `min-h-[100dvh]`, never `h-screen`. Fixed sidebar is always `bg-ink`.
+- [ ] **Motion Safety**: Motion components have `'use client'`, cleanup handlers, and check `useReducedMotion()`.
+- [ ] **Punctuation & Copy**: No em-dashes (`—`) in visible user text. Button labels stay on one line on desktop.
+- [ ] **Accessibility**: WCAG AA contrast on all interactive buttons, badges, and inputs.

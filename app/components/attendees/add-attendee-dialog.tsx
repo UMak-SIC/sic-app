@@ -12,13 +12,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AttendeeItem } from "./attendees-table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { AttendeeItem, CourseType } from "./attendees-table";
+import { UserPlus } from "@phosphor-icons/react";
 
 interface AddAttendeeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddAttendee: (attendee: Omit<AttendeeItem, "id" | "ticketCode">) => void;
+  onAddAttendee: (attendee: Omit<AttendeeItem, "id" | "assignedEvents" | "totalEventsJoined" | "attendedEventsCount" | "attendanceRate" | "joinedDate">) => void;
 }
+
+const PROGRAM_NAMES: Record<CourseType, string> = {
+  BSIT: "BS Information Technology",
+  BSCS: "BS Computer Science",
+  BSINS: "BS Information Systems",
+};
 
 export function AddAttendeeDialog({
   open,
@@ -28,6 +42,7 @@ export function AddAttendeeDialog({
   const [name, setName] = React.useState("");
   const [studentId, setStudentId] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const [course, setCourse] = React.useState<CourseType>("BSIT");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,31 +52,33 @@ export function AddAttendeeDialog({
       name: name.trim(),
       studentId: studentId.trim(),
       email: email.trim(),
-      status: "pending",
+      course,
+      program: PROGRAM_NAMES[course],
     });
 
     setName("");
     setStudentId("");
     setEmail("");
+    setCourse("BSIT");
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md font-sans">
+      <DialogContent className="sm:max-w-md font-sans rounded-[12px] border-line">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-ink">
-              Add Attendee to Roster
+            <DialogTitle className="text-lg font-bold font-display text-ink">
+              Add Student to Master Directory
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted">
-              Enter participant details to register them for this event.
+            <DialogDescription className="text-xs text-muted font-sans">
+              Add a new student profile to the CCIS master directory.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-3.5 py-4">
             <div className="grid gap-1.5">
-              <Label htmlFor="attendee-name" className="text-xs font-semibold text-ink">
+              <Label htmlFor="attendee-name" className="text-xs font-bold text-ink">
                 Full Name
               </Label>
               <Input
@@ -70,27 +87,45 @@ export function AddAttendeeDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="h-9 text-sm"
+                className="h-9 text-xs rounded-[6px] border-line"
               />
             </div>
 
-            <div className="grid gap-1.5">
-              <Label htmlFor="attendee-id" className="text-xs font-semibold text-ink">
-                Student ID
-              </Label>
-              <Input
-                id="attendee-id"
-                placeholder="e.g. 2023-00182"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                required
-                className="h-9 text-sm font-mono"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="attendee-id" className="text-xs font-bold text-ink">
+                  Student ID
+                </Label>
+                <Input
+                  id="attendee-id"
+                  placeholder="e.g. 2023-00182"
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value)}
+                  required
+                  className="h-9 text-xs font-mono rounded-[6px] border-line"
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label htmlFor="attendee-course" className="text-xs font-bold text-ink">
+                  Course Track
+                </Label>
+                <Select value={course} onValueChange={(val) => setCourse(val as CourseType)}>
+                  <SelectTrigger id="attendee-course" className="h-9 text-xs rounded-[6px] border-line">
+                    <SelectValue placeholder="Select Course" />
+                  </SelectTrigger>
+                  <SelectContent className="font-sans">
+                    <SelectItem value="BSIT">BSIT (Info Tech)</SelectItem>
+                    <SelectItem value="BSCS">BSCS (Comp Sci)</SelectItem>
+                    <SelectItem value="BSINS">BSINS (Info Systems)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="attendee-email" className="text-xs font-semibold text-ink">
-                Email Address
+              <Label htmlFor="attendee-email" className="text-xs font-bold text-ink">
+                University Email Address
               </Label>
               <Input
                 id="attendee-email"
@@ -99,7 +134,7 @@ export function AddAttendeeDialog({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-9 text-sm"
+                className="h-9 text-xs rounded-[6px] border-line"
               />
             </div>
           </div>
@@ -109,15 +144,16 @@ export function AddAttendeeDialog({
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="text-xs font-semibold border-line cursor-pointer"
+              className="rounded-[6px] border-line text-xs font-semibold"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-cyan hover:bg-cyan/90 text-white text-xs font-semibold cursor-pointer"
+              className="rounded-[6px] bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold gap-1.5"
             >
-              Add Attendee
+              <UserPlus size={16} weight="bold" />
+              <span>Save Student Profile</span>
             </Button>
           </DialogFooter>
         </form>

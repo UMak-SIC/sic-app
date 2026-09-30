@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 
 export function SidebarPromoCard() {
@@ -41,7 +41,8 @@ export function SidebarPromoCard() {
               alt="Cute SIC Mascot"
               width={36}
               height={36}
-              className="h-auto w-auto max-h-9 max-w-9 object-contain"
+              style={{ width: "auto", height: "auto" }}
+              className="max-h-9 max-w-9 object-contain"
               priority
             />
           </div>

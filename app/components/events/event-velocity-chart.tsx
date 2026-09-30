@@ -2,203 +2,394 @@
 
 import * as React from "react";
 import {
+  BarChart,
   Bar,
   CartesianGrid,
-  ComposedChart,
-  Line,
   XAxis,
   YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceArea,
+  Cell,
 } from "recharts";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
+import { Info, TrendUp } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
-const hourlyVelocityData = [
-  { time: "12:00 PM", count: 4, cumulative: 4 },
-  { time: "1:00 PM", count: 12, cumulative: 16 },
-  { time: "1:30 PM", count: 28, cumulative: 44 },
-  { time: "2:00 PM", count: 22, cumulative: 66 },
-  { time: "2:30 PM", count: 5, cumulative: 71 },
-  { time: "3:00 PM", count: 0, cumulative: 71 },
-];
+export type MetricSeriesFilter = "all" | "registered" | "emails" | "attended";
 
-const dailyRegistrationData = [
-  { time: "10 Oct", count: 18, cumulative: 18 },
-  { time: "11 Oct", count: 24, cumulative: 42 },
-  { time: "12 Oct", count: 19, cumulative: 61 },
-  { time: "13 Oct", count: 22, cumulative: 83 },
-  { time: "14 Oct", count: 15, cumulative: 98 },
-  { time: "15 Oct", count: 12, cumulative: 110 },
-  { time: "16 Oct", count: 8, cumulative: 118 },
-];
-
-const FALLBACK_COLORS = {
-  interval: "#087f8c",
-  cumulative: "#2da482",
-  grid: "#e7eeee",
-  axis: "#607579",
-};
-
-function readChartColors() {
-  if (typeof window === "undefined") return FALLBACK_COLORS;
-
-  const styles = getComputedStyle(document.documentElement);
-  const read = (name: string, fallback: string) =>
-    styles.getPropertyValue(name).trim() || fallback;
-
-  return {
-    interval: read("--cyan", FALLBACK_COLORS.interval),
-    cumulative: read("--green", FALLBACK_COLORS.cumulative),
-    grid: read("--line-subtle", FALLBACK_COLORS.grid),
-    axis: read("--muted", FALLBACK_COLORS.axis),
-  };
+interface ActivityTimelineDatum {
+  time: string;
+  registered: number;
+  emails: number;
+  attended: number;
+  isNow?: boolean;
 }
 
-interface EventVelocityChartProps {
-  className?: string;
-}
+const TIMELINE_DATA: ActivityTimelineDatum[] = [
+  { time: "12:00", registered: 45, emails: 42, attended: 12 },
+  { time: "13:00", registered: 82, emails: 78, attended: 28 },
+  { time: "14:00", registered: 104, emails: 98, attended: 54 },
+  { time: "14:30", registered: 118, emails: 109, attended: 71, isNow: true },
+  { time: "15:00", registered: 118, emails: 109, attended: 71 },
+  { time: "16:00", registered: 118, emails: 109, attended: 71 },
+];
 
-export function EventVelocityChart({ className }: EventVelocityChartProps) {
-  const [metricView, setMetricView] = React.useState<"hourly" | "daily">(
-    "hourly"
-  );
-  const [colors] = React.useState(readChartColors);
+export function EventVelocityChart({ className }: { className?: string }) {
+  const [selectedMetric, setSelectedMetric] = React.useState<MetricSeriesFilter>("all");
 
-  const isHourly = metricView === "hourly";
-  const data = isHourly ? hourlyVelocityData : dailyRegistrationData;
-
-  const chartConfig = {
-    count: {
-      label: isHourly ? "Scans per hour" : "Registrations per day",
-      color: colors.interval,
-    },
-    cumulative: {
-      label: isHourly ? "Total checked in" : "Total roster",
-      color: colors.cumulative,
-    },
-  } satisfies ChartConfig;
+  const isAll = selectedMetric === "all";
 
   return (
     <div
       className={cn(
-        "flex flex-col rounded-[12px] border border-line bg-card p-5 shadow-2xs",
+        "flex flex-col justify-between rounded-[12px] border border-line bg-card shadow-2xs overflow-hidden",
         className
       )}
     >
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="font-display text-sm font-bold text-ink">
-          {isHourly ? "Check-in velocity" : "Registration timeline"}
+      {/* Top Header & Filter Tabs */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 pt-5 pb-3">
+        <h2 className="font-display text-lg font-bold text-ink tracking-tight">
+          Event Activity
         </h2>
 
+        {/* Clean Pill Filter Tabs (Mockup-aligned) */}
         <div
           role="group"
-          aria-label="Chart range"
-          className="flex items-center gap-1 self-start rounded-[8px] bg-canvas/70 p-1 sm:self-auto"
+          aria-label="Filter series"
+          className="flex items-center gap-1 rounded-full bg-canvas/60 p-1 border border-line-subtle self-start sm:self-auto"
         >
           <button
             type="button"
-            aria-pressed={isHourly}
-            onClick={() => setMetricView("hourly")}
+            onClick={() => setSelectedMetric("all")}
+            aria-pressed={isAll}
             className={cn(
-              "rounded-[6px] px-2.5 py-1 font-sans text-xs transition-colors cursor-pointer",
-              isHourly
-                ? "bg-card font-semibold text-ink shadow-2xs"
+              "rounded-full px-3 py-1 font-sans text-xs font-semibold transition-all cursor-pointer",
+              isAll
+                ? "bg-card text-ink shadow-xs"
                 : "text-muted hover:text-ink"
             )}
           >
-            Live scans
+            All
           </button>
           <button
             type="button"
-            aria-pressed={!isHourly}
-            onClick={() => setMetricView("daily")}
+            onClick={() => setSelectedMetric("registered")}
+            aria-pressed={selectedMetric === "registered"}
             className={cn(
-              "rounded-[6px] px-2.5 py-1 font-sans text-xs transition-colors cursor-pointer",
-              !isHourly
-                ? "bg-card font-semibold text-ink shadow-2xs"
+              "rounded-full px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer",
+              selectedMetric === "registered"
+                ? "bg-card font-semibold text-cyan shadow-xs"
                 : "text-muted hover:text-ink"
             )}
           >
-            7-day roster
+            Registrations
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedMetric("emails")}
+            aria-pressed={selectedMetric === "emails"}
+            className={cn(
+              "rounded-full px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer",
+              selectedMetric === "emails"
+                ? "bg-card font-semibold text-green shadow-xs"
+                : "text-muted hover:text-ink"
+            )}
+          >
+            Emails sent
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedMetric("attended")}
+            aria-pressed={selectedMetric === "attended"}
+            className={cn(
+              "rounded-full px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer",
+              selectedMetric === "attended"
+                ? "bg-card font-semibold text-amber shadow-xs"
+                : "text-muted hover:text-ink"
+            )}
+          >
+            Attended
           </button>
         </div>
       </div>
 
-      <div className="h-64 w-full">
-        <ChartContainer config={chartConfig} className="h-full w-full aspect-auto">
-          <ComposedChart
-            data={data}
-            margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+      {/* 3 Metric Headers Row (Divided by vertical lines, NO colored card boxes, exactly matching mockup) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line-subtle border-y border-line-subtle">
+        {/* Metric 1: Registrations */}
+        <div
+          onClick={() => setSelectedMetric(selectedMetric === "registered" ? "all" : "registered")}
+          className={cn(
+            "flex flex-col gap-1 px-6 py-4 cursor-pointer transition-colors",
+            selectedMetric === "registered" ? "bg-canvas/40" : "hover:bg-canvas/20"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-[3px] bg-cyan shrink-0" />
+              <span className="font-sans text-xs font-semibold text-ink">
+                Registrations
+              </span>
+            </div>
+            <Info size={15} className="text-muted-light" title="Total registered students" />
+          </div>
+
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="font-display text-2xl font-bold text-ink tabular-nums tracking-tight">
+              118
+            </span>
+            <span className="inline-flex items-center gap-0.5 font-sans text-xs font-semibold text-green">
+              <TrendUp size={13} weight="bold" />
+              +8%
+            </span>
+          </div>
+
+          <span className="font-sans text-[11px] text-muted">
+            vs previous event
+          </span>
+        </div>
+
+        {/* Metric 2: Emails Sent */}
+        <div
+          onClick={() => setSelectedMetric(selectedMetric === "emails" ? "all" : "emails")}
+          className={cn(
+            "flex flex-col gap-1 px-6 py-4 cursor-pointer transition-colors",
+            selectedMetric === "emails" ? "bg-canvas/40" : "hover:bg-canvas/20"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-[3px] bg-green shrink-0" />
+              <span className="font-sans text-xs font-semibold text-ink">
+                Emails sent
+              </span>
+            </div>
+            <Info size={15} className="text-muted-light" title="Confirmation emails delivered" />
+          </div>
+
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="font-display text-2xl font-bold text-ink tabular-nums tracking-tight">
+              109
+            </span>
+            <span className="inline-flex items-center gap-0.5 font-sans text-xs font-semibold text-green">
+              <TrendUp size={13} weight="bold" />
+              +5%
+            </span>
+          </div>
+
+          <span className="font-sans text-[11px] text-muted">
+            92% delivery rate
+          </span>
+        </div>
+
+        {/* Metric 3: Attended */}
+        <div
+          onClick={() => setSelectedMetric(selectedMetric === "attended" ? "all" : "attended")}
+          className={cn(
+            "flex flex-col gap-1 px-6 py-4 cursor-pointer transition-colors",
+            selectedMetric === "attended" ? "bg-canvas/40" : "hover:bg-canvas/20"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="size-2.5 rounded-[3px] bg-amber shrink-0" />
+              <span className="font-sans text-xs font-semibold text-ink">
+                Attended
+              </span>
+            </div>
+            <Info size={15} className="text-muted-light" title="Students present at the event" />
+          </div>
+
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className="font-display text-2xl font-bold text-ink tabular-nums tracking-tight">
+              71
+            </span>
+            <span className="inline-flex items-center gap-0.5 font-sans text-xs font-semibold text-green">
+              <TrendUp size={13} weight="bold" />
+              +12%
+            </span>
+          </div>
+
+          <span className="font-sans text-[11px] text-muted">
+            60% turnout rate
+          </span>
+        </div>
+      </div>
+
+      {/* Styled Gradient Bar Chart Canvas */}
+      <div className="h-60 w-full px-4 pt-5 pb-2">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={TIMELINE_DATA}
+            margin={{ top: 10, right: 16, left: -20, bottom: 0 }}
+            barGap={4}
           >
+            <defs>
+              {/* Green Gradient for Attended */}
+              <linearGradient id="barGradientGreen" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#2da482" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="#2da482" stopOpacity={0.3} />
+              </linearGradient>
+
+              {/* Cyan Gradient for Registrations */}
+              <linearGradient id="barGradientCyan" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#087f8c" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="#087f8c" stopOpacity={0.3} />
+              </linearGradient>
+
+              {/* Teal Gradient for Emails Sent */}
+              <linearGradient id="barGradientEmails" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#176c59" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#176c59" stopOpacity={0.25} />
+              </linearGradient>
+
+              {/* Glowing gradient for current 'Now' bar */}
+              <linearGradient id="barGradientNow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#087f8c" stopOpacity={1} />
+                <stop offset="100%" stopColor="#2da482" stopOpacity={0.7} />
+              </linearGradient>
+            </defs>
+
+            {/* Subtle Vertical Gridlines like mockup */}
             <CartesianGrid
-              vertical={false}
-              strokeDasharray="3 3"
-              stroke={colors.grid}
+              strokeDasharray="2 2"
+              stroke="#e7eeee"
+              vertical={true}
+              horizontal={true}
+            />
+
+            {/* Shaded vertical zone for 'Now' time marker like in mockup */}
+            <ReferenceArea
+              x1="14:00"
+              x2="14:30"
+              fill="#087f8c"
+              fillOpacity={0.06}
             />
 
             <XAxis
               dataKey="time"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: colors.axis, fontSize: 11 }}
-              dy={6}
+              tick={({ x, y, payload }) => {
+                const isCurrent = payload.value === "14:30";
+                return (
+                  <text
+                    x={x}
+                    y={y + 12}
+                    textAnchor="middle"
+                    fill={isCurrent ? "#087f8c" : "#607579"}
+                    fontSize={11}
+                    fontWeight={isCurrent ? 700 : 500}
+                    fontFamily="Montserrat"
+                  >
+                    {isCurrent ? "Now, 14:30" : payload.value}
+                  </text>
+                );
+              }}
             />
 
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: colors.axis, fontSize: 11 }}
-              width={36}
+              tick={{ fill: "#607579", fontSize: 11, fontFamily: "Montserrat" }}
+              domain={[0, 130]}
             />
 
-            <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  indicator="dot"
-                  className="rounded-[8px] border-line bg-card font-sans text-xs text-ink shadow-md [&_.font-mono]:font-sans"
-                />
-              }
+            <Tooltip
+              cursor={{ fill: "rgba(8, 127, 140, 0.04)" }}
+              content={({ active, payload, label }) => {
+                if (!active || !payload || !payload.length) return null;
+                return (
+                  <div className="rounded-[8px] border border-line bg-card p-2.5 shadow-md font-sans text-xs">
+                    <p className="font-semibold text-ink border-b border-line-subtle pb-1 mb-1.5">
+                      {label === "14:30" ? "Current Time (14:30)" : `Time: ${label}`}
+                    </p>
+                    <div className="flex flex-col gap-1">
+                      {payload.map((entry) => (
+                        <div key={entry.name} className="flex items-center justify-between gap-4">
+                          <span className="flex items-center gap-1.5 text-muted">
+                            <span
+                              className="size-2 rounded-full"
+                              style={{ backgroundColor: entry.color }}
+                            />
+                            {entry.name === "registered"
+                              ? "Registrations"
+                              : entry.name === "emails"
+                              ? "Emails Sent"
+                              : "Attended"}
+                          </span>
+                          <span className="font-bold text-ink tabular-nums">
+                            {entry.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }}
             />
 
-            <Bar
-              dataKey="count"
-              name="count"
-              fill={colors.interval}
-              radius={[2, 2, 0, 0]}
-              maxBarSize={32}
-            />
+            {/* Registrations Bar */}
+            {(isAll || selectedMetric === "registered") && (
+              <Bar
+                dataKey="registered"
+                name="registered"
+                fill="url(#barGradientCyan)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={isAll ? 24 : 44}
+              />
+            )}
 
-            <Line
-              dataKey="cumulative"
-              name="cumulative"
-              stroke={colors.cumulative}
-              strokeWidth={2}
-              dot={false}
-            />
-          </ComposedChart>
-        </ChartContainer>
+            {/* Emails Sent Bar */}
+            {(isAll || selectedMetric === "emails") && (
+              <Bar
+                dataKey="emails"
+                name="emails"
+                fill="url(#barGradientEmails)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={isAll ? 24 : 44}
+              />
+            )}
+
+            {/* Attended Bar */}
+            {(isAll || selectedMetric === "attended") && (
+              <Bar
+                dataKey="attended"
+                name="attended"
+                fill="url(#barGradientGreen)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={isAll ? 24 : 44}
+              >
+                {TIMELINE_DATA.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.isNow ? "url(#barGradientNow)" : "url(#barGradientGreen)"}
+                  />
+                ))}
+              </Bar>
+            )}
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 font-sans text-xs text-muted">
-        <span className="flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className="size-2.5 rounded-[2px]"
-            style={{ backgroundColor: colors.interval }}
-          />
-          {isHourly ? "Scans per hour" : "Registrations per day"}
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span
-            aria-hidden="true"
-            className="h-0.5 w-3 rounded-full"
-            style={{ backgroundColor: colors.cumulative }}
-          />
-          {isHourly ? "Total checked in" : "Total roster"}
+      {/* Footer Meta */}
+      <div className="flex items-center justify-between px-6 py-2.5 border-t border-line-subtle font-sans text-xs text-muted">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-[2px] bg-cyan" />
+            Registrations
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-[2px] bg-[#176c59]" />
+            Emails sent
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-[2px] bg-green" />
+            Attended
+          </span>
+        </div>
+
+        <span className="text-[11px] text-muted-light">
+          Real-time event attendance pace
         </span>
       </div>
     </div>

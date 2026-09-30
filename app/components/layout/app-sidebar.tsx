@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { SidebarSimple } from "@phosphor-icons/react";
 import { SidebarNav } from "./sidebar-nav";
 import { SidebarPromoCard } from "./sidebar-promo-card";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r border-slate-200/80 bg-[#fbfdfd] transition-all duration-300 ease-in-out h-screen sticky top-0 shrink-0 overflow-x-hidden",
+        "relative flex flex-col border-r border-line bg-paper transition-all duration-300 ease-in-out h-screen sticky top-0 shrink-0 overflow-x-hidden",
         collapsed ? "w-18" : "w-64",
         className
       )}
@@ -65,11 +65,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? (
-            <PanelLeftOpen className="h-4 w-4" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4" />
-          )}
+          <SidebarSimple size={18} weight="bold" />
         </button>
       </div>
 

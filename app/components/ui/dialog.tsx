@@ -112,10 +112,15 @@ export const DialogOverlay = React.forwardRef<
 });
 DialogOverlay.displayName = "DialogOverlay";
 
+export interface DialogContentProps
+  extends React.HTMLAttributes<HTMLDivElement> {
+  hideCloseButton?: boolean;
+}
+
 export const DialogContent = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, children, ...props }, ref) => {
+  DialogContentProps
+>(({ className, children, hideCloseButton = false, ...props }, ref) => {
   const { open, onOpenChange } = useDialog();
 
   // Handle ESC key
@@ -146,14 +151,17 @@ export const DialogContent = React.forwardRef<
         {...props}
       >
         {children}
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none cursor-pointer text-muted hover:text-ink"
-        >
-          <X size={16} weight="bold" />
-          <span className="sr-only">Close</span>
-        </button>
+        {!hideCloseButton && (
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none cursor-pointer text-muted hover:text-ink z-10"
+            aria-label="Close"
+          >
+            <X size={16} weight="bold" />
+            <span className="sr-only">Close</span>
+          </button>
+        )}
       </div>
     </DialogPortal>
   );

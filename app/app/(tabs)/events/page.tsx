@@ -7,6 +7,7 @@ import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header
 import { EventsToolbar } from "@/components/events/events-toolbar";
 import { EventsTable, EventItem } from "@/components/events/events-table";
 import { EventsPagination } from "@/components/events/events-pagination";
+import { CreateEventDialog } from "@/components/events/create-event-dialog";
 
 const INITIAL_EVENTS: EventItem[] = [
   {
@@ -19,6 +20,8 @@ const INITIAL_EVENTS: EventItem[] = [
     registeredCount: 118,
     capacity: 150,
     attendedCount: 71,
+    image: "/assets/events/event-ga.png",
+    grad: "radial-gradient(120% 140% at 20% 10%, rgba(8,127,140,0.55), transparent 60%), linear-gradient(150deg, #12333a, var(--card))",
   },
   {
     id: "evt_2",
@@ -29,6 +32,8 @@ const INITIAL_EVENTS: EventItem[] = [
     status: "published",
     registeredCount: 48,
     capacity: 60,
+    image: "/assets/events/event-cloud.png",
+    grad: "radial-gradient(120% 140% at 80% 15%, rgba(41,163,136,0.5), transparent 60%), linear-gradient(150deg, #102a24, var(--card))",
   },
   {
     id: "evt_3",
@@ -39,6 +44,8 @@ const INITIAL_EVENTS: EventItem[] = [
     status: "published",
     registeredCount: 72,
     capacity: 80,
+    image: "/assets/events/event-design.png",
+    grad: "radial-gradient(120% 140% at 30% 85%, rgba(217,141,43,0.5), transparent 60%), linear-gradient(150deg, #2b2010, var(--card))",
   },
   {
     id: "evt_4",
@@ -49,6 +56,8 @@ const INITIAL_EVENTS: EventItem[] = [
     status: "draft",
     registeredCount: 0,
     capacity: 350,
+    image: "/assets/events/event-summit.png",
+    grad: "radial-gradient(120% 140% at 70% 80%, rgba(34,184,201,0.5), transparent 60%), linear-gradient(150deg, #132e34, var(--card))",
   },
   {
     id: "evt_5",
@@ -59,6 +68,8 @@ const INITIAL_EVENTS: EventItem[] = [
     status: "draft",
     registeredCount: 0,
     capacity: 50,
+    image: "/assets/events/event-cyber.png",
+    grad: "radial-gradient(120% 140% at 20% 80%, rgba(164,61,73,0.5), transparent 60%), linear-gradient(150deg, #3d171c, var(--card))",
   },
   {
     id: "evt_6",
@@ -70,6 +81,8 @@ const INITIAL_EVENTS: EventItem[] = [
     registeredCount: 142,
     capacity: 150,
     attendedCount: 138,
+    image: "/assets/events/event-hackathon.png",
+    grad: "radial-gradient(120% 140% at 80% 20%, rgba(8,127,140,0.5), transparent 60%), linear-gradient(150deg, #12333a, var(--card))",
   },
   {
     id: "evt_7",
@@ -81,6 +94,8 @@ const INITIAL_EVENTS: EventItem[] = [
     registeredCount: 95,
     capacity: 100,
     attendedCount: 91,
+    image: "/assets/events/event-leadership.png",
+    grad: "radial-gradient(120% 140% at 20% 20%, rgba(41,163,136,0.5), transparent 60%), linear-gradient(150deg, #133930, var(--card))",
   },
   {
     id: "evt_8",
@@ -92,6 +107,8 @@ const INITIAL_EVENTS: EventItem[] = [
     registeredCount: 280,
     capacity: 300,
     attendedCount: 265,
+    image: "/assets/events/event-freshmen.png",
+    grad: "radial-gradient(120% 140% at 70% 30%, rgba(217,141,43,0.5), transparent 60%), linear-gradient(150deg, #3b2810, var(--card))",
   },
 ];
 
@@ -102,7 +119,13 @@ export default function EventsPage() {
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [currentPage, setCurrentPage] = React.useState(1);
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const pageSize = 10;
+
+  // Add newly created or draft event
+  const handleCreateEvent = (newEvent: EventItem) => {
+    setEventsList((prev) => [newEvent, ...prev]);
+  };
 
   // Filter items
   const filteredEvents = React.useMemo(() => {
@@ -182,10 +205,17 @@ export default function EventsPage() {
     <div className="flex flex-col gap-6 w-full pb-10">
       {/* Top Header */}
       <PageHeader
-        title={<span className="font-display font-bold">Events</span>}
+        title={
+          <span className="font-display">
+            Want to create an <span className="font-bold">event?</span>
+          </span>
+        }
         description="Search every draft, published, and closed event."
         action={
-          <PageHeaderButton icon={<Plus size={18} weight="bold" />}>
+          <PageHeaderButton
+            icon={<Plus size={18} weight="bold" />}
+            onClick={() => setIsCreateOpen(true)}
+          >
             Create Event
           </PageHeaderButton>
         }
@@ -237,6 +267,13 @@ export default function EventsPage() {
           onPageChange={setCurrentPage}
         />
       </div>
+
+      {/* Create Event Multi-Step Modal */}
+      <CreateEventDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        onCreateEvent={handleCreateEvent}
+      />
     </div>
   );
 }

@@ -5,9 +5,8 @@ import { useMotionValueEvent, useScroll } from "motion/react";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
-  { id: "readiness", label: "Readiness" },
-  { id: "activity", label: "Activity" },
-  { id: "roster", label: "Roster" },
+  { id: "activity", label: "Activity & Analytics" },
+  { id: "roster", label: "Attendee Roster" },
 ] as const;
 
 function computeActiveId(): string {
@@ -16,7 +15,7 @@ function computeActiveId(): string {
   if (window.innerHeight + window.scrollY >= doc.scrollHeight - 4) {
     return SECTIONS[SECTIONS.length - 1].id;
   }
-  const line = window.innerHeight * 0.25;
+  const line = window.innerHeight * 0.35;
   let active: string = SECTIONS[0].id;
   for (const section of SECTIONS) {
     const el = document.getElementById(section.id);
@@ -59,9 +58,9 @@ export function EventSectionNav() {
   return (
     <nav
       aria-label="Event sections"
-      className="sticky top-0 z-10 flex border-b border-line-subtle bg-paper/90 backdrop-blur"
+      className="sticky top-16 z-20 flex border-b border-line-subtle bg-paper/90 backdrop-blur py-1"
     >
-      <ul className="flex items-center gap-1 py-1.5">
+      <ul className="flex items-center gap-1.5">
         {SECTIONS.map((section) => (
           <li key={section.id}>
             <a
@@ -69,9 +68,9 @@ export function EventSectionNav() {
               aria-current={activeId === section.id ? "true" : undefined}
               onClick={(event) => handleClick(event, section.id)}
               className={cn(
-                "inline-flex h-9 items-center rounded-full px-3.5 font-sans text-sm transition-colors cursor-pointer",
+                "inline-flex h-8 items-center rounded-full px-3.5 font-sans text-xs font-semibold transition-colors cursor-pointer",
                 activeId === section.id
-                  ? "bg-ink font-semibold text-paper"
+                  ? "bg-ink text-paper shadow-2xs"
                   : "text-muted hover:bg-canvas hover:text-ink"
               )}
             >

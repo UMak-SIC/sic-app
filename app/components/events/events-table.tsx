@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   Table,
   TableBody,
@@ -37,6 +38,8 @@ import {
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
+const EASE = [0.16, 1, 0.3, 1] as const;
+
 export interface EventItem {
   id: string;
   title: string;
@@ -47,6 +50,9 @@ export interface EventItem {
   registeredCount: number;
   capacity: number;
   attendedCount?: number;
+  /** Cover image URL; falls back to `grad` when absent. */
+  image?: string;
+  grad?: string;
 }
 
 interface EventsTableProps {
@@ -92,6 +98,11 @@ export function EventsTable({
   onViewClick,
   onExportClick,
 }: EventsTableProps) {
+  const reduced = useReducedMotion();
+  const wrap = React.useRef<HTMLDivElement>(null);
+  const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
+  const [pos, setPos] = React.useState({ x: 0, y: 0 });
+
   // Local list state to support immediate responsive reordering
   const [items, setItems] = React.useState<EventItem[]>(events);
 
@@ -99,6 +110,13 @@ export function EventsTable({
   React.useEffect(() => {
     setItems(events);
   }, [events]);
+
+  const onMove = (e: React.PointerEvent) => {
+    const r = wrap.current?.getBoundingClientRect();
+    if (r) {
+      setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
+    }
+  };
 
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
@@ -211,7 +229,12 @@ export function EventsTable({
   }
 
   return (
-    <div className="rounded-[12px] border border-line bg-card shadow-2xs overflow-hidden">
+    <div
+      ref={wrap}
+      onPointerMove={onMove}
+      onPointerLeave={() => setHoverIndex(null)}
+      className="relative rounded-[12px] border border-line bg-card shadow-2xs overflow-hidden"
+    >
       <Table className="table-fixed">
         <TableHeader>
           <TableRow className="bg-canvas/50 hover:bg-canvas/50 border-b border-line">
@@ -248,6 +271,7 @@ export function EventsTable({
             const isSelected = selectedIds.includes(evt.id);
             const isBeingDragged = draggedIndex === index;
             const isOverTarget = dragOverIndex === index;
+            const isHovered = hoverIndex === index;
             const accent = STATUS_ACCENTS[evt.status] || STATUS_ACCENTS.draft;
 
             const count =
@@ -259,7 +283,10 @@ export function EventsTable({
               <TableRow
                 key={evt.id}
                 draggable
-                onDragStart={(e) => handleDragStart(e, index)}
+                onDragStart={(e) => {
+                  setHoverIndex(null);
+                  handleDragStart(e, index);
+                }}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
@@ -269,13 +296,17 @@ export function EventsTable({
                   "group transition-all duration-150 border-l-[4px]",
                   accent.borderLeftClass,
                   isSelected && "bg-cyan-soft/30 hover:bg-cyan-soft/40",
+                  !isSelected && isHovered && "bg-canvas/50",
                   isBeingDragged && "opacity-40 bg-cyan-soft/20 scale-[0.99] shadow-sm",
                   isOverTarget && dropPosition === "top" && "border-t-2 border-t-cyan",
                   isOverTarget && dropPosition === "bottom" && "border-b-2 border-b-cyan"
                 )}
               >
                 {/* Drag Grip + Checkbox */}
-                <TableCell className="pl-3 py-3.5">
+                <TableCell
+                  className="pl-3 py-3.5"
+                  onPointerEnter={() => setHoverIndex(null)}
+                >
                   <div className="flex items-center gap-2">
                     {/* Drag Handle */}
                     <button
@@ -297,8 +328,14 @@ export function EventsTable({
                   </div>
                 </TableCell>
 
-                {/* Event Title & Venue */}
-                <TableCell className="truncate py-3.5">
+                {/* Event Title & Venue (Triggers hover preview) */}
+                <TableCell
+                  className="truncate py-3.5 cursor-pointer"
+                  onPointerEnter={() => {
+                    if (draggedIndex === null) setHoverIndex(index);
+                  }}
+                  onPointerLeave={() => setHoverIndex(null)}
+                >
                   <div className="flex flex-col gap-1 max-w-[95%]">
                     <span className="font-sans text-base font-bold text-ink group-hover:text-cyan transition-colors truncate">
                       {evt.title}
@@ -310,8 +347,14 @@ export function EventsTable({
                   </div>
                 </TableCell>
 
-                {/* Attendance Count & Meter */}
-                <TableCell className="py-3.5">
+                {/* Attendance Count & Meter (Triggers hover preview) */}
+                <TableCell
+                  className="py-3.5 cursor-pointer"
+                  onPointerEnter={() => {
+                    if (draggedIndex === null) setHoverIndex(index);
+                  }}
+                  onPointerLeave={() => setHoverIndex(null)}
+                >
                   <div className="flex flex-col gap-1.5 pr-4">
                     <div className="flex items-baseline gap-1 text-xs">
                       <span className="font-display font-bold text-sm text-ink">
@@ -336,7 +379,10 @@ export function EventsTable({
                 </TableCell>
 
                 {/* Date & Time */}
-                <TableCell className="py-3.5">
+                <TableCell
+                  className="py-3.5"
+                  onPointerEnter={() => setHoverIndex(null)}
+                >
                   <div className="flex flex-col gap-1 font-sans">
                     <div className="flex items-center gap-1.5 text-sm font-semibold text-ink">
                       <CalendarBlank size={14} className="shrink-0 text-muted" />
@@ -350,12 +396,18 @@ export function EventsTable({
                 </TableCell>
 
                 {/* Status Badge */}
-                <TableCell className="py-3.5">
+                <TableCell
+                  className="py-3.5"
+                  onPointerEnter={() => setHoverIndex(null)}
+                >
                   <EventStatusBadge status={evt.status} />
                 </TableCell>
 
                 {/* Row Actions */}
-                <TableCell className="text-right pr-4 py-3.5">
+                <TableCell
+                  className="text-right pr-4 py-3.5"
+                  onPointerEnter={() => setHoverIndex(null)}
+                >
                   <div className="flex items-center justify-end gap-1.5">
                     {evt.status === "published" ? (
                       <Button
@@ -449,6 +501,91 @@ export function EventsTable({
           })}
         </TableBody>
       </Table>
+
+      {/* Floating cover preview - only alive while an event row is hovered */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute z-30 w-[240px] overflow-hidden rounded-[12px] border border-line bg-card shadow-2xl"
+        style={{
+          left: 0,
+          top: 0,
+          boxShadow:
+            "0 20px 40px -10px rgba(18, 51, 58, 0.25), 0 0 0 1px var(--line)",
+        }}
+        animate={{
+          x: Math.max(
+            12,
+            Math.min(pos.x + 24, (wrap.current?.clientWidth ?? 800) - 252)
+          ),
+          y: Math.max(
+            10,
+            Math.min(pos.y - 70, (wrap.current?.clientHeight ?? 500) - 210)
+          ),
+          opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
+          scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.96,
+        }}
+        transition={
+          reduced
+            ? { duration: 0 }
+            : {
+                type: "spring",
+                stiffness: 260,
+                damping: 28,
+                opacity: { duration: 0.2, ease: EASE },
+              }
+        }
+      >
+        {items.map((r, i) => {
+          const isCurrent = hoverIndex === i;
+          return (
+            <div
+              key={r.id || r.title}
+              aria-hidden="true"
+              className="relative w-full"
+              style={{ display: isCurrent ? "block" : "none" }}
+            >
+              <div
+                className="relative aspect-[16/10] w-full overflow-hidden bg-canvas"
+                style={{ background: r.grad }}
+              >
+                {r.image ? (
+                  <img
+                    src={r.image}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="relative h-full w-full p-4 flex flex-col justify-between">
+                    {/* Skeleton chrome so the gradient reads as a product cover */}
+                    <span className="absolute left-[8%] top-[12%] h-[6%] w-[34%] rounded-full bg-ink/15" />
+                    <span className="absolute left-[8%] top-[24%] h-[5%] w-[52%] rounded-full bg-ink/10" />
+                    <span className="absolute inset-x-[8%] bottom-[12%] top-[42%] rounded-[6px] border border-ink/10 bg-paper/40 backdrop-blur-xs flex items-center justify-center text-xs font-display font-bold text-ink/70 px-2 text-center">
+                      {r.title}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Floating preview summary footer */}
+              <div className="p-3 border-t border-line/60 bg-card">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-display text-xs font-bold text-ink truncate">
+                    {r.title}
+                  </span>
+                  <span className="font-sans text-[10px] font-semibold text-muted px-1.5 py-0.5 rounded-[4px] bg-canvas shrink-0 capitalize">
+                    {STATUS_ACCENTS[r.status]?.label || r.status}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-muted font-sans mt-1">
+                  <span className="truncate">{r.venue}</span>
+                  <span className="tabular-nums shrink-0">{r.date}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </motion.div>
     </div>
   );
 }
