@@ -14,14 +14,15 @@ import { getPrismaClient } from "@/lib/prisma";
  *
  * ## What this deliberately does not return
  *
- * The directory UI's `AttendeeItem` shape also carries `course`, `program`, and a
- * per-event `shortCode`. **None of the three exists in the schema** — `Attendee`
- * has no `course` or `program` column and `Event` has no `short_code`. Rather
- * than invent values or return empty strings that would render as blank cells
- * indistinguishable from real data, this omits them. They are raised as schema
- * questions rather than papered over, because a `course: ""` is worse than a
- * missing field: an administrator cannot tell it apart from a student who has no
- * course recorded.
+ * The directory UI's `AttendeeItem` shape also carries a per-event `shortCode`.
+ * **No schema column holds it** — `Event` has no `short_code`, and the decision
+ * recorded in #109 is to drop it from the UI rather than add a column, since the
+ * event already has a unique id. It is therefore omitted rather than invented or
+ * returned empty.
+ *
+ * `course` and `program` *were* in the same position, and were resolved the other
+ * way: #109 decided to add them to `Attendee` so the course-reach KPI can group
+ * on them. They are now real columns.
  */
 
 export type AttendeeEventSummary = {
@@ -36,6 +37,11 @@ export type AttendeeDirectoryItem = {
   name: string;
   studentId: string;
   email: string;
+  /** Free text, null when never recorded. Grouped on for the course KPI. */
+  course: string | null;
+  program: string | null;
+  /** The student's year and block, e.g. "BSIT-2A". */
+  section: string | null;
   joinedDate: Date;
   events: AttendeeEventSummary[];
   totalEventsJoined: number;
@@ -110,6 +116,9 @@ export async function listAttendees({
         name: true,
         studentId: true,
         displayEmail: true,
+        course: true,
+        program: true,
+        section: true,
         createdAt: true,
         rosterEntries: {
           orderBy: { event: { startsAt: "desc" } },
@@ -136,6 +145,9 @@ export async function listAttendees({
         // displayEmail, not normalizedEmail: DMA-02 keeps the normalised form for
         // matching and the display form for what a human sees.
         email: row.displayEmail,
+        course: row.course,
+        program: row.program,
+        section: row.section,
         joinedDate: row.createdAt,
         events: row.rosterEntries.map((entry) => ({
           id: entry.event.id,

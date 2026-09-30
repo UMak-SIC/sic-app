@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 export interface EventBadgeItem {
   id: string;
   title: string;
-  shortCode: string;
   date: string;
   attended: boolean;
 }
@@ -15,7 +14,7 @@ export interface EventBadgeItem {
 export interface AvatarStackProps {
   names?: string[];
   events?: EventBadgeItem[];
-  /** Avatar image per item (same order); a missing entry falls back to initials/shortcode. */
+  /** Avatar image per item (same order); a missing entry falls back to initials. */
   images?: (string | undefined)[];
   /** Coins shown before folding the rest into a "+N" count. */
   max?: number;
@@ -132,7 +131,10 @@ export function AvatarStack({
       ? events.map((e, idx) => ({
           id: e.id,
           name: `${e.title}${e.date ? ` (${e.date})` : ""}`,
-          label: e.shortCode || initials(e.title),
+          // Initials only. A short code was removed from the badge in #109: the
+          // event already has a unique id, so the abbreviation earned nothing and
+          // no column held it.
+          label: initials(e.title),
           isAttended: e.attended,
           img: images[idx],
         }))
