@@ -10,7 +10,8 @@ import {
   AttendeeItem,
 } from "@/components/attendees/attendees-table";
 import { AttendeesPagination } from "@/components/attendees/attendees-pagination";
-import { AddAttendeeDialog } from "@/components/attendees/add-attendee-dialog";
+import { AttendeeFormDialog } from "@/components/attendees/attendee-form-dialog";
+import { RemoveAttendeeDialog } from "@/components/attendees/remove-attendee-dialog";
 import { ImportAttendeesDialog } from "@/components/attendees/import-attendees-dialog";
 import { AddToEventDialog, type AvailableEvent } from "@/components/attendees/add-to-event-dialog";
 import {
@@ -69,6 +70,8 @@ export default function AttendeesPage() {
 
   // Dialog States
   const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [attendeeBeingEdited, setAttendeeBeingEdited] = React.useState<AttendeeItem | null>(null);
+  const [attendeeBeingRemoved, setAttendeeBeingRemoved] = React.useState<AttendeeItem | null>(null);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [isAddToEventOpen, setIsAddToEventOpen] = React.useState(false);
   const [targetStudentForEvent, setTargetStudentForEvent] = React.useState<AttendeeItem | null>(null);
@@ -178,14 +181,11 @@ export default function AttendeesPage() {
     setNotice(`${action} is not saved. Nothing on this page is connected to the registry for that yet.`);
   };
 
-  const handleAddStudent = () => notSavedYet("Adding a student");
-
   /**
    * Adds the selection to an event's roster.
    *
-   * The only write on this page that has an endpoint. Everyone is added as
-   * pending, because nobody has arrived yet — check-in is what marks them
-   * attended.
+   * Everyone is added as pending, because nobody has arrived yet — check-in is what
+   * marks them attended.
    */
   const [isAddingToEvent, setIsAddingToEvent] = React.useState(false);
 
@@ -237,7 +237,29 @@ export default function AttendeesPage() {
 
   const handleBatchDelete = () => notSavedYet("Removing students");
 
-  const handleRemoveStudent = () => notSavedYet("Removing a student");
+  /**
+   * Called after a student is added or edited.
+   *
+   * `restored` is passed through rather than flattened into "saved", because adding
+   * back a student who had been removed is a different thing from making a new record
+   * and the operator is the one who needs to know which happened.
+   */
+  const handleAttendeeSaved = ({ restored }: { restored: boolean }) => {
+    setReloadToken((token) => token + 1);
+    setAttendeeBeingEdited(null);
+    setNotice(
+      restored
+        ? "That student was added back to the directory, with the attendance they already had."
+        : "The student was saved."
+    );
+  };
+
+  const handleAttendeeRemoved = (attendee: AttendeeItem) => {
+    setReloadToken((token) => token + 1);
+    setAttendeeBeingRemoved(null);
+    setSelectedIds((current) => current.filter((id) => id !== attendee.id));
+    setNotice(`${attendee.name} was removed from the directory.`);
+  };
 
   const handleReorder = () => notSavedYet("Reordering");
 
@@ -382,7 +404,10 @@ export default function AttendeesPage() {
             setTargetStudentForEvent(student);
             setIsAddToEventOpen(true);
           }}
-          onRemoveAttendee={handleRemoveStudent}
+          onEditAttendee={(student) => setAttendeeBeingEdited(student)}
+          onRemoveAttendee={(id) =>
+            setAttendeeBeingRemoved(students.find((student) => student.id === id) ?? null)
+          }
         />
       ) : null}
 
@@ -394,11 +419,33 @@ export default function AttendeesPage() {
         onPageChange={goToPage}
       />
 
-      <AddAttendeeDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        onAddAttendee={handleAddStudent}
-      />
+      {/* Mounted only while open, so each one starts from the student it is about and
+          never shows the last one's half-typed values. */}
+      {isAddOpen ? (
+        <AttendeeFormDialog open onOpenChange={setIsAddOpen} onSaved={handleAttendeeSaved} />
+      ) : null}
+
+      {attendeeBeingEdited ? (
+        <AttendeeFormDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setAttendeeBeingEdited(null);
+          }}
+          attendee={attendeeBeingEdited}
+          onSaved={handleAttendeeSaved}
+        />
+      ) : null}
+
+      {attendeeBeingRemoved ? (
+        <RemoveAttendeeDialog
+          open
+          onOpenChange={(next) => {
+            if (!next) setAttendeeBeingRemoved(null);
+          }}
+          attendee={attendeeBeingRemoved}
+          onRemoved={handleAttendeeRemoved}
+        />
+      ) : null}
 
       <ImportAttendeesDialog
         open={isImportOpen}
