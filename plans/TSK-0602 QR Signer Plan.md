@@ -145,21 +145,32 @@ verification genuinely reaches those guards and they are exercised.
 - `pnpm test`, `pnpm lint`, and `pnpm build` pass, and the CI credential-isolation
   guard includes `QR_TICKET_SECRET`.
 
-## Open Question For Review
+## Rotation: Decided
 
-Rotation. `CONTEXT.md` says a ticket "cannot be reissued in the first release", and
-the secret is the only thing tying a ticket to this deployment. Rotating
-`QR_TICKET_SECRET` therefore invalidates every ticket already sent, with no way to
-replace them, which for a real event means every attendee must be re-sent a
-ticket.
+Resolved by TSK-0606. `CONTEXT.md` says a ticket "cannot be reissued in the
+first release", and the secret is the only thing tying a ticket to this
+deployment, so rotating `QR_TICKET_SECRET` invalidates every ticket already sent
+with no way to replace them. For a real event that means every attendee who has
+not yet scanned must be sent a new ticket.
 
-That is acceptable for v1 only if rotation is understood to be a breaking event.
-Two things are worth deciding before this reaches production:
+**Decision: the secret is stable for the life of the deployment, and rotation is
+a scheduled, announced operation performed between events.**
 
-1. Whether to keep the secret stable for the life of the deployment, and document
-   rotation as a scheduled, announced operation.
-2. Whether TSK-0902 should record a rejection reason in the delivery or attendance
-   log, so an operator can tell "forged or tampered" apart from "expired" after
-   the fact.
+A ticket stays scannable from two hours before its event starts until two hours
+after it ends, so "between events" is checkable rather than a judgement call:
+rotation is safe when no event's window is still open. The full procedure,
+including the pre-rotation query, the accidental-rotation recovery path, and key
+hygiene, is in `docs/qr-ticket-secret-rotation.md`.
 
-Neither changes this module, so neither is actioned here.
+This was decided against the alternative of treating rotation as an ordinary
+scheduled secret refresh, which is untenable here because there is no reissue
+path. That constraint is a property of v1, not a permanent one: if a future
+release adds ticket reissue or a signing-key identifier, rotation becomes
+routine and this runbook should be revisited.
+
+The second question raised here — whether the check-in scan should record a
+rejection reason so an operator can tell "forged or tampered" apart from
+"expired" — is still open. `verifyQrTicket` already returns the five reasons
+(`malformed`, `invalid_signature`, `not_yet_valid`, `expired`, `wrong_event`), so
+the values exist; what is missing is persisting them against the delivery or
+attendance record. That belongs with the check-in scan work, not this module.
