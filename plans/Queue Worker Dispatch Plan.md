@@ -5,7 +5,7 @@ called it.
 
 ## Source Of Truth
 
-- GitHub epic [#59: EPIC-07 Delivery Queue & Dual Provider Failover](https://github.com/UMak-SIC/sic-app/issues/59)
+- GitHub epic [#60: EPIC-07 Delivery Queue & Dual Provider Failover](https://github.com/UMak-SIC/sic-app/issues/60)
 - `docs/traceability-matrix.md` (TSK-0705, TSK-0706, TSK-0707, US-19, US-20, US-23, DMA-08, DMA-09, DMA-10)
 - `app/lib/queue/process-jobs.ts`, `claim-jobs.ts`, `delivery-logger.ts`
 - `app/lib/queue/providers/*` (TSK-0703, TSK-0704)
