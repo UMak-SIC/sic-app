@@ -4,7 +4,7 @@ const { getPrismaClient } = vi.hoisted(() => ({ getPrismaClient: vi.fn() }));
 
 vi.mock("@/lib/prisma", () => ({ getPrismaClient }));
 
-import { claimQueueJobs } from "@/lib/queue/claim-jobs";
+import { claimQueueJobs, releaseClaimedJob } from "@/lib/queue/claim-jobs";
 
 const queryRaw = vi.fn();
 const transaction = { $queryRaw: queryRaw };
@@ -46,5 +46,32 @@ test("rejects an invalid worker ID or claim limit", async () => {
   await expect(
     claimQueueJobs({ workerId: "worker-a", lockDurationSeconds: 0 }),
   ).rejects.toThrow("lockDurationSeconds must be a positive integer.");
+  expect(getPrismaClient).not.toHaveBeenCalled();
+});
+
+test("reports a released job", async () => {
+  queryRaw.mockResolvedValue([{ id: "queue-job-id" }]);
+
+  await expect(
+    releaseClaimedJob({ queueJobId: "queue-job-id", workerId: "worker-a" }),
+  ).resolves.toBe(true);
+  expect(database.$transaction).toHaveBeenCalledOnce();
+});
+
+test("reports a job it did not own as not released", async () => {
+  // The WHERE clause is scoped to lockedBy, so a worker whose lock was already
+  // stolen cannot release the other worker's claim. An empty result is the
+  // signal that nothing changed.
+  queryRaw.mockResolvedValue([]);
+
+  await expect(
+    releaseClaimedJob({ queueJobId: "queue-job-id", workerId: "worker-a" }),
+  ).resolves.toBe(false);
+});
+
+test("rejects an empty worker ID when releasing", async () => {
+  await expect(
+    releaseClaimedJob({ queueJobId: "queue-job-id", workerId: " " }),
+  ).rejects.toThrow("workerId is required.");
   expect(getPrismaClient).not.toHaveBeenCalled();
 });

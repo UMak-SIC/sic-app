@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { EmailProvider } from "@prisma/client";
 
 const requireQueueWorker = vi.hoisted(() => vi.fn());
 const processQueueJobs = vi.hoisted(() => vi.fn());
 const selectProviderForJob = vi.hoisted(() => vi.fn());
 const createProviderDispatch = vi.hoisted(() => vi.fn());
 const createDeliveryMessageResolver = vi.hoisted(() => vi.fn());
+const hasProviderCapacity = vi.hoisted(() => vi.fn());
+const confirmProviderSend = vi.hoisted(() => vi.fn());
+const releaseProviderReservation = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/auth/require-queue-worker", () => ({
   requireQueueWorker: (request: Request) => requireQueueWorker(request),
@@ -26,7 +30,16 @@ vi.mock("@/lib/queue/delivery-message", () => ({
   createDeliveryMessageResolver: () => createDeliveryMessageResolver(),
 }));
 
+vi.mock("@/lib/queue/quota-manager", () => ({
+  hasProviderCapacity: () => hasProviderCapacity(),
+  confirmProviderSend: (input: unknown) => confirmProviderSend(input),
+  releaseProviderReservation: (input: unknown) => releaseProviderReservation(input),
+}));
+
 import { POST } from "@/app/api/internal/queue-worker/route";
+
+/** The adapter dispatch the route wraps; each test controls its outcome. */
+const adapterDispatch = vi.fn();
 
 function post(body?: string) {
   return new Request("http://localhost/api/internal/queue-worker", {
@@ -35,16 +48,24 @@ function post(body?: string) {
   });
 }
 
+/** The dispatch the route actually handed to the queue. */
+function wrappedDispatch() {
+  return processQueueJobs.mock.calls[0][0].dispatch;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   requireQueueWorker.mockReturnValue(undefined);
+  hasProviderCapacity.mockResolvedValue(true);
   processQueueJobs.mockResolvedValue({
     claimed: 2,
     completed: 2,
     retried: 0,
     deadLettered: 0,
+    held: 0,
   });
-  createProviderDispatch.mockReturnValue(vi.fn());
+  adapterDispatch.mockResolvedValue({ succeeded: true, httpStatus: 202 });
+  createProviderDispatch.mockReturnValue(adapterDispatch);
   createDeliveryMessageResolver.mockReturnValue(vi.fn());
 });
 
@@ -61,13 +82,14 @@ describe("POST /api/internal/queue-worker", () => {
     expect(res.status).toBe(401);
     // The point of the check: nothing is claimed or dispatched.
     expect(processQueueJobs).not.toHaveBeenCalled();
+    expect(hasProviderCapacity).not.toHaveBeenCalled();
   });
 
   it("drains a default batch when no body is sent", async () => {
     const res = await POST(post());
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ claimed: 2, completed: 2 });
+    expect(await res.json()).toMatchObject({ claimed: 2, completed: 2, held: 0 });
     expect(processQueueJobs).toHaveBeenCalledWith(
       expect.objectContaining({ limit: 10, workerId: "queue-worker" })
     );
@@ -86,8 +108,6 @@ describe("POST /api/internal/queue-worker", () => {
     expect(selectProviderForJob).toHaveBeenCalledWith({ id: "job-1" });
 
     expect(createDeliveryMessageResolver).toHaveBeenCalledTimes(1);
-    // The dispatch has to be the one the adapters built, or nothing reaches a
-    // provider.
     expect(createProviderDispatch).toHaveBeenCalledWith({
       resolveMessage: expect.any(Function),
     });
@@ -131,7 +151,8 @@ describe("POST /api/internal/queue-worker", () => {
       claimed: 5,
       completed: 3,
       retried: 1,
-      deadLettered: 1,
+      deadLettered: 0,
+      held: 1,
     });
 
     const res = await POST(post());
@@ -140,7 +161,75 @@ describe("POST /api/internal/queue-worker", () => {
       claimed: 5,
       completed: 3,
       retried: 1,
-      deadLettered: 1,
+      deadLettered: 0,
+      held: 1,
+    });
+  });
+
+  describe("when both daily quotas are exhausted", () => {
+    beforeEach(() => {
+      hasProviderCapacity.mockResolvedValue(false);
+    });
+
+    it("claims nothing and says why", async () => {
+      const res = await POST(post());
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ claimed: 0, held: 0 });
+      // US-23: unsent work stays in the queue. Claiming a batch here would lock
+      // deliveries the worker cannot send.
+      expect(processQueueJobs).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("settling the quota reservation", () => {
+    it("keeps the slot and counts the send when it succeeded", async () => {
+      await POST(post());
+
+      await wrappedDispatch()({ id: "job-1" }, EmailProvider.MAILGUN);
+
+      // The provider really did use the slot, so it is not given back — doing so
+      // would hand out the same daily allowance repeatedly.
+      expect(confirmProviderSend).toHaveBeenCalledWith({ provider: EmailProvider.MAILGUN });
+      expect(releaseProviderReservation).not.toHaveBeenCalled();
+    });
+
+    it("returns the slot when the provider rejected the send", async () => {
+      await POST(post());
+      adapterDispatch.mockResolvedValue({ succeeded: false, httpStatus: 503 });
+
+      const attempt = await wrappedDispatch()({ id: "job-1" }, EmailProvider.MAILGUN);
+
+      expect(attempt).toMatchObject({ succeeded: false, httpStatus: 503 });
+      expect(releaseProviderReservation).toHaveBeenCalledWith({ provider: EmailProvider.MAILGUN });
+      expect(confirmProviderSend).not.toHaveBeenCalled();
+    });
+
+    it("returns the slot and re-throws when dispatch throws", async () => {
+      await POST(post());
+      adapterDispatch.mockRejectedValue(new Error("Mailgun request failed"));
+
+      await expect(
+        wrappedDispatch()({ id: "job-1" }, EmailProvider.BREVO)
+      ).rejects.toThrow("Mailgun request failed");
+
+      // Otherwise a provider outage would permanently consume the day's quota.
+      expect(releaseProviderReservation).toHaveBeenCalledWith({ provider: EmailProvider.BREVO });
+    });
+
+    it("passes the adapter's result through unchanged", async () => {
+      await POST(post());
+      adapterDispatch.mockResolvedValue({
+        succeeded: true,
+        httpStatus: 200,
+        providerMessageId: "abc",
+      });
+
+      await expect(wrappedDispatch()({ id: "job-1" }, EmailProvider.MAILGUN)).resolves.toEqual({
+        succeeded: true,
+        httpStatus: 200,
+        providerMessageId: "abc",
+      });
     });
   });
 });

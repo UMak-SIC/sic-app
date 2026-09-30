@@ -77,3 +77,57 @@ export async function claimQueueJobs({
     `),
   );
 }
+
+/**
+ * Returns a claimed job to the queue without counting it as an attempt.
+ *
+ * Used when a job cannot be worked right now — US-23 holds unsent work in the
+ * queue when both provider quotas are exhausted. Without this the job would sit
+ * in `processing` until its lock expired, which delays every other job behind it
+ * by the lock duration for no reason.
+ *
+ * `retryCount` is deliberately untouched: nothing was tried, so nothing failed.
+ * Incrementing it would slowly dead-letter a backlog that was only ever waiting
+ * for tomorrow's quota.
+ *
+ * Scoped to `lockedBy` so a worker whose lock has already been stolen by another
+ * cannot release the other worker's claim.
+ */
+export async function releaseClaimedJob({
+  queueJobId,
+  workerId,
+}: {
+  queueJobId: string;
+  workerId: string;
+}): Promise<boolean> {
+  if (!workerId.trim()) {
+    throw new Error("workerId is required.");
+  }
+
+  const released = await getPrismaClient().$transaction((transaction) =>
+    transaction.$queryRaw<{ id: string }[]>(Prisma.sql`
+      WITH released_job AS (
+        UPDATE queue_jobs AS job
+        SET
+          status = 'queued'::"QueueJobStatus",
+          locked_at = NULL,
+          lock_expires_at = NULL,
+          locked_by = NULL,
+          updated_at = NOW()
+        WHERE job.id = ${queueJobId}::uuid
+          AND job.status = 'processing'::"QueueJobStatus"
+          AND job.locked_by = ${workerId}
+        RETURNING job.id
+      )
+      UPDATE email_deliveries AS delivery
+      SET
+        status = 'queued'::"DeliveryStatus",
+        updated_at = NOW()
+      FROM released_job
+      WHERE delivery.id = released_job."deliveryId"
+      RETURNING released_job.id
+    `),
+  );
+
+  return released.length > 0;
+}
