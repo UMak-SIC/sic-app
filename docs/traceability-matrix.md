@@ -71,7 +71,7 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0503** | Build conflict preview service detecting existing student IDs and normalized emails against Neon `attendees` | `app/lib/services/ingestion/conflict-service.ts` | DMA-02 | Ingestion staging identifies existing records vs new records and previews proposed attribute changes. | `[ ] Planned` |
 | **TSK-0504** | Implement attendee upsert transaction executing approved conflict overwrites | `app/lib/services/attendee-service.ts` | DMA-02 | On admin approval, existing attendee records overwrite fields while preserving UUIDs; new attendees created. | `[ ] Planned` |
 | **TSK-0505** | Build recipient selector component filtering prior event attendees for new campaign inclusion | `app/components/recipients/PastAttendeeSelector.tsx` | US-08 | Admin can search, filter, and multi-select attendees who attended previous events into a new recipient list. | `[ ] Planned` |
-| **TSK-0506** | Decide the `student_id` policy for pasted address-only imports and amend DMA-02 accordingly | `app/lib/services/attendee-service.ts`, `docs/traceability-matrix.md` | DMA-02, US-07, US-09 | The policy is recorded, DMA-02 describes the import consequence, and TSK-0505 can be built without guessing | `[ ] Planned` |
+| **TSK-0506** | Decide the `student_id` policy for pasted address-only imports and amend DMA-02 accordingly | `app/lib/services/attendee-service.ts`, `docs/traceability-matrix.md` | DMA-02, US-07, US-09 | `student_id` stays NOT NULL and unique; pasted input resolves only against existing attendees, and new attendees must arrive by CSV carrying a student ID and a full name | `[x] Completed` |
 
 ---
 
@@ -86,7 +86,8 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0604** | Build email composer UI with recipient preview drawer rendering personalized Markdown, image, and QR code | `app/app/campaigns/new/page.tsx`, `app/components/email/` | US-12, US-16 | Preview reflects selected recipient attributes, rendered HTML markup, and dynamic QR ticket placement. | `[ ] Planned` |
 | **TSK-0605** | Implement single-address test send action executing immediate dispatch via provider client | `app/app/api/campaigns/test-send/route.ts` | US-17 | Test email successfully delivers to specified test address without enqueuing batch roster jobs. | `[ ] Planned` |
 | **TSK-0606** | Decide the `QR_TICKET_SECRET` rotation policy and document a safe runbook | `app/.env.example`, `app/.env.test.example` | DMA-05, DMA-07 | A rotation policy is recorded and a runbook states how to rotate without invalidating a live event's tickets | `[ ] Planned` |
-| **TSK-0607** | Define `campaign_assets` with a DMA entry, and own binding an asset to a campaign | `app/prisma/schema.prisma`, `docs/traceability-matrix.md` | DMA-11, US-14, US-16 | A DMA entry describes the table and its roles, a task owns the binding, and TSK-0604 can be built against a defined model | `[ ] Planned` |
+| **TSK-0607** | Define `campaign_assets` with a DMA entry, and own binding an asset to a campaign | `app/prisma/schema.prisma`, `docs/traceability-matrix.md` | DMA-11, US-14, US-16 | A DMA entry describes the table and its roles, a task owns the binding, and TSK-0604 can be built against a defined model | `[x] Completed` |
+| **TSK-0608** | Apply the DMA-13 `campaign_assets` schema changes and implement the asset-binding write path | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/campaign-service.ts` | DMA-11, DMA-13, US-14, US-16 | The `header` role and `position` column are removed, `created_at` is added, `UNIQUE (campaign_id, asset_id)` is enforced, and a campaign can bind and read back its inline and attachment assets | `[ ] Planned` |
 
 ---
 
@@ -196,7 +197,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **DMA-10** | `provider_daily_usage` transactional quota tracking & reservation (Mailgun $\to$ Brevo $\to$ hold) | TSK-0102, TSK-0705, TSK-0706 | `[ ] Planned` |
 | **DMA-11** | `assets` table for Neon Object Storage object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303, TSK-0607 | `[ ] Planned` |
 | **DMA-12** | Data retention rule: 5-year maximum retention, then delete or anonymize | TSK-1001 | `[ ] Planned` |
-| **DMA-13** | `campaign_assets` binds an asset to a campaign with a `header` / `inline` / `attachment` role and an ordered position | TSK-0102, TSK-0607 | `[ ] Planned` |
+| **DMA-13** | `campaign_assets` links uploaded assets to a campaign with an `inline` / `attachment` role; no `header` role and no `position` column | TSK-0102, TSK-0607, TSK-0608 | `[ ] Planned` |
 
 ---
 
@@ -210,3 +211,82 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **NFR-04** | Deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Neon Object Storage | TSK-1002 | `[ ] Planned` |
 | **NFR-05** | Configurable provider quotas (configurable environment limits for Mailgun & Brevo) | TSK-0705 | `[ ] Planned` |
 | **NFR-06** | Single organization timezone support across display formatting and check-in bounds | TSK-0401, TSK-0402, TSK-0902 | `[ ] Planned` |
+
+---
+
+## Data Model Detail
+
+Requirements whose schema needs more than a summary line live here. Each section
+records the decided contract, not a draft.
+
+### DMA-02: attendee enrollment path
+
+DMA-02 itself is unchanged: `attendees.student_id` remains `NOT NULL` and
+globally unique. What follows is the import behaviour that constraint implies,
+recorded so the ingestion engine and the recipient selector agree on it.
+
+- **CSV import** is the only way to create an attendee. A new row must carry a
+  valid `student_id` and a full name.
+- **Pasted input** resolves exclusively against existing `attendees` rows. A
+  pasted address that matches no existing attendee is rejected with an explicit
+  error directing the administrator to enroll the person by CSV.
+- A row missing either a `student_id` or a `name` is rejected. A `name` is never
+  defaulted to the email address, since the error message promises a full name.
+- Rejection is per row. One unmatched pasted address does not discard the rest of
+  the batch, matching the row-level error surface TSK-0502 already provides.
+
+This makes TSK-0505 a selector over existing attendees, which is what its stated
+scope already describes.
+
+### DMA-13: `campaign_assets`
+
+Links uploaded Neon Object Storage assets to a campaign.
+
+| Column | Type | Rule |
+| :--- | :--- | :--- |
+| `id` | UUID | Surrogate primary key |
+| `campaign_id` | UUID | NOT NULL, FK → `campaigns(id)` ON DELETE CASCADE |
+| `asset_id` | UUID | NOT NULL, FK → `assets(id)` ON DELETE RESTRICT |
+| `role` | ENUM (`inline`, `attachment`) | NOT NULL |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() |
+
+`UNIQUE (campaign_id, asset_id)`.
+
+Roles:
+
+- `inline` — a Neon Object Storage image referenced inside the campaign's Markdown
+  body.
+- `attachment` — a non-rendered asset, such as a PDF handout, dispatched as a MIME
+  attachment.
+
+Exclusions:
+
+- Event banners are associated at the event level through
+  `events.image_asset_id` and are never campaign assets.
+- Per-recipient HMAC QR ticket images are generated at queue dispatch time and
+  inlined as a MIME part. They create no `assets` row and no `campaign_assets` row.
+  The Content-ID is derived from the signed ticket, so it is computed rather than
+  stored and cannot drift between a preview and the sent message.
+
+Ordering is derived, not stored. There is no `position` column:
+
+- `inline` images take their order from where they appear in the Markdown source,
+  resolved at compile time from the rendered document.
+- `attachment` files are ordered alphabetically by `assets.original_filename`, with
+  `created_at` as a tiebreak. A recipient reads an attachment list in name order,
+  and this keeps the result deterministic without a stored column.
+
+Consequences worth stating rather than discovering:
+
+- The uniqueness constraint means one asset holds **one** role per campaign. An
+  image cannot be both inline and an attachment on the same campaign. This is a
+  deliberate tightening of the previous
+  `UNIQUE (campaign_id, asset_id, role)`, which permitted both.
+- The `header` role is removed. A Markdown body has no header concept, and the
+  campaign already carries a subject while the event carries the banner.
+- The surrogate `id` is retained and the uniqueness rule is a composite
+  `UNIQUE` rather than a composite primary key. Both columns are already NOT
+  NULL, so the constraint behaves identically while avoiding a primary-key type
+  change on an existing table.
+- The table has never had rows written, since no task owned binding an asset to a
+  campaign, so the migration needs no data backfill.
