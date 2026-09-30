@@ -32,6 +32,12 @@ interface ImportAttendeesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   existingAttendees: AttendeeItem[];
+  /**
+   * False when the registry is larger than one request can return, which means
+   * the duplicate check below is looking at a subset. Said out loud rather than
+   * left to look authoritative.
+   */
+  registryIsComplete?: boolean;
   onImport: (
     newAttendees: Omit<
       AttendeeItem,
@@ -56,6 +62,7 @@ export function ImportAttendeesDialog({
   open,
   onOpenChange,
   existingAttendees,
+  registryIsComplete = true,
   onImport,
 }: ImportAttendeesDialogProps) {
   const [step, setStep] = React.useState<"input" | "conflicts">("input");
@@ -361,6 +368,17 @@ export function ImportAttendeesDialog({
               : "Add students to the directory via CSV or pasted list."}
           </DialogDescription>
         </div>
+
+        {!registryIsComplete ? (
+          <p
+            role="status"
+            className="mt-3 rounded-[6px] border border-amber-border bg-amber-soft px-3 py-2.5 text-xs text-ink"
+          >
+            The directory holds more students than can be checked in one go, so some may be
+            listed as new when they already exist. The import will still ask before changing
+            anything.
+          </p>
+        ) : null}
 
         {/* Step 2: Screen 14 Conflict Review */}
         {step === "conflicts" ? (

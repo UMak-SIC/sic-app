@@ -1,4 +1,5 @@
 import type { AttendeeItem } from "./attendees-table";
+import type { AvailableEvent } from "./add-to-event-dialog";
 
 /**
  * Reads the attendee registry for the directory view.
@@ -22,6 +23,9 @@ export const PAGE_SIZE_OPTIONS = [8, 16, 32, 64] as const;
 export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export const DEFAULT_PAGE_SIZE: PageSize = 8;
+
+/** The largest page the API will serve, which bounds the full-list fetch. */
+const MAX_PAGE_SIZE = 100;
 
 type AttendeeDto = {
   id: string;
@@ -97,7 +101,12 @@ export async function fetchAttendeeDirectory({
 }: {
   query: string;
   page: number;
-  pageSize: PageSize;
+  /**
+   * Any size the API accepts, not just the ones the page-size control offers. The
+   * full-list fetch needs the API's maximum, which is deliberately not a
+   * user-selectable option.
+   */
+  pageSize: number;
   signal?: AbortSignal;
 }): Promise<DirectoryResult> {
   const params = new URLSearchParams({
@@ -132,5 +141,72 @@ export async function fetchAttendeeDirectory({
   return {
     attendees: payload.attendees.map((row) => toAttendeeItem(row, payload.timezone)),
     pagination: payload.pagination,
+  };
+}
+
+/**
+ * Every event, for the "add to event" picker.
+ *
+ * Closed events are excluded: adding somebody to an event that has already
+ * happened cannot change its attendance, and offering it invites a roster change
+ * that silently does nothing.
+ */
+export async function fetchAvailableEvents(
+  signal?: AbortSignal
+): Promise<{ events: AvailableEvent[]; timezone: string }> {
+  const response = await fetch("/api/events", { signal, headers: { Accept: "application/json" } });
+
+  if (!response.ok) {
+    throw new Error("The list of events could not be loaded. Try again.");
+  }
+
+  const payload = (await response.json()) as {
+    events: {
+      id: string;
+      name: string;
+      startsAt: string;
+      status: "DRAFT" | "PUBLISHED" | "CLOSED";
+    }[];
+    timezone: string;
+  };
+
+  return {
+    events: payload.events
+      .filter((event) => event.status !== "CLOSED")
+      .map((event) => ({
+        id: event.id,
+        title: event.name,
+        date: formatDate(event.startsAt, payload.timezone, "long"),
+        status: event.status === "PUBLISHED" ? ("published" as const) : ("draft" as const),
+      })),
+    timezone: payload.timezone,
+  };
+}
+
+/**
+ * The whole registry in one request, for the import dialog's duplicate check.
+ *
+ * The directory page holds one page, and a duplicate check that only sees the
+ * current page would report a student as new when they are on page four. So the
+ * dialog asks for everything rather than reusing what the table happens to hold.
+ *
+ * The API caps `pageSize` at 100. If the registry is larger than that the caller
+ * is told, because a silently incomplete duplicate check is the exact failure this
+ * avoids.
+ */
+export async function fetchFullAttendeeList(
+  signal?: AbortSignal
+): Promise<{ attendees: AttendeeItem[]; total: number; complete: boolean }> {
+  const { attendees, pagination } = await fetchAttendeeDirectory({
+    query: "",
+    page: 1,
+    pageSize: 100,
+    signal,
+  });
+
+  return {
+    attendees,
+    total: pagination.total,
+    complete: pagination.total <= MAX_PAGE_SIZE,
   };
 }

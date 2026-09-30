@@ -27,39 +27,14 @@ export interface AvailableEvent {
   status: "published" | "draft";
 }
 
-const SAMPLE_AVAILABLE_EVENTS: AvailableEvent[] = [
-  {
-    id: "evt_1",
-    title: "UMak SIC General Assembly 2026",
-    date: "17 Oct 2026",
-    status: "published",
-  },
-  {
-    id: "evt_2",
-    title: "Intro to Cloud Computing with AWS & Neon",
-    date: "23 Oct 2026",
-    status: "published",
-  },
-  {
-    id: "evt_3",
-    title: "UI/UX Design Sprint Workshop",
-    date: "05 Nov 2026",
-    status: "published",
-  },
-  {
-    id: "evt_4",
-    title: "UMak Annual Tech Summit 2026",
-    date: "18 Nov 2026",
-    status: "draft",
-  },
-];
-
 interface AddToEventDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedCount: number;
   studentNames?: string[];
   onConfirm: (eventId: string) => void;
+  /** Real events from the registry. An empty list is shown as an empty state. */
+  availableEvents?: AvailableEvent[];
 }
 
 export function AddToEventDialog({
@@ -68,10 +43,18 @@ export function AddToEventDialog({
   selectedCount,
   studentNames = [],
   onConfirm,
+  availableEvents = [],
 }: AddToEventDialogProps) {
-  const [selectedEventId, setSelectedEventId] = React.useState<string>(
-    SAMPLE_AVAILABLE_EVENTS[0].id
-  );
+  // Empty until the caller supplies real events, rather than defaulting to a
+  // sample list that would name events the database does not have.
+  const [chosenEventId, setChosenEventId] = React.useState<string>("");
+
+  // A choice can outlive the event it names, because the list reloads. Derived
+  // rather than corrected in an effect, so a vanished event cannot leave the
+  // select holding a value that is not on screen.
+  const selectedEventId = availableEvents.some((event) => event.id === chosenEventId)
+    ? chosenEventId
+    : "";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,29 +102,35 @@ export function AddToEventDialog({
               <Label htmlFor="event-select" className="text-xs font-bold text-ink">
                 Select Target Event
               </Label>
-              <Select
-                value={selectedEventId}
-                onValueChange={setSelectedEventId}
-              >
-                <SelectTrigger id="event-select" className="h-10 rounded-[6px] border-line">
-                  <SelectValue placeholder="Choose an event..." />
-                </SelectTrigger>
-                <SelectContent className="font-sans">
-                  {SAMPLE_AVAILABLE_EVENTS.map((evt) => (
-                    <SelectItem key={evt.id} value={evt.id}>
-                      <div className="flex items-center gap-2 text-xs">
-                        <CalendarBlank size={14} className="text-muted shrink-0" />
-                        <span className="font-medium text-ink truncate">
-                          {evt.title}
-                        </span>
-                        <span className="text-muted-light text-[11px]">
-                          ({evt.date})
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {availableEvents.length === 0 ? (
+                <p className="rounded-[6px] border border-line bg-paper px-3 py-2.5 text-xs text-muted">
+                  There are no events yet. Create one on the Events page first.
+                </p>
+              ) : (
+                <Select
+                  value={selectedEventId}
+                  onValueChange={setChosenEventId}
+                >
+                  <SelectTrigger id="event-select" className="h-10 rounded-[6px] border-line">
+                    <SelectValue placeholder="Choose an event..." />
+                  </SelectTrigger>
+                  <SelectContent className="font-sans">
+                    {availableEvents.map((evt) => (
+                      <SelectItem key={evt.id} value={evt.id}>
+                        <div className="flex items-center gap-2 text-xs">
+                          <CalendarBlank size={14} className="text-muted shrink-0" />
+                          <span className="font-medium text-ink truncate">
+                            {evt.title}
+                          </span>
+                          <span className="text-muted-light text-[11px]">
+                            ({evt.date})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <p className="text-[11px] text-muted leading-relaxed">

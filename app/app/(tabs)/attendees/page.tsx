@@ -12,10 +12,12 @@ import {
 import { AttendeesPagination } from "@/components/attendees/attendees-pagination";
 import { AddAttendeeDialog } from "@/components/attendees/add-attendee-dialog";
 import { ImportAttendeesDialog } from "@/components/attendees/import-attendees-dialog";
-import { AddToEventDialog } from "@/components/attendees/add-to-event-dialog";
+import { AddToEventDialog, type AvailableEvent } from "@/components/attendees/add-to-event-dialog";
 import {
   DEFAULT_PAGE_SIZE,
   fetchAttendeeDirectory,
+  fetchAvailableEvents,
+  fetchFullAttendeeList,
   type PageSize,
 } from "@/components/attendees/attendee-directory";
 
@@ -64,6 +66,57 @@ export default function AttendeesPage() {
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [isAddToEventOpen, setIsAddToEventOpen] = React.useState(false);
   const [targetStudentForEvent, setTargetStudentForEvent] = React.useState<AttendeeItem | null>(null);
+
+  // Events for the "add to event" picker, and the whole registry for the import
+  // dialog's duplicate check. Neither is the directory page, which holds one page
+  // of one filtered result.
+  const [availableEvents, setAvailableEvents] = React.useState<AvailableEvent[]>([]);
+  const [everyAttendee, setEveryAttendee] = React.useState<AttendeeItem[]>([]);
+  const [registryIsComplete, setRegistryIsComplete] = React.useState(true);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
+
+    fetchAvailableEvents(controller.signal)
+      .then((result) => {
+        if (active) setAvailableEvents(result.events);
+      })
+      .catch(() => {
+        // The picker shows an empty state rather than a stale list, so this is
+        // deliberately not surfaced as a page-level error.
+        if (active) setAvailableEvents([]);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isImportOpen) return;
+
+    const controller = new AbortController();
+    let active = true;
+
+    fetchFullAttendeeList(controller.signal)
+      .then((result) => {
+        if (!active) return;
+        setEveryAttendee(result.attendees);
+        setRegistryIsComplete(result.complete);
+      })
+      .catch(() => {
+        if (!active) return;
+        setEveryAttendee([]);
+        setRegistryIsComplete(false);
+      });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [isImportOpen]);
 
   // Debounce the search box into the query the API is asked for. The selection is
   // cleared here rather than in an effect, because a search is a user action: a
@@ -321,8 +374,9 @@ export default function AttendeesPage() {
       <ImportAttendeesDialog
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
-        existingAttendees={students}
+        existingAttendees={everyAttendee}
         onImport={handleImportStudents}
+        registryIsComplete={registryIsComplete}
       />
 
       <AddToEventDialog
@@ -331,6 +385,7 @@ export default function AttendeesPage() {
         selectedCount={targetStudentForEvent ? 1 : selectedIds.length}
         studentNames={targetStudentForEvent ? [targetStudentForEvent.name] : selectedStudentNames}
         onConfirm={handleConfirmAddToEvent}
+        availableEvents={availableEvents}
       />
     </div>
   );
