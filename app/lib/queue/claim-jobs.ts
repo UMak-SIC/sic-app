@@ -10,7 +10,7 @@ type ClaimQueueJobsInput = {
   lockDurationSeconds?: number;
 };
 
-type ClaimedQueueJob = {
+export type ClaimedQueueJob = {
   id: string;
   deliveryId: string;
   retryCount: number;
@@ -46,23 +46,34 @@ export async function claimQueueJobs({
         ORDER BY scheduled_at, created_at
         FOR UPDATE SKIP LOCKED
         LIMIT ${limit}
+      ),
+      claimed_jobs AS (
+        UPDATE queue_jobs AS job
+        SET
+          status = 'processing'::"QueueJobStatus",
+          locked_at = NOW(),
+          lock_expires_at = NOW() + ${lockDurationSeconds} * INTERVAL '1 second',
+          locked_by = ${workerId},
+          updated_at = NOW()
+        FROM claimable_jobs
+        WHERE job.id = claimable_jobs.id
+        RETURNING
+          job.id,
+          job.delivery_id AS "deliveryId",
+          job.retry_count AS "retryCount",
+          job.max_retries AS "maxRetries",
+          job.scheduled_at AS "scheduledAt",
+          job.lock_expires_at AS "lockExpiresAt"
+      ),
+      marked_deliveries AS (
+        UPDATE email_deliveries AS delivery
+        SET
+          status = 'sending'::"DeliveryStatus",
+          updated_at = NOW()
+        FROM claimed_jobs
+        WHERE delivery.id = claimed_jobs."deliveryId"
       )
-      UPDATE queue_jobs AS job
-      SET
-        status = 'processing'::"QueueJobStatus",
-        locked_at = NOW(),
-        lock_expires_at = NOW() + ${lockDurationSeconds} * INTERVAL '1 second',
-        locked_by = ${workerId},
-        updated_at = NOW()
-      FROM claimable_jobs
-      WHERE job.id = claimable_jobs.id
-      RETURNING
-        job.id,
-        job.delivery_id AS "deliveryId",
-        job.retry_count AS "retryCount",
-        job.max_retries AS "maxRetries",
-        job.scheduled_at AS "scheduledAt",
-        job.lock_expires_at AS "lockExpiresAt"
+      SELECT * FROM claimed_jobs
     `),
   );
 }

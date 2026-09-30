@@ -32,6 +32,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL || secrets.NEON_TEST_DATABASE_URL }}
       - name: Reject browser-exposed service credentials
         run: |
           if rg -n --glob '!app/api/**' --glob '*.{ts,tsx}' 'NEXT_PUBLIC_(AWS|NEON_AUTH|MAILGUN|BREVO|RETENTION_CRON_SECRET)|process\.env\.(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|NEON_AUTH_COOKIE_SECRET|MAILGUN|BREVO|RETENTION_CRON_SECRET)' app; then
