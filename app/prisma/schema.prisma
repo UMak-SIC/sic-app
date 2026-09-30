@@ -27,10 +27,11 @@ enum DeliveryStatus {
 }
 
 enum QueueJobStatus {
-  QUEUED     @map("queued")
-  PROCESSING @map("processing")
-  COMPLETED  @map("completed")
-  FAILED     @map("failed")
+  QUEUED      @map("queued")
+  PROCESSING  @map("processing")
+  COMPLETED   @map("completed")
+  FAILED      @map("failed")
+  DEAD_LETTER @map("dead_letter")
 }
 
 enum EmailProvider {
