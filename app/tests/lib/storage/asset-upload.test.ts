@@ -43,6 +43,7 @@ test("accepts the recording object storage fake through the upload dependency se
     mediaType: "image/webp",
     objectKey: expect.stringMatching(/^assets\/[0-9a-f-]+\.webp$/),
     originalFilename: "banner.png",
+    storageBucket: "PRIVATE_IMAGES",
     uploadedById: "admin-id",
   });
 });
