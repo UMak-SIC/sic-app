@@ -34,8 +34,16 @@ const prisma = new PrismaClient({
 
 const createdById = process.env.ADMIN_NEON_AUTH_USER_ID;
 
+/**
+ * Fixed ids so re-running is idempotent.
+ *
+ * `Event` has no natural unique key — two events may legitimately share a title —
+ * so the id is the only stable handle. `events.id` is a `uuid` column, so these
+ * have to be uuids and not readable slugs.
+ */
 const EVENTS = [
   {
+    id: "11111111-1111-4111-8111-111111111111",
     name: "General Assembly 2026",
     details: "The annual general assembly for all CCIS students.",
     venue: "Audio Visual Room",
@@ -44,14 +52,18 @@ const EVENTS = [
     status: EventStatus.PUBLISHED,
   },
   {
+    id: "22222222-2222-4222-8222-222222222222",
     name: "Cloud Computing 101",
     details: "A hands-on introduction to cloud infrastructure.",
+    // Deliberately no venue, so the directory has an event that a {{venue}}
+    // placeholder cannot fill.
     venue: null,
     startsAt: new Date("2026-10-23T06:00:00.000Z"),
     endsAt: new Date("2026-10-23T09:00:00.000Z"),
     status: EventStatus.PUBLISHED,
   },
   {
+    id: "33333333-3333-4333-8333-333333333333",
     name: "UX Sprint Workshop",
     details: "A weekend sprint on research and prototyping.",
     venue: "Innovation Lab",
@@ -96,10 +108,7 @@ try {
   for (const event of EVENTS) {
     events.push(
       await prisma.event.upsert({
-        // Events have no natural unique key, so the name stands in for one. A real
-        // event title is not guaranteed unique in production, which is why this is
-        // development-only seed data.
-        where: { id: `seed-event-${event.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` },
+        where: { id: event.id },
         create: { ...event, createdById },
         update: { ...event },
         select: { id: true, name: true },
@@ -137,6 +146,11 @@ try {
 
     for (const [index, event] of events.entries()) {
       const attended = person.attended.includes(index);
+      // Read the start time from EVENTS, not from the upserted row: the select above
+      // asks only for id and name, so the row has no startsAt. Passing undefined
+      // here made Prisma omit the column, and the table's check constraint then
+      // rejected every attended entry.
+      const startsAt = EVENTS[index].startsAt;
 
       await prisma.eventRosterEntry.upsert({
         where: { eventId_attendeeId: { eventId: event.id, attendeeId: attendee.id } },
@@ -144,13 +158,16 @@ try {
           eventId: event.id,
           attendeeId: attendee.id,
           status: attended ? RosterEntryStatus.ATTENDED : RosterEntryStatus.PENDING,
-          // Only an attended entry can have a check-in time, so an unarrived
-          // attendee is not given one.
-          arrivedAt: attended ? events[index].startsAt : null,
+          // The table's check constraint requires an attended entry to carry both
+          // an arrival time and the administrator who scanned it, and requires a
+          // non-attended one to carry neither.
+          arrivedAt: attended ? startsAt : null,
+          scannedByAdminId: attended ? createdById : null,
         },
         update: {
           status: attended ? RosterEntryStatus.ATTENDED : RosterEntryStatus.PENDING,
-          arrivedAt: attended ? events[index].startsAt : null,
+          arrivedAt: attended ? startsAt : null,
+          scannedByAdminId: attended ? createdById : null,
         },
       });
 
@@ -158,8 +175,15 @@ try {
     }
   }
 
-  console.log(`Seeded ${events.length} events, ${attendeeCount} attendees, ${rosterCount} roster entries.`);
-  console.log(`Two attendees are on no roster, so the directory shows a 0% attendance rate.`);
+  const neverAttended = ATTENDEES.filter((person) => person.attended.length === 0).length;
+
+  console.log(
+    `Seeded ${events.length} events, ${attendeeCount} attendees, ${rosterCount} roster entries.`,
+  );
+  console.log(
+    `Everyone is on all three rosters; ${neverAttended} of them has not attended anything, ` +
+      `so the directory shows a mix of attendance rates. One event has no venue.`,
+  );
 } finally {
   await prisma.$disconnect();
 }
