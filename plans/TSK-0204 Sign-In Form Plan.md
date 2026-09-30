@@ -41,7 +41,9 @@ strength of the redirect fix. That was wrong. The row's criterion is "a valid
 email/password session is established", and no session could be established
 through the UI. **This branch sets the row back to `[/] In Progress`.**
 
-It stays In Progress after this branch, because of the blocker below.
+It stays In Progress after this branch, because the `admins` table was empty. That
+is the only remaining blocker; the two origin and HTTPS blockers originally listed
+here were both incorrect and are corrected below.
 
 ## Implementation
 
@@ -59,11 +61,13 @@ The reference is explicit that the browser client takes no arguments and talks t
 the same-origin catch-all, and that passing options is unsupported while Auth is
 managed by Neon.
 
-**A hand-rolled fetch was tried first and is wrong.** Posting JSON straight to
-`/api/auth/sign-in/email` gets `403 {"code":"INVALID_ORIGIN"}`, because
-`validateOrigin` in better-auth compares the request `Origin` against
-`trustedOrigins`, and this app's origin is not on that list. The SDK client is
-the supported path and handles the request correctly.
+**The SDK client is used because it is the documented path**, not because a
+hand-rolled fetch was shown to fail. An earlier draft of this file claimed a raw
+fetch to `/api/auth/sign-in/email` gets `403 {"code":"INVALID_ORIGIN"}`. That
+403 was really the `127.0.0.1` origin failing the allowlist, and a plain fetch
+from `localhost` succeeds. The reference is also explicit that the Managed client
+is not interchangeable with bare `better-auth/client`, which is the real reason to
+use it.
 
 `isAuthApiError` separates a rejected credential from a transport failure so the
 message can be accurate. The response body is never surfaced: the charter bans
@@ -78,67 +82,74 @@ placeholder agree. The error notice uses the `text-red` token rather than a
 Tailwind palette class, and the field is wired to the notice with
 `aria-describedby` and `aria-invalid`.
 
-## Open Blocker 1: Neon Auth Does Not Trust This Origin
+## Correction: Neither Local Blocker Is Real
 
-Verified, not inferred. A probe against the running server, from a real browser
-context through the SDK client, with the correct JSON body:
+This file originally claimed two blockers that stop local sign-in. **Both were
+wrong**, and both were the result of testing on `127.0.0.1` and reasoning from a
+cookie flag instead of testing a browser. Corrected 2026-09-30.
 
-```
-REQ http://127.0.0.1:3100/api/auth/sign-in/email
-  content-type=application/json
-  body={"email":"nobody@example.com","password":"..."}
-RES 403 http://127.0.0.1:3100/api/auth/sign-in/email
-  body={"message":"Invalid origin","code":"INVALID_ORIGIN"}
-```
+### Origin allowlist: localhost is pre-approved
 
-`NeonAuthConfig` is only `baseUrl`, `cookies`, and logging input. There is no
-`trustedOrigins` option, so the application cannot declare its own origin
-through this SDK. The allowlist lives on the Neon Auth instance, and the
-configured instance is `ep-lucky-forest-azzy2kd7.neonauth...`.
-
-The same request through the app with a trusted `Origin` returns **200** with a
-valid session, which isolates this to the allowlist and rules out the app's
-handler, the catch-all, and the client:
+`.agents/skills/neon-auth/SKILL.md` states it: *"Localhost ports are
+pre-approved by default."* The 403s that produced this section all came from
+serving on `127.0.0.1`, which is not `localhost` as far as the allowlist is
+concerned. Same request, same server, only the `Origin` header differs:
 
 ```
-POST /api/auth/sign-in/email   Origin: <NEON_AUTH_BASE_URL>   ->  200
-POST /api/auth/sign-in/email   Origin: http://localhost:3000  ->  403 INVALID_ORIGIN
+POST /api/auth/sign-in/email   Origin: http://localhost:3300   ->  200
+POST /api/auth/sign-in/email   Origin: http://127.0.0.1:3300   ->  403 INVALID_ORIGIN
 ```
 
-**Action needed in the Neon console:** add the application's origin to the Neon
-Auth instance's trusted origins.
+**No Neon console change is needed for local development.** The allowlist only
+matters for a deployed origin, which is not localhost. `NeonAuthConfig` still has
+no `trustedOrigins` option, so a deployed host must be registered on the Neon Auth
+instance:
 
-## Open Blocker 2: Session Cookies Are `__Secure-`, So Local Dev Needs HTTPS
-
-`NEON_AUTH_COOKIE_PREFIX` is the hardcoded constant `"__Secure-neon-auth"` in
-`@neondatabase/auth`. It is not configurable and not derived from the scheme, so
-the session cookies are always issued with the `Secure` attribute. Confirmed from
-a real sign-in response:
-
-```
-__Secure-neon-auth.session_token    secure=TRUE
-__Secure-neon-auth.local.session_data  secure=TRUE
+```bash
+neon neon-auth domain list
+neon neon-auth domain add https://your-app.vercel.app
 ```
 
-A browser will not store or send a `Secure` cookie over plain HTTP. That means
-**`http://localhost:3000` cannot hold a session at all**, independently of
-blocker 1, so fixing the allowlist alone will not make local login work.
+Include the scheme, omit the trailing slash, and register preview origins as well
+as production.
 
-This was confirmed rather than assumed. Sending the same cookies to the running
-app as an explicit `Cookie` header, which bypasses the browser's Secure rule,
-returns **200 on `/overview`** with no redirect to sign-in. The session, the
-`admins` row, and the layout guard are all working; only transport security is in
-the way.
+### `__Secure-` cookies: localhost is a secure context
 
-Local development therefore needs HTTPS. This Next version supports it directly:
+`NEON_AUTH_COOKIE_PREFIX` is the hardcoded constant `"__Secure-neon-auth"`, so the
+session cookies are always issued with the `Secure` attribute. That is true, and
+it was the basis for claiming local dev needs HTTPS.
+
+It does not follow. Browsers treat `http://localhost` as a secure context, so
+`Secure` cookies are permitted there. A real browser, against a real server, over
+plain HTTP:
 
 ```
-next dev --experimental-https        # self-signed certificate
+URL=http://localhost:3300/overview
+COOKIES=[{"name":"__Secure-neon-auth.session_token","secure":true,"httpOnly":true},
+         {"name":"__Secure-neon-auth.local.session_data","secure":true,"httpOnly":true}]
+ALERT=(none)
+HEADING=DASHBOARD
+OVERVIEW_URL=http://localhost:3300/overview
 ```
 
-The origin then becomes `https://localhost:3000`, which also has to be on the
-trusted list. The alternative is to exercise sign-in on the deployed HTTPS
-environment, where the origin trust has to be configured anyway.
+Sign-in completed, both cookies were stored and sent, `/overview` rendered, and a
+fresh navigation to it stayed put.
+
+**`next dev --experimental-https` is not needed for local sign-in.** Plain
+`next dev` on `localhost` works.
+
+### Also unproven: that a raw fetch is rejected
+
+This file previously stated that a hand-rolled `fetch` to
+`/api/auth/sign-in/email` gets `INVALID_ORIGIN` and that this is why the SDK
+client is used. That was not established either — the 403 came from the
+`127.0.0.1` origin, not from using `fetch`. A plain fetch to the same endpoint
+from `localhost` succeeds.
+
+The client is still correct, because it is the documented path and the skill
+reference is explicit that the Managed client is not interchangeable with bare
+`better-auth/client`. But it is used because it is documented, not because the
+alternative was shown to be broken.
 
 ## Blocker 3 (resolved): The `admins` Table Was Empty
 
@@ -162,11 +173,12 @@ absent from `.env.local`, so it had never been run.
 1. Create a user in Neon Auth.
 2. Put its id in `.env.local` as `ADMIN_NEON_AUTH_USER_ID`.
 3. `node --env-file=.env.local scripts/bootstrap-admin.mjs`
-4. Add the app's origin to the Neon Auth trusted origins, for `https://localhost:3000`
-   and for whatever domain it is deployed on.
-5. Run the app over HTTPS locally with `next dev --experimental-https`, or use the
-   deployed environment.
-6. Sign in at `/login`.
+4. Sign in at `/login`, served from **`localhost`**.
+
+Two things that are not steps: no Neon console change is needed for local
+development, and `--experimental-https` is not needed either. Both were
+previously listed here and both were wrong. A deployed origin does need
+registering with `neon neon-auth domain add`.
 
 ## Tests
 
