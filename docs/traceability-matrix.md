@@ -55,7 +55,7 @@ This document provides bidirectional traceability between product requirements i
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-0401** | Implement Event domain service managing draft, published, and closed lifecycle transitions | `app/lib/services/event-service.ts` | US-03, US-04, US-05, DMA-03 | Event created as draft; publishing validates required fields; closed state prevents editing. | `[x] Completed` |
-| **TSK-0402** | Build admin event management UI (list, create/edit form, image upload, timezone-aware datetime picker) | `app/app/events/page.tsx`, `app/components/events/` | US-03, US-04, US-05 | Admin creates and edits event; UI displays organization timezone and links uploaded Neon Object Storage banner. | `[ ] Planned` |
+| **TSK-0402** | Build admin event management UI (list, create/edit form, image upload, timezone-aware datetime picker) | `app/app/(tabs)/events/page.tsx`, `app/components/events/` | US-03, US-04, US-05 | Admin creates and edits event; UI displays organization timezone and links uploaded Neon Object Storage banner. | `[x] Completed` |
 | **TSK-0403** | Implement `/api/cron/close-events` endpoint secured by dedicated high-entropy secret header | `app/app/api/cron/close-events/route.ts` | US-06, DMA-06 | Requests without `X-Cron-Secret` header return 401 Unauthorized; valid requests trigger closure logic. | `[x] Completed` |
 | **TSK-0404** | Implement event closure transition updating expired events to `closed` and pending roster entries to `absent` | `app/lib/services/event-close-service.ts` | US-06, DMA-04, DMA-06 | Events past `ends_at` transition to `closed`; all `pending` roster entries atomically update to `absent`. | `[x] Completed` |
 
@@ -86,7 +86,7 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0603** | Implement QR code image renderer converting signed ticket into embedded email CID image / data URL | `app/lib/email/qr-image-generator.ts` | US-15 | Generates readable QR code image buffer containing only the opaque signed token. | `[x] Completed` |
 | **TSK-0604** | Build email composer UI with recipient preview drawer rendering personalized Markdown, image, and QR code | `app/app/campaigns/new/page.tsx`, `app/components/email/` | US-12, US-16 | Preview reflects selected recipient attributes, rendered HTML markup, and dynamic QR ticket placement. | `[ ] Planned` |
 | **TSK-0605** | Implement single-address test send action executing immediate dispatch via provider client | `app/app/api/campaigns/test-send/route.ts` | US-17 | Test email successfully delivers to specified test address without enqueuing batch roster jobs. | `[x] Completed` |
-| **TSK-0606** | Decide the `QR_TICKET_SECRET` rotation policy and document a safe runbook | `app/.env.example`, `app/.env.test.example` | DMA-05, DMA-07 | A rotation policy is recorded and a runbook states how to rotate without invalidating a live event's tickets | `[ ] Planned` |
+| **TSK-0606** | Decide the `QR_TICKET_SECRET` rotation policy and document a safe runbook | `app/.env.example`, `app/.env.test.example` | DMA-05, DMA-07 | A rotation policy is recorded and a runbook states how to rotate without invalidating a live event's tickets | `[x] Completed` |
 | **TSK-0607** | Define `campaign_assets` with a DMA entry, and own binding an asset to a campaign | `app/prisma/schema.prisma`, `docs/traceability-matrix.md` | DMA-11, US-14, US-16 | A DMA entry describes the table and its roles, a task owns the binding, and TSK-0604 can be built against a defined model | `[x] Completed` |
 | **TSK-0608** | Apply the DMA-13 `campaign_assets` schema changes and implement the asset-binding write path | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/campaign-service.ts` | DMA-11, DMA-13, US-14, US-16 | The `header` role and `position` column are removed, `created_at` is added, `UNIQUE (campaign_id, asset_id)` is enforced, and a campaign can bind and read back its inline and attachment assets | `[x] Completed` |
 
@@ -156,9 +156,9 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | :--- | :--- | :--- | :--- |
 | **US-01** | Allowlisted administrator email/password sign-in | TSK-0201, TSK-0202 | `[ ] Planned` |
 | **US-02** | Unauthorized users denied access | TSK-0202, TSK-0203 | `[ ] Planned` |
-| **US-03** | Create event with details, image, time, org timezone | TSK-0401, TSK-0402 | `[ ] Planned` |
-| **US-04** | Save event as draft | TSK-0401, TSK-0402 | `[ ] Planned` |
-| **US-05** | Publish completed event for QR campaign & check-in | TSK-0401, TSK-0402 | `[ ] Planned` |
+| **US-03** | Create event with details, image, time, org timezone | TSK-0401, TSK-0402 | `[x] Completed` |
+| **US-04** | Save event as draft | TSK-0401, TSK-0402 | `[x] Completed` |
+| **US-05** | Publish completed event for QR campaign & check-in | TSK-0401, TSK-0402 | `[x] Completed` |
 | **US-06** | Event closes after end time, blocking expired tickets | TSK-0403, TSK-0404 | `[ ] Planned` |
 | **US-07** | Import recipient emails from CSV | TSK-0502 | `[ ] Planned` |
 | **US-08** | Select past attendees as recipients | TSK-0505 | `[ ] Planned` |
