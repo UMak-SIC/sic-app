@@ -10,6 +10,7 @@ vi.mock("@/lib/auth/server", () => ({ getNeonAuth }));
 vi.mock("@/lib/prisma", () => ({ getPrismaClient }));
 
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { createFakeNeonAuth, fakeAdminSession, fakeNonAdminSession } from "@/tests/fakes";
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -17,7 +18,7 @@ afterEach(() => {
 });
 
 test("rejects requests without an authenticated session", async () => {
-  getNeonAuth.mockReturnValue({ getSession: vi.fn().mockResolvedValue({ data: null }) });
+  getNeonAuth.mockReturnValue(createFakeNeonAuth(null));
 
   const result = await requireAdmin();
 
@@ -27,9 +28,7 @@ test("rejects requests without an authenticated session", async () => {
 });
 
 test("rejects authenticated users who are not administrators", async () => {
-  getNeonAuth.mockReturnValue({
-    getSession: vi.fn().mockResolvedValue({ data: { user: { id: "user-id" } } }),
-  });
+  getNeonAuth.mockReturnValue(createFakeNeonAuth(fakeNonAdminSession()));
   findUnique.mockResolvedValue(null);
 
   const result = await requireAdmin();
@@ -43,9 +42,7 @@ test("rejects authenticated users who are not administrators", async () => {
 });
 
 test("returns the allowlisted administrator ID", async () => {
-  getNeonAuth.mockReturnValue({
-    getSession: vi.fn().mockResolvedValue({ data: { user: { id: "admin-id" } } }),
-  });
+  getNeonAuth.mockReturnValue(createFakeNeonAuth(fakeAdminSession()));
   findUnique.mockResolvedValue({ neonAuthUserId: "admin-id" });
 
   await expect(requireAdmin()).resolves.toEqual({ adminId: "admin-id" });
