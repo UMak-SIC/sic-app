@@ -101,13 +101,13 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0702** | Implement Next.js worker job claim engine with `SKIP LOCKED` row-level database locking | `app/lib/queue/claim-jobs.ts`, `app/lib/queue/process-jobs.ts` | US-18, DMA-09 | A transaction claims scheduled or expired-lease jobs with `SKIP LOCKED`; concurrent workers cannot claim the same job, and each claim gets a five-minute lease. | `[x] Completed` |
 | **TSK-0703** | Implement Mailgun HTTP API client adapter respecting daily quota (default 100/day) | `app/lib/queue/providers/mailgun.ts` | US-21, NFR-02 | Dispatches email via Mailgun HTTP endpoint; correctly handles 200 OK and error responses without using SMTP. Quota enforcement is TSK-0705's, which owns the failover decision; this adapter reports 429 distinctly so the engine can fail over. | `[x] Completed` |
 | **TSK-0704** | Implement Brevo HTTP API client adapter for overflow delivery (default 300/day) | `app/lib/queue/providers/brevo.ts` | US-22, NFR-02 | Dispatches email via Brevo transactional HTTP API when selected by failover engine without using SMTP. Quota enforcement is TSK-0705's, which owns the failover decision; this adapter reports 429 distinctly so the engine can fail over. | `[x] Completed` |
-| **TSK-0705** | Implement transactional `provider_daily_usage` quota reservation and automatic Mailgun $\to$ Brevo failover | `app/lib/queue/quota-manager.ts` | US-21, US-22, DMA-10, NFR-05 | Unit tests assert Mailgun is used for first 100 sends; switches to Brevo for next 300; limits are configurable. | `[ ] Planned` |
-| **TSK-0706** | Move queue jobs to a dead-letter state after retries exceed the configured limit | `app/lib/queue/delivery-logger.ts`, `app/lib/queue/process-jobs.ts` | US-23, DMA-10 | A failed job remains queued through its configured retries; when `retry_count > max_retries`, its queue job becomes `dead_letter` and its delivery becomes `failed`. | `[/] In Progress` |
-| **TSK-0707** | Implement immutable `delivery_attempts` logging and `email_deliveries` status transition updates | `app/lib/queue/claim-jobs.ts`, `app/lib/queue/delivery-logger.ts`, `app/lib/queue/process-jobs.ts` | US-19, US-20, DMA-08, DMA-09 | Every provider attempt is logged transactionally; claimed deliveries transition to `sending`, a successful provider response updates the delivery to `sent`, and a dead-lettered delivery becomes `failed`. | `[/] In Progress` |
+| **TSK-0705** | Implement transactional `provider_daily_usage` quota reservation and automatic Mailgun $\to$ Brevo failover | `app/lib/queue/quota-manager.ts` | US-21, US-22, DMA-10, NFR-05 | Unit tests assert Mailgun is used for first 100 sends; switches to Brevo for next 300; limits are configurable. | `[x] Completed` |
+| **TSK-0706** | Move queue jobs to a dead-letter state after retries exceed the configured limit | `app/lib/queue/delivery-logger.ts`, `app/lib/queue/process-jobs.ts` | US-23, DMA-10 | A failed job remains queued through its configured retries; when `retry_count > max_retries`, its queue job becomes `dead_letter` and its delivery becomes `failed`. | `[x] Completed` |
+| **TSK-0707** | Implement immutable `delivery_attempts` logging and `email_deliveries` status transition updates | `app/lib/queue/claim-jobs.ts`, `app/lib/queue/delivery-logger.ts`, `app/lib/queue/process-jobs.ts` | US-19, US-20, DMA-08, DMA-09 | Every provider attempt is logged transactionally; claimed deliveries transition to `sending`, a successful provider response updates the delivery to `sent`, and a dead-lettered delivery becomes `failed`. | `[x] Completed` |
 
 TSK-0702's concurrent-claim test passes against the isolated test database. CI accepts either `TEST_DATABASE_URL` or `NEON_TEST_DATABASE_URL`; the test harness truncates application tables, so neither secret may reference dev, staging, or production.
 
-TSK-0706 and TSK-0707 have a tested worker core, but remain in progress until TSK-0703 through TSK-0705 provide a production dispatch implementation.
+TSK-0705 through TSK-0707 are complete. `POST /api/internal/queue-worker` claims a batch, reserves a daily slot against `provider_daily_usage` before dispatch, settles that reservation afterwards, and records every attempt. The `selectProvider` signature now admits `null`, which means no provider had capacity: the job is released back to `queued` with no attempt recorded and no `retry_count` change, so a backlog waiting for tomorrow's allowance is never dead-lettered (US-23). Limits come from `MAILGUN_DAILY_LIMIT` and `BREVO_DAILY_LIMIT` and the quota day is the organization's own calendar day, per `ORGANIZATION_TIMEZONE`.
 
 ---
 
@@ -174,9 +174,9 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **US-18** | Submit batch campaign to durable delivery queue | TSK-0701, TSK-0702, TSK-0801 | `[ ] Planned` |
 | **US-19** | Campaign dashboard with queued, sending, sent, failed counts | TSK-0707, TSK-0802 | `[ ] Planned` |
 | **US-20** | Per-recipient failure details and safe retries without duplicates | TSK-0707, TSK-0803 | `[ ] Planned` |
-| **US-21** | Primary delivery via Mailgun up to daily quota (100) | TSK-0703, TSK-0705 | `[ ] Planned` |
-| **US-22** | Failover to Brevo for remaining capacity up to quota (300) | TSK-0704, TSK-0705 | `[ ] Planned` |
-| **US-23** | Hold unsent work in queue when both quotas exhausted | TSK-0706 | `[ ] Planned` |
+| **US-21** | Primary delivery via Mailgun up to daily quota (100) | TSK-0703, TSK-0705 | `[x] Completed` |
+| **US-22** | Failover to Brevo for remaining capacity up to quota (300) | TSK-0704, TSK-0705 | `[x] Completed` |
+| **US-23** | Hold unsent work in queue when both quotas exhausted | TSK-0705, TSK-0706 | `[x] Completed` |
 | **US-24** | Mobile web camera scan for QR tickets | TSK-0901 | `[ ] Planned` |
 | **US-25** | Valid ticket scan records single attendance | TSK-0902, TSK-0903 | `[ ] Planned` |
 | **US-26** | Duplicate scan reports original check-in timestamp | TSK-0904 | `[ ] Planned` |

@@ -2,7 +2,11 @@ import "server-only";
 
 import { EmailProvider } from "@prisma/client";
 
-import { claimQueueJobs, type ClaimedQueueJob } from "@/lib/queue/claim-jobs";
+import {
+  claimQueueJobs,
+  releaseClaimedJob,
+  type ClaimedQueueJob,
+} from "@/lib/queue/claim-jobs";
 import {
   recordDeliveryAttempt,
   type DeliveryAttemptResult,
@@ -10,7 +14,14 @@ import {
 
 type ProcessQueueJobsInput = {
   workerId: string;
-  selectProvider: (job: ClaimedQueueJob) => Promise<EmailProvider>;
+  /**
+   * `null` means the job cannot be worked right now — US-23 holds unsent work in
+   * the queue when both daily provider quotas are exhausted. It is deliberately
+   * not an error: the job is released, no attempt is recorded, and `retryCount`
+   * is left alone so a backlog waiting for tomorrow's quota is not slowly
+   * dead-lettered.
+   */
+  selectProvider: (job: ClaimedQueueJob) => Promise<EmailProvider | null>;
   dispatch: (
     job: ClaimedQueueJob,
     provider: EmailProvider,
@@ -23,6 +34,8 @@ type ProcessQueueJobsResult = {
   completed: number;
   retried: number;
   deadLettered: number;
+  /** Jobs returned to the queue because no provider had capacity. */
+  held: number;
 };
 
 // Provider adapters return normalized results so every outbound attempt reaches
@@ -39,10 +52,21 @@ export async function processQueueJobs({
     completed: 0,
     retried: 0,
     deadLettered: 0,
+    held: 0,
   };
 
   for (const job of jobs) {
     const provider = await selectProvider(job);
+
+    if (provider === null) {
+      // Nothing was attempted, so nothing is recorded. Releasing the claim keeps
+      // the job in `queued` instead of parking it in `processing` until its lock
+      // expires and holding up every job behind it.
+      await releaseClaimedJob({ queueJobId: job.id, workerId });
+      result.held += 1;
+      continue;
+    }
+
     let attempt: DeliveryAttemptResult;
 
     try {
