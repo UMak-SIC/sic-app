@@ -24,9 +24,6 @@ export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 
 export const DEFAULT_PAGE_SIZE: PageSize = 8;
 
-/** The largest page the API will serve, which bounds the full-list fetch. */
-const MAX_PAGE_SIZE = 100;
-
 type AttendeeDto = {
   id: string;
   name: string;
@@ -183,30 +180,6 @@ export async function fetchAvailableEvents(
   };
 }
 
-/**
- * The whole registry in one request, for the import dialog's duplicate check.
- *
- * The directory page holds one page, and a duplicate check that only sees the
- * current page would report a student as new when they are on page four. So the
- * dialog asks for everything rather than reusing what the table happens to hold.
- *
- * The API caps `pageSize` at 100. If the registry is larger than that the caller
- * is told, because a silently incomplete duplicate check is the exact failure this
- * avoids.
- */
-export async function fetchFullAttendeeList(
-  signal?: AbortSignal
-): Promise<{ attendees: AttendeeItem[]; total: number; complete: boolean }> {
-  const { attendees, pagination } = await fetchAttendeeDirectory({
-    query: "",
-    page: 1,
-    pageSize: 100,
-    signal,
-  });
-
-  return {
-    attendees,
-    total: pagination.total,
-    complete: pagination.total <= MAX_PAGE_SIZE,
-  };
-}
+// There used to be a whole-registry fetch here, for the import dialog's duplicate
+// check. It is gone because the import preview runs on the server against the full
+// table, so the browser no longer has to hold every attendee to spot a duplicate.

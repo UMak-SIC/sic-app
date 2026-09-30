@@ -277,6 +277,8 @@ test("never writes a conflicted row", async () => {
           record: record({ row: 7 }),
           reason: "matches_multiple_attendees",
           message: "Student ID and email belong to different attendees.",
+          existing: null,
+          candidates: [],
         },
       ],
     }),

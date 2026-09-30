@@ -36,6 +36,24 @@ export type AttendeeConflict = {
   record: IngestionRecord;
   reason: AttendeeConflictReason;
   message: string;
+  /**
+   * The existing attendee this row collides with, when there is exactly one.
+   *
+   * The conflict review renders a side-by-side of the stored record against the
+   * incoming row, which needs both sides. Without this the left column had nothing
+   * to show, because the message alone does not say what is currently on file.
+   *
+   * Null when there is no single existing record to compare against: either the
+   * collision is between two rows of the same import, or the row matches two
+   * different people.
+   */
+  existing: ExistingAttendee | null;
+  /**
+   * Both existing attendees, only when the row's student ID and email point at
+   * two different people. Resolving that needs seeing them, and the message alone
+   * does not tell an operator which two.
+   */
+  candidates: ExistingAttendee[];
 };
 
 /**
@@ -48,7 +66,7 @@ export type ConflictPreview = {
   conflicts: AttendeeConflict[];
 };
 
-type ExistingAttendee = {
+export type ExistingAttendee = {
   id: string;
   name: string;
   studentId: string;
@@ -171,6 +189,11 @@ export async function previewAttendeeConflicts(
         record,
         reason: "matches_multiple_attendees",
         message: `Student ID ${record.studentId} and email ${record.displayEmail} belong to different existing attendees. Resolve this row manually.`,
+        // Neither one is "the" existing record, so the side-by-side has no left
+        // column here. Both are given instead, because the operator has to see
+        // them to decide which the row was meant to be.
+        existing: null,
+        candidates: [byId, byAddress],
       });
       continue;
     }
@@ -183,6 +206,10 @@ export async function previewAttendeeConflicts(
           record,
           reason: "duplicate_in_import",
           message: `${describe(record)} matches attendee ${matched.displayEmail} more than once in this import. Keep one row.`,
+          // The stored record is the one both rows are fighting over, so the
+          // review can show what is actually on file.
+          existing: matched,
+          candidates: [],
         });
         continue;
       }
@@ -216,6 +243,10 @@ export async function previewAttendeeConflicts(
         record,
         reason: "duplicate_in_import",
         message: `${describe(record)} reuses ${clashOn.join(" and ")} from an earlier row in this import. Keep one row.`,
+        // No stored record is involved: the collision is between two rows of this
+        // same file, so there is nothing on file to compare against.
+        existing: null,
+        candidates: [],
       });
       continue;
     }

@@ -17,7 +17,6 @@ import {
   DEFAULT_PAGE_SIZE,
   fetchAttendeeDirectory,
   fetchAvailableEvents,
-  fetchFullAttendeeList,
   type PageSize,
 } from "@/components/attendees/attendee-directory";
 
@@ -74,12 +73,9 @@ export default function AttendeesPage() {
   const [isAddToEventOpen, setIsAddToEventOpen] = React.useState(false);
   const [targetStudentForEvent, setTargetStudentForEvent] = React.useState<AttendeeItem | null>(null);
 
-  // Events for the "add to event" picker, and the whole registry for the import
-  // dialog's duplicate check. Neither is the directory page, which holds one page
-  // of one filtered result.
+  // Events for the "add to event" picker. Not the directory page's own rows, which
+  // hold one page of one filtered result.
   const [availableEvents, setAvailableEvents] = React.useState<AvailableEvent[]>([]);
-  const [everyAttendee, setEveryAttendee] = React.useState<AttendeeItem[]>([]);
-  const [registryIsComplete, setRegistryIsComplete] = React.useState(true);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -100,30 +96,6 @@ export default function AttendeesPage() {
       controller.abort();
     };
   }, []);
-
-  React.useEffect(() => {
-    if (!isImportOpen) return;
-
-    const controller = new AbortController();
-    let active = true;
-
-    fetchFullAttendeeList(controller.signal)
-      .then((result) => {
-        if (!active) return;
-        setEveryAttendee(result.attendees);
-        setRegistryIsComplete(result.complete);
-      })
-      .catch(() => {
-        if (!active) return;
-        setEveryAttendee([]);
-        setRegistryIsComplete(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [isImportOpen]);
 
   // Debounce the search box into the query the API is asked for. The selection is
   // cleared here rather than in an effect, because a search is a user action: a
@@ -207,8 +179,6 @@ export default function AttendeesPage() {
   };
 
   const handleAddStudent = () => notSavedYet("Adding a student");
-
-  const handleImportStudents = () => notSavedYet("Importing a student list");
 
   /**
    * Adds the selection to an event's roster.
@@ -433,9 +403,12 @@ export default function AttendeesPage() {
       <ImportAttendeesDialog
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
-        existingAttendees={everyAttendee}
-        onImport={handleImportStudents}
-        registryIsComplete={registryIsComplete}
+        onImported={() => {
+          // The rates and event badges come from the roster, so the directory is
+          // re-read rather than patched locally.
+          setReloadToken((token) => token + 1);
+          setNotice("The list was imported.");
+        }}
       />
 
       <AddToEventDialog

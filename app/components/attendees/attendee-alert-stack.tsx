@@ -2,12 +2,12 @@
 import * as React from "react";
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Sparkle, X, CheckCircle, Warning, Info, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { Sparkle, X, CheckCircle, Warning, XCircle, Info, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 export interface AlertItem {
   id: string;
-  type: "success" | "warning" | "info" | "neutral";
+  type: "success" | "warning" | "error" | "info" | "neutral";
   message: string;
 }
 
@@ -33,6 +33,13 @@ const STYLES = {
     text: "text-amber",
     badge: "border-amber/30 bg-amber-soft/50",
     Icon: Warning,
+  },
+  // Reserved for a row that cannot be applied at all, which is a different kind of
+  // problem from one an operator can decide about.
+  error: {
+    text: "text-red",
+    badge: "border-red/30 bg-red-soft/50",
+    Icon: XCircle,
   },
   info: {
     text: "text-cyan",
