@@ -32,12 +32,23 @@ interface CampaignComposerStepProps {
   onSaveDraft?: () => void;
 }
 
-const EASY_INSERTS = [
+/**
+ * The only tokens offered in the composer.
+ *
+ * Kept in step with the delivery resolver's supported set: a token offered here
+ * but absent there is stripped from the real send, so the author would preview
+ * one thing and send another. `{{qr_ticket_pass}}` is the known exception — it
+ * stays visible because the composer is where the wording gets written, and it
+ * is marked `pending` so the gap is stated rather than hidden.
+ */
+const EASY_INSERTS: { label: string; token: string; pending?: boolean }[] = [
   { label: "Student Name", token: "{{student_name}}" },
+  { label: "Student Number", token: "{{student_id}}" },
+  { label: "Section", token: "{{section}}" },
   { label: "Event Name", token: "{{event_name}}" },
   { label: "Date & Time", token: "{{event_time}}" },
   { label: "Venue", token: "{{venue}}" },
-  { label: "QR Pass Card", token: "{{qr_ticket_pass}}" },
+  { label: "QR Pass Card", token: "{{qr_ticket_pass}}", pending: true },
 ];
 
 export function CampaignComposerStep({
@@ -248,12 +259,25 @@ export function CampaignComposerStep({
                   key={item.token}
                   type="button"
                   onClick={() => handleInsertToken(item.token)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-card hover:bg-cyan-soft border border-line hover:border-cyan-border text-[11px] font-semibold text-ink transition-colors cursor-pointer"
+                  // Muted rather than disabled: the wording is written now and the
+                  // pass is filled in later, so the author needs to be able to
+                  // place the token where it belongs.
+                  aria-describedby={item.pending ? `${item.token}-pending` : undefined}
+                  className={
+                    item.pending
+                      ? "inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-card border border-dashed border-line text-[11px] font-semibold text-muted transition-colors cursor-pointer hover:border-cyan-border hover:text-ink"
+                      : "inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-card hover:bg-cyan-soft border border-line hover:border-cyan-border text-[11px] font-semibold text-ink transition-colors cursor-pointer"
+                  }
                 >
                   <Plus size={11} className="text-cyan" weight="bold" />
                   <span>{item.label}</span>
+                  {item.pending ? <span className="font-normal text-muted">soon</span> : null}
                 </button>
               ))}
+              <span id="{{qr_ticket_pass}}-pending" className="sr-only">
+                The QR pass is not available yet. It will be replaced with the pass image
+                when campaign delivery is connected.
+              </span>
             </div>
 
             {/* Message Body Textarea & Embedded QR Pass Indicator */}

@@ -33,6 +33,8 @@ export interface StudentOption {
   email: string;
   course: string;
   program: string;
+  /** The year and block, e.g. "BSIT-2A". Substituted for {{section}}. */
+  section: string;
   hasPriorDelivery?: boolean;
 }
 
@@ -44,6 +46,7 @@ export const SAMPLE_STUDENTS: StudentOption[] = [
     email: "andrea.santos@umak.edu.ph",
     course: "BSIT",
     program: "BS Information Technology",
+    section: "BSIT-2A",
     hasPriorDelivery: false,
   },
   {
@@ -53,6 +56,7 @@ export const SAMPLE_STUDENTS: StudentOption[] = [
     email: "miguel.delacruz@umak.edu.ph",
     course: "BSCS",
     program: "BS Computer Science",
+    section: "BSCS-2B",
     hasPriorDelivery: false,
   },
   {
@@ -62,6 +66,7 @@ export const SAMPLE_STUDENTS: StudentOption[] = [
     email: "bianca.flores@umak.edu.ph",
     course: "BSINS",
     program: "BS Information Systems",
+    section: "BSINS-1A",
     hasPriorDelivery: true,
   },
   {
@@ -71,6 +76,7 @@ export const SAMPLE_STUDENTS: StudentOption[] = [
     email: "joshua.ramos@umak.edu.ph",
     course: "BSIT",
     program: "BS Information Technology",
+    section: "BSIT-3C",
     hasPriorDelivery: false,
   },
   {
@@ -80,6 +86,7 @@ export const SAMPLE_STUDENTS: StudentOption[] = [
     email: "patricia.reyes@umak.edu.ph",
     course: "BSCS",
     program: "BS Computer Science",
+    section: "BSCS-1D",
     hasPriorDelivery: false,
   },
 ];
