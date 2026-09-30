@@ -51,7 +51,7 @@ test("delegates to the Neon Auth middleware with the sign-in route", async () =>
   await proxy({} as never);
 
   expect(getNeonAuth).toHaveBeenCalledTimes(1);
-  expect(middleware).toHaveBeenCalledWith({ loginUrl: "/auth/sign-in" });
+  expect(middleware).toHaveBeenCalledWith({ loginUrl: "/login" });
 });
 
 test("protects the check-in and event administration pages", async () => {
