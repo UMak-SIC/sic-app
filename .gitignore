@@ -6,3 +6,4 @@ TREE.md
 .neon
 .env.local
 node_modules/
+.worktrees/
