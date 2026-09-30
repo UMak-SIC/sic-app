@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides bidirectional traceability between product requirements in the PRD, architectural specifications in the Data Model Addendum, and atomic implementation tasks executed across the SIC web application and delivery microservice.
+This document provides bidirectional traceability between product requirements in the PRD, architectural specifications in the Data Model Addendum, and atomic implementation tasks executed in the SIC Next.js application and queue components.
 
 ### Status Legend
 - `[ ] Planned` — Not yet started
@@ -86,23 +86,23 @@ This document provides bidirectional traceability between product requirements i
 
 ---
 
-### EPIC-07: Render Delivery Queue Microservice & Dual Provider Failover
-**Target Subsystem**: `Queue Worker Microservice` | **Scope**: First-party Render queue API and background worker, mutual authentication, transactional `provider_daily_usage` quota reservation, Mailgun HTTP API adapter, Brevo HTTP API adapter, retry mechanism, and delivery attempt logging.
+### EPIC-07: Delivery Queue & Dual Provider Failover
+**Target Subsystem**: `Next.js queue worker` | **Scope**: First-party Next.js queue API and background worker, shared-secret authentication, transactional `provider_daily_usage` quota reservation, Mailgun HTTP API adapter, Brevo HTTP API adapter, retry mechanism, and delivery attempt logging.
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0701** | Build standalone Render queue worker application with mutually authenticated shared-secret API endpoint | `queue-worker/src/server.ts`, `queue-worker/src/auth.ts` | US-18, NFR-01 | Requests without valid bearer token/secret return 401; authenticated requests enqueue jobs to `queue_jobs`. | `[ ] Planned` |
-| **TSK-0702** | Implement worker job claim engine with `SKIP LOCKED` row-level database locking | `queue-worker/src/worker.ts` | US-18, DMA-09 | Concurrent worker executions never claim the same `queue_jobs` record; idempotency key prevents duplicate sends. | `[ ] Planned` |
-| **TSK-0703** | Implement Mailgun HTTP API client adapter respecting daily quota (default 100/day) | `queue-worker/src/providers/mailgun.ts` | US-21, NFR-02 | Dispatches email via Mailgun HTTP endpoint; correctly handles 200 OK and error responses without using SMTP. | `[ ] Planned` |
-| **TSK-0704** | Implement Brevo HTTP API client adapter for overflow delivery (default 300/day) | `queue-worker/src/providers/brevo.ts` | US-22, NFR-02 | Dispatches email via Brevo transactional HTTP API when selected by failover engine without using SMTP. | `[ ] Planned` |
-| **TSK-0705** | Implement transactional `provider_daily_usage` quota reservation and automatic Mailgun $\to$ Brevo failover | `queue-worker/src/services/quota-manager.ts` | US-21, US-22, DMA-10, NFR-05 | Unit tests assert Mailgun is used for first 100 sends; switches to Brevo for next 300; limits are configurable. | `[ ] Planned` |
-| **TSK-0706** | Implement quota exhaustion hold leaving excess jobs queued until the next daily quota window | `queue-worker/src/services/exhaustion-handler.ts` | US-23, DMA-10 | When both quotas are depleted, remaining jobs stay `queued` without throwing unrecoverable error. | `[ ] Planned` |
-| **TSK-0707** | Implement immutable `delivery_attempts` logging and `email_deliveries` status transition updates | `queue-worker/src/services/delivery-logger.ts` | US-19, US-20, DMA-08, DMA-09 | Every HTTP attempt logs status code, timestamp, and provider payload; updates delivery to `sent` or `failed`. | `[ ] Planned` |
+| **TSK-0701** | Build Next.js queue worker API with shared-secret authentication | `app/app/api/internal/queue-jobs/route.ts`, `app/lib/auth/require-queue-worker.ts` | US-18, NFR-01 | `POST /api/internal/queue-jobs` requests without a valid `X-Queue-Worker-Secret` return 401 before parsing their body; authenticated requests enqueue jobs to `queue_jobs` idempotently. | `[x] Completed` |
+| **TSK-0702** | Implement Next.js worker job claim engine with `SKIP LOCKED` row-level database locking | `app/lib/queue/claim-jobs.ts` | US-18, DMA-09 | A transaction claims scheduled or expired-lease jobs with `SKIP LOCKED`; concurrent workers cannot claim the same job, and each claim gets a five-minute lease. | `[/] In Progress` |
+| **TSK-0703** | Implement Mailgun HTTP API client adapter respecting daily quota (default 100/day) | `app/lib/queue/providers/mailgun.ts` | US-21, NFR-02 | Dispatches email via Mailgun HTTP endpoint; correctly handles 200 OK and error responses without using SMTP. | `[ ] Planned` |
+| **TSK-0704** | Implement Brevo HTTP API client adapter for overflow delivery (default 300/day) | `app/lib/queue/providers/brevo.ts` | US-22, NFR-02 | Dispatches email via Brevo transactional HTTP API when selected by failover engine without using SMTP. | `[ ] Planned` |
+| **TSK-0705** | Implement transactional `provider_daily_usage` quota reservation and automatic Mailgun $\to$ Brevo failover | `app/lib/queue/quota-manager.ts` | US-21, US-22, DMA-10, NFR-05 | Unit tests assert Mailgun is used for first 100 sends; switches to Brevo for next 300; limits are configurable. | `[ ] Planned` |
+| **TSK-0706** | Move queue jobs to a dead-letter state after retries exceed the configured limit | `app/lib/queue/delivery-logger.ts` | US-23, DMA-10 | A failed job remains queued through its configured retries; when `retry_count > max_retries`, its queue job becomes `dead_letter` and its delivery becomes `failed`. | `[/] In Progress` |
+| **TSK-0707** | Implement immutable `delivery_attempts` logging and `email_deliveries` status transition updates | `app/lib/queue/delivery-logger.ts` | US-19, US-20, DMA-08, DMA-09 | Every provider attempt is logged transactionally; a successful provider response updates the delivery to `sent`, and a dead-lettered delivery becomes `failed`. | `[/] In Progress` |
 
 ---
 
 ### EPIC-08: Campaign Management & Delivery Dashboard
-**Target Subsystem**: `Campaign Management UI` | **Scope**: Campaign creation bound to event and roster entries, submission to Render queue, live campaign metrics dashboard, per-recipient failure detail modal, safe retry dispatch.
+**Target Subsystem**: `Campaign Management UI` | **Scope**: Campaign creation bound to event and roster entries, submission to the delivery queue, live campaign metrics dashboard, per-recipient failure detail modal, safe retry dispatch.
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -199,8 +199,8 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 
 | Requirement ID | Requirement Summary | Assigned Task ID(s) | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **NFR-01** | First-party Render queue API and worker microservice with mutual authentication | TSK-0701 | `[ ] Planned` |
-| **NFR-02** | HTTP APIs only for email delivery (Render blocks SMTP ports) | TSK-0703, TSK-0704 | `[ ] Planned` |
+| **NFR-01** | First-party Next.js queue API and worker with shared-secret authentication | TSK-0701 | `[ ] Planned` |
+| **NFR-02** | HTTP APIs only for email delivery; SMTP is not used | TSK-0703, TSK-0704 | `[ ] Planned` |
 | **NFR-03** | Zero-trust client security: browser clients never access provider credentials or Neon Object Storage access keys | TSK-0301, TSK-0302 | `[ ] Planned` |
 | **NFR-04** | Deterministic mock/fake adapters for Neon Auth, Mailgun, Brevo, and Neon Object Storage | TSK-1002 | `[ ] Planned` |
 | **NFR-05** | Configurable provider quotas (configurable environment limits for Mailgun & Brevo) | TSK-0705 | `[ ] Planned` |
