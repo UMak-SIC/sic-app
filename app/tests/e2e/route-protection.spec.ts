@@ -5,7 +5,7 @@ import { expect, test, type APIResponse } from "@playwright/test";
 // runtime. A unit test on `config.matcher` passes even when the proxy is never
 // loaded, which is exactly the failure a misplaced `proxy.ts` produces.
 
-const SIGN_IN = "/auth/sign-in";
+const SIGN_IN = "/login";
 
 // `APIResponse.headers()` comes back empty for a redirect, so read the header
 // array instead. The Location value is relative under `next dev` and absolute
@@ -56,12 +56,15 @@ test("leaves the public home page reachable", async ({ request }) => {
   expect(response.status()).toBe(200);
 });
 
-test("lands a browser on the sign-in route", async ({ page }) => {
-  // The sign-in page itself is the remaining half of TSK-0201 and does not exist
-  // yet, so this lands on a 404 whose URL is the thing being asserted. Waiting on
-  // `commit` keeps the assertion about the redirect rather than about how the
-  // not-found page renders.
-  await page.goto("/checkin", { waitUntil: "commit" });
+test("lands a browser on a sign-in page that renders", async ({ page }) => {
+  // The redirect target has to be a route that exists. The proxy used to send
+  // unauthenticated visitors to /auth/sign-in, which is not a route, so this
+  // asserted the URL of a 404 and looked like it passed. Asserting the form
+  // itself is what catches that class of bug.
+  const response = await page.goto("/checkin", { waitUntil: "commit" });
 
+  expect(response?.status()).toBe(200);
   await expect(page).toHaveURL(new RegExp(SIGN_IN));
+  await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible();
+  await expect(page.getByLabel(/email/i)).toBeVisible();
 });

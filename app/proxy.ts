@@ -7,6 +7,11 @@ import { getNeonAuth } from "@/lib/auth/server";
 // against the single admins record stays in require-admin.ts so API routes
 // keep returning 401/403 instead of a redirect.
 //
+// loginUrl must match the route the sign-in page actually serves. It lives at
+// app/app/(auth)/login/page.tsx, which the (auth) route group exposes as
+// /login. Pointing this at /auth/sign-in sent every unauthenticated visitor to
+// a 404, because no such route exists.
+//
 // The matcher covers page routes only. API routes carry their own
 // requireAdmin() checks and must keep answering 401/403, and /api/auth/** has
 // to stay reachable so visitors can sign in.
@@ -18,7 +23,7 @@ import { getNeonAuth } from "@/lib/auth/server";
 // build or test run that has no auth configuration. Resolving it here confines a
 // misconfiguration to the routes that actually need authentication.
 export function proxy(request: NextRequest) {
-  return getNeonAuth().middleware({ loginUrl: "/auth/sign-in" })(request);
+  return getNeonAuth().middleware({ loginUrl: "/login" })(request);
 }
 
 export default proxy;
