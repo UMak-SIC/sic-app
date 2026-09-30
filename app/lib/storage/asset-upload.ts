@@ -5,13 +5,27 @@ import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createAsset } from "@/lib/services/asset-service";
 
-import { getNeonStorageClient } from "./neon-storage-client";
+import { getNeonStorageClient, type StorageClient } from "./neon-storage-client";
 import {
   MAX_MULTIPART_BODY_SIZE_BYTES,
   validateUpload,
 } from "./upload-validation";
 
 type AssetBucket = "private-images" | "public-images";
+
+export type UploadDependencies = {
+  createAsset: typeof createAsset;
+  getNeonStorageClient: () => StorageClient;
+  requireAdmin: typeof requireAdmin;
+  validateUpload: typeof validateUpload;
+};
+
+const defaultDependencies: UploadDependencies = {
+  createAsset,
+  getNeonStorageClient,
+  requireAdmin,
+  validateUpload,
+};
 
 async function parseUploadFormData(request: Request): Promise<FormData | Response> {
   const contentLength = Number(request.headers.get("content-length"));
@@ -55,8 +69,9 @@ async function parseUploadFormData(request: Request): Promise<FormData | Respons
 export async function uploadAsset(
   request: Request,
   bucket: AssetBucket,
+  dependencies: UploadDependencies = defaultDependencies,
 ): Promise<Response> {
-  const authorization = await requireAdmin();
+  const authorization = await dependencies.requireAdmin();
 
   if (authorization instanceof Response) {
     return authorization;
@@ -75,7 +90,7 @@ export async function uploadAsset(
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const validation = await validateUpload(file, bytes);
+  const validation = await dependencies.validateUpload(file, bytes);
 
   if (!validation.valid) {
     return Response.json({ error: validation.error }, { status: 400 });
@@ -83,7 +98,7 @@ export async function uploadAsset(
 
   const objectKey = `assets/${randomUUID()}.${validation.extension}`;
 
-  const storage = getNeonStorageClient();
+  const storage = dependencies.getNeonStorageClient();
 
   await storage.send(
     new PutObjectCommand({
@@ -95,7 +110,7 @@ export async function uploadAsset(
     }),
   );
   try {
-    const asset = await createAsset({
+    const asset = await dependencies.createAsset({
       objectKey,
       originalFilename: file.name,
       mediaType: validation.mediaType,
