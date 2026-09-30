@@ -121,6 +121,8 @@ TSK-0702's concurrent-claim test passes against the isolated test database. CI a
 
 TSK-0705 through TSK-0707 are complete. `POST /api/internal/queue-worker` claims a batch, reserves a daily slot against `provider_daily_usage` before dispatch, settles that reservation afterwards, and records every attempt. The `selectProvider` signature now admits `null`, which means no provider had capacity: the job is released back to `queued` with no attempt recorded and no `retry_count` change, so a backlog waiting for tomorrow's allowance is never dead-lettered (US-23). Limits come from `MAILGUN_DAILY_LIMIT` and `BREVO_DAILY_LIMIT` and the quota day is the organization's own calendar day, per `ORGANIZATION_TIMEZONE`.
 
+The delivery resolver's supported placeholder set is `student_name`, `student_id`, `section`, `event_name`, `event_time` and `venue` — exactly the columns the schema can supply, and nothing more. A token with no value is removed from the body and logged rather than left in place, so a recipient never sees literal braces. **"No value" deliberately covers both** a token the schema has no column for and a token whose column is null for that delivery: an event with no `venue` or an attendee with no `section` is reported the same way, because an empty substitution would leave a dangling "in the " and the operator would otherwise have no way to learn the record is incomplete.
+
 ---
 
 ### EPIC-08: Campaign Management & Delivery Dashboard

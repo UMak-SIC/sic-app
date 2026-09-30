@@ -54,17 +54,19 @@ never happened.
 ### `{{ token }}` substitution, and the tokens that do not exist
 
 Campaign bodies interpolate `{{student_name}}`, `{{event_name}}`,
-`{{event_time}}` and `{{venue}}`. **The first three have a source. `venue` does
-not — `Event` has no venue column.**
+`{{event_time}}` and `{{venue}}`. **At the time this was written only the first
+three had a source** — `Event` had no venue column, so `{{venue}}` was one of the
+tokens with no value.
 
-An unknown token is **stripped rather than left in place**. Leaving it would put
-a literal `{{venue}}` in front of an attendee, which is the kind of defect that
+A token with no value is **stripped rather than left in place**. Leaving it would
+put a literal `{{venue}}` in front of an attendee, which is the kind of defect that
 only surfaces after a real send. The names are returned so the composer can
 validate against the supported set before saving.
 
-This is the second schema/UI mismatch found in this codebase, after
-`course`/`program` on `attendees`. Both are raised as issues rather than papered
-over.
+This was the second schema/UI mismatch found in this codebase, after
+`course`/`program` on `attendees`. Both were raised as issues rather than papered
+over, and both have since been resolved: `Event.venue` and `attendees.section`
+were added in #112 and #111, and the resolver's token set grew to match in #114.
 
 Matching is case-insensitive *and* the lookup is normalised. The first version
 matched leniently but looked up the original casing, so `{{STUDENT_NAME}}` was

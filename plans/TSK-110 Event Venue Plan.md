@@ -34,26 +34,19 @@ venue that a real send omits.
 
 The #110 comment had a second instruction: *"in the composer, add only
 interpolation options such as `{{name}} {{section}} {{venue}} {{event_date}}`"*.
-That is **not** implemented here, because it cannot be done without two decisions
-that have not been made.
+That was **not** implemented here, and has since been settled across two later
+commits rather than in this PR:
 
-**The example names do not match the existing set.** The composer offers
-`{{student_name}}`, `{{event_name}}`, `{{event_time}}`; the comment names
-`{{name}}`, `{{venue}}`, `{{event_date}}`. Renaming is a breaking change to every
-saved campaign body. It is cheap *now* only because no real campaign has been
-saved — every body is still seed data — so this is the moment to decide it.
-
-**`{{section}}` has no source.** Nothing in the schema has a section. If it means
-a student's section (as in `BSIT-2A`) it needs a new `Attendee` column, which is
-a #109-style decision. If it means something about the event, that is also
-unmodelled.
-
-**`{{qr_ticket_pass}}` is offered but unresolvable.** The composer lists it as an
-easy insert and the preview blanks it to `""`, and the delivery resolver strips
-it as an unknown token — because `qr-image-generator` still has no caller. So the
-composer currently offers an option that produces nothing. That is true today and
-is not fixed here; it is the clearest evidence for the "only options that
-resolve" instruction.
+- **The token names were declined.** `{{student_name}}` and `{{event_time}}` are
+  kept rather than renamed to `{{name}}` and `{{event_date}}`, so no saved
+  campaign body breaks. See #113.
+- **`{{section}}` is a student attribute**, confirmed in a later comment. It
+  became `attendees.section` in #111.
+- **`{{qr_ticket_pass}}` stays visible as a marked placeholder**, confirmed in the
+  same comment. It is dashed and labelled "soon" in the composer rather than
+  removed. See #113.
+- **`{{venue}}` is resolved by the delivery resolver** in #114, which could not be
+  extended here because `Event.venue` did not exist on this branch.
 
 ## Tests
 
