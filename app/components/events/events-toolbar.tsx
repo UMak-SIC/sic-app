@@ -46,8 +46,8 @@ export function EventsToolbar({
       )}
     >
       {/* Left controls: Search input & Status Filter */}
-      <div className="flex flex-1 flex-wrap items-center gap-3">
-        <div className="relative min-w-[260px] flex-1 sm:max-w-sm">
+      <div className="flex flex-1 flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+        <div className="relative min-w-0 w-full sm:w-64 md:w-80">
           <MagnifyingGlass
             size={18}
             weight="bold"
@@ -72,9 +72,9 @@ export function EventsToolbar({
         </div>
 
         {/* Status Filter */}
-        <div className="w-[150px]">
+        <div className="w-full sm:w-[150px]">
           <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-            <SelectTrigger className="h-10 text-sm font-sans rounded-[8px]">
+            <SelectTrigger className="h-10 text-sm font-sans rounded-[8px] w-full">
               <div className="flex items-center gap-2 truncate">
                 <Funnel size={15} className="text-muted shrink-0" />
                 <SelectValue placeholder="All Statuses" />

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import { EventDetailHeader } from "@/components/events/event-detail-header";
+import { EventSectionNav } from "@/components/events/event-section-nav";
 import { EventVelocityChart } from "@/components/events/event-velocity-chart";
 import { EventCollegeDistribution } from "@/components/events/event-college-distribution";
 import { EventRoster } from "@/components/events/event-roster";
@@ -282,8 +283,7 @@ export default function EventDetailPage() {
         }}
       />
 
-      {/* 2. In-Page Section Navigator */}
- 
+
 
       {/* 3. Activity Timeline & College Breakdown */}
       <section

@@ -41,14 +41,14 @@ export function AttendanceTrendChart({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "flex flex-col min-h-[480px] sm:min-h-[520px] rounded-2xl border border-slate-200/70 bg-white p-6 sm:p-7 shadow-2xs",
+        "flex flex-col min-h-[380px] sm:min-h-[500px] rounded-2xl border border-slate-200/70 bg-white p-4 sm:p-6 shadow-2xs",
         className
       )}
     >
       {/* Header with Title & Filter Buttons */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
-          <h2 className="text-xl font-bold font-display tracking-tight text-slate-900">
+          <h2 className="text-lg sm:text-xl font-bold font-display tracking-tight text-slate-900">
             Attendance Trend
           </h2>
           <p className="text-xs text-slate-500 font-sans mt-0.5">
@@ -57,13 +57,13 @@ export function AttendanceTrendChart({ className }: { className?: string }) {
         </div>
 
         {/* Range Selector Pills */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-slate-50 p-1 border border-slate-200/60">
+        <div className="flex flex-wrap items-center gap-1 self-start sm:self-auto rounded-xl bg-slate-50 p-1 border border-slate-200/60">
           {timeRanges.map((range) => (
             <button
               key={range}
               onClick={() => setSelectedRange(range)}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer",
+                "rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer",
                 selectedRange === range
                   ? "bg-white text-slate-900 shadow-2xs font-semibold"
                   : "text-slate-500 hover:text-slate-900"
@@ -76,7 +76,7 @@ export function AttendanceTrendChart({ className }: { className?: string }) {
       </div>
 
       {/* Chart Canvas */}
-      <div className="h-[340px] sm:h-[380px] w-full pt-2">
+      <div className="h-[280px] sm:h-[380px] w-full pt-1 sm:pt-2">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}

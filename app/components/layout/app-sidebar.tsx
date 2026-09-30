@@ -18,7 +18,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
   return (
     <aside
       className={cn(
-        "relative flex flex-col border-r border-line bg-paper transition-all duration-300 ease-in-out h-screen sticky top-0 shrink-0 overflow-x-hidden",
+        "relative hidden md:flex flex-col border-r border-line bg-paper transition-all duration-300 ease-in-out h-[100dvh] max-h-[100dvh] sticky top-0 self-start shrink-0 overflow-hidden",
         collapsed ? "w-18" : "w-64",
         className
       )}
@@ -26,7 +26,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
       {/* Brand Header */}
       <div
         className={cn(
-          "flex h-20 items-center border-b border-slate-100 transition-all duration-200",
+          "flex h-20 items-center border-b border-slate-100 transition-all duration-200 shrink-0",
           collapsed ? "justify-center px-2" : "justify-between px-4"
         )}
       >
@@ -73,7 +73,59 @@ export function AppSidebar({ className }: AppSidebarProps) {
       <SidebarNav collapsed={collapsed} />
 
       {/* Promo Card (hidden when collapsed) */}
-      {!collapsed && <SidebarPromoCard />}
+      {!collapsed && (
+        <div className="shrink-0 mt-auto">
+          <SidebarPromoCard />
+        </div>
+      )}
     </aside>
   );
 }
+
+export function MobileSidebarContent({
+  onClose,
+}: {
+  onClose?: () => void;
+}) {
+  return (
+    <div className="flex flex-col h-full bg-paper w-full">
+      {/* Brand Header */}
+      <div className="flex h-18 items-center justify-between border-b border-line px-5">
+        <Link
+          href="/overview"
+          onClick={onClose}
+          className="flex items-center gap-3 overflow-hidden"
+        >
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center">
+            <Image
+              src="/sic_logo_nobg.png"
+              alt="UMak SIC Logo"
+              width={34}
+              height={34}
+              className="h-auto w-auto object-contain max-h-9 max-w-9"
+              priority
+            />
+          </div>
+
+          <div className="flex flex-col">
+            <span className="text-sm font-bold font-display tracking-tight text-ink leading-tight">
+              UMAK SIC
+            </span>
+            <span className="text-[11px] font-semibold text-muted leading-none tracking-wide">
+              CCIS Operations
+            </span>
+          </div>
+        </Link>
+      </div>
+
+      {/* Navigation Sections */}
+      <SidebarNav collapsed={false} onItemClick={onClose} />
+
+      {/* Promo Card */}
+      <div className="p-3">
+        <SidebarPromoCard />
+      </div>
+    </div>
+  );
+}
+

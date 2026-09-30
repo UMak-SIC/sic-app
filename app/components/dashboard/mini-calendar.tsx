@@ -39,12 +39,12 @@ export function MiniCalendar({
   return (
     <div
       className={cn(
-        "flex flex-col justify-between rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xs h-[350px] sm:h-[360px]",
+        "flex flex-col justify-between rounded-2xl border border-slate-200/70 bg-white p-4 sm:p-5 md:p-6 shadow-2xs h-auto min-h-[340px] sm:h-[360px]",
         className
       )}
     >
       {/* Month Selector Navigation */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2 sm:mb-3">
         <button
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Previous month"
@@ -65,11 +65,11 @@ export function MiniCalendar({
       </div>
 
       {/* Weekday Labels */}
-      <div className="grid grid-cols-7 gap-1 text-center mb-1.5">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center mb-1">
         {daysOfWeek.map((day) => (
           <span
             key={day}
-            className="text-[11px] font-semibold text-slate-400 py-0.5"
+            className="text-[10px] sm:text-[11px] font-semibold text-slate-400 py-0.5"
           >
             {day}
           </span>
@@ -77,9 +77,9 @@ export function MiniCalendar({
       </div>
 
       {/* Days Grid (Fixed Dimensions) */}
-      <div className="grid grid-cols-7 gap-1 text-center flex-1 content-center">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 text-center flex-1 content-center">
         {emptyDaysBefore.map((_, i) => (
-          <div key={`empty-${i}`} className="h-8 w-8 sm:h-8.5 sm:w-8.5 mx-auto" />
+          <div key={`empty-${i}`} className="h-7 w-7 sm:h-8 sm:w-8 mx-auto" />
         ))}
 
         {daysInMonth.map((day) => {
@@ -91,7 +91,7 @@ export function MiniCalendar({
               key={day}
               onClick={() => handleSelectDay(day)}
               className={cn(
-                "relative flex h-8 w-8 sm:h-8.5 sm:w-8.5 mx-auto items-center justify-center rounded-full text-xs font-medium transition-all duration-150 cursor-pointer",
+                "relative flex h-7 w-7 sm:h-8 sm:w-8 mx-auto items-center justify-center rounded-full text-xs font-medium transition-all duration-150 cursor-pointer",
                 isSelected
                   ? "bg-[#1e8e6b] text-white font-bold shadow-xs scale-105 z-10"
                   : hasEvent

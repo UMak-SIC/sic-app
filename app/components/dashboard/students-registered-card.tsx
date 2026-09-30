@@ -22,7 +22,7 @@ export function StudentsRegisteredCard({
   return (
     <div
       className={cn(
-        "flex flex-col min-h-[370px] justify-between rounded-2xl border border-slate-200/70 bg-white p-6 sm:p-7 shadow-2xs",
+        "flex flex-col min-h-[340px] justify-between rounded-2xl border border-slate-200/70 bg-white p-4 sm:p-6 md:p-7 shadow-2xs",
         className
       )}
     >

@@ -8,7 +8,7 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="flex min-h-screen w-full bg-[#f8fafc] text-slate-900 font-sans">
+    <div className="flex min-h-[100dvh] w-full bg-[#f8fafc] text-slate-900 font-sans">
       {/* Scalable Sidebar */}
       <AppSidebar />
 
@@ -18,7 +18,7 @@ export function AppShell({ children }: AppShellProps) {
           position:sticky inside <main> still tracks the viewport. */}
       <div className="flex flex-1 flex-col min-w-0 overflow-x-clip">
         <AppHeader />
-        <main className="flex-1 px-8 pb-12">
+        <main className="flex-1 px-3.5 sm:px-6 md:px-8 pb-8 sm:pb-12 max-w-[1440px] w-full mx-auto">
           {children}
         </main>
       </div>

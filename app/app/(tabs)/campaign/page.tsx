@@ -72,13 +72,13 @@ export default function CampaignPage() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto">
-          <div className="inline-flex rounded-[8px] border border-line p-0.5 bg-canvas/60 text-xs">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
+          <div className="inline-flex rounded-[8px] border border-line p-0.5 bg-canvas/60 text-xs shrink-0">
             <button
               type="button"
               onClick={() => setStatusFilter("all")}
               className={cn(
-                "px-3.5 py-1.5 rounded-[6px] font-medium transition-colors cursor-pointer font-display text-xs",
+                "px-3.5 py-1.5 rounded-[6px] font-medium transition-colors cursor-pointer font-display text-xs shrink-0",
                 statusFilter === "all"
                   ? "bg-card text-ink font-bold shadow-xs"
                   : "text-muted hover:text-ink"

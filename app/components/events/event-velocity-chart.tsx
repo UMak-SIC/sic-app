@@ -47,8 +47,8 @@ export function EventVelocityChart({ className }: { className?: string }) {
       )}
     >
       {/* Top Header & Filter Tabs */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-6 pt-5 pb-3">
-        <h2 className="font-display text-lg font-bold text-ink tracking-tight">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 pt-5 pb-3">
+        <h2 className="font-display text-base sm:text-lg font-bold text-ink tracking-tight">
           Event Activity
         </h2>
 
@@ -56,14 +56,14 @@ export function EventVelocityChart({ className }: { className?: string }) {
         <div
           role="group"
           aria-label="Filter series"
-          className="flex items-center gap-1 rounded-full bg-canvas/60 p-1 border border-line-subtle self-start sm:self-auto"
+          className="flex items-center gap-1 rounded-full bg-canvas/60 p-1 border border-line-subtle overflow-x-auto max-w-full"
         >
           <button
             type="button"
             onClick={() => setSelectedMetric("all")}
             aria-pressed={isAll}
             className={cn(
-              "rounded-full px-3 py-1 font-sans text-xs font-semibold transition-all cursor-pointer",
+              "rounded-full px-2.5 sm:px-3 py-1 font-sans text-xs font-semibold transition-all cursor-pointer shrink-0",
               isAll
                 ? "bg-card text-ink shadow-xs"
                 : "text-muted hover:text-ink"
@@ -76,7 +76,7 @@ export function EventVelocityChart({ className }: { className?: string }) {
             onClick={() => setSelectedMetric("registered")}
             aria-pressed={selectedMetric === "registered"}
             className={cn(
-              "rounded-full px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer",
+              "rounded-full px-2.5 sm:px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer shrink-0",
               selectedMetric === "registered"
                 ? "bg-card font-semibold text-cyan shadow-xs"
                 : "text-muted hover:text-ink"
@@ -89,7 +89,7 @@ export function EventVelocityChart({ className }: { className?: string }) {
             onClick={() => setSelectedMetric("emails")}
             aria-pressed={selectedMetric === "emails"}
             className={cn(
-              "rounded-full px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer",
+              "rounded-full px-2.5 sm:px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer shrink-0",
               selectedMetric === "emails"
                 ? "bg-card font-semibold text-green shadow-xs"
                 : "text-muted hover:text-ink"
@@ -102,7 +102,7 @@ export function EventVelocityChart({ className }: { className?: string }) {
             onClick={() => setSelectedMetric("attended")}
             aria-pressed={selectedMetric === "attended"}
             className={cn(
-              "rounded-full px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer",
+              "rounded-full px-2.5 sm:px-3 py-1 font-sans text-xs font-medium transition-all cursor-pointer shrink-0",
               selectedMetric === "attended"
                 ? "bg-card font-semibold text-amber shadow-xs"
                 : "text-muted hover:text-ink"
@@ -113,13 +113,13 @@ export function EventVelocityChart({ className }: { className?: string }) {
         </div>
       </div>
 
-      {/* 3 Metric Headers Row (Divided by vertical lines, NO colored card boxes, exactly matching mockup) */}
+      {/* 3 Metric Headers Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line-subtle border-y border-line-subtle">
         {/* Metric 1: Registrations */}
         <div
           onClick={() => setSelectedMetric(selectedMetric === "registered" ? "all" : "registered")}
           className={cn(
-            "flex flex-col gap-1 px-6 py-4 cursor-pointer transition-colors",
+            "flex flex-col gap-1 px-4 sm:px-6 py-3.5 sm:py-4 cursor-pointer transition-colors",
             selectedMetric === "registered" ? "bg-canvas/40" : "hover:bg-canvas/20"
           )}
         >
@@ -372,8 +372,8 @@ export function EventVelocityChart({ className }: { className?: string }) {
       </div>
 
       {/* Footer Meta */}
-      <div className="flex items-center justify-between px-6 py-2.5 border-t border-line-subtle font-sans text-xs text-muted">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 px-4 sm:px-6 py-2.5 border-t border-line-subtle font-sans text-xs text-muted">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
           <span className="flex items-center gap-1.5">
             <span className="size-2 rounded-[2px] bg-cyan" />
             Registrations

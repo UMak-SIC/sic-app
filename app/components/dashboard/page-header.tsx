@@ -26,14 +26,14 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col mt-6 sm:mt-8 sm:flex-row sm:items-center justify-between gap-4",
+        "flex flex-col mt-3 sm:mt-6 sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4",
         className
       )}
     >
       <div>
         <h1
           className={cn(
-            "text-3xl font-normal font-display text-ink tracking-tight",
+            "text-2xl sm:text-3xl font-normal font-display text-ink tracking-tight",
             titleClassName
           )}
         >
@@ -42,7 +42,7 @@ export function PageHeader({
         {description && (
           <p
             className={cn(
-              "text-sm text-muted font-sans mt-1",
+              "text-xs sm:text-sm text-muted font-sans mt-0.5 sm:mt-1",
               descriptionClassName
             )}
           >
@@ -52,7 +52,7 @@ export function PageHeader({
       </div>
 
       {(action || children) && (
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
           {action}
           {children}
         </div>
@@ -79,7 +79,7 @@ export function PageHeaderButton({
     <Button
       variant={variant}
       className={cn(
-        "h-12 inline-flex items-center gap-2.5 rounded-full px-6 text-sm font-bold font-sans transition-all cursor-pointer shadow-xs",
+        "h-10 sm:h-12 inline-flex items-center gap-2 sm:gap-2.5 rounded-full px-4 sm:px-6 text-xs sm:text-sm font-bold font-sans transition-all cursor-pointer shadow-xs shrink-0",
         isOutline
           ? "bg-card hover:bg-green-soft text-green hover:text-green-hover border border-green hover:border-green-hover shadow-2xs"
           : "bg-linear-to-r from-[#198d5d] to-[#2da482] hover:brightness-105 text-white border-0",

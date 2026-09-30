@@ -224,8 +224,9 @@ export function AttendeesTable({
       {/* Top subtle multi-tone course gradient highlight bar */}
       <div className="absolute inset-x-0 top-0 h-[2px] bg-linear-to-r from-cyan via-green to-amber opacity-50 z-10" />
 
-      <Table className="table-fixed">
-        <TableHeader>
+      <div className="overflow-x-auto w-full">
+        <Table className="min-w-[760px] table-fixed">
+          <TableHeader>
           <TableRow className="bg-linear-to-b from-canvas/90 via-canvas/60 to-canvas/20 hover:bg-canvas/70 border-b border-line">
             {/* Selection & Reorder Checkbox */}
             <TableHead className="w-14 pl-3">
@@ -491,6 +492,7 @@ export function AttendeesTable({
           })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

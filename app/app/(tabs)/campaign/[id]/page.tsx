@@ -279,7 +279,7 @@ export default function CampaignDetailPage() {
   return (
     <div className="flex flex-col gap-6 w-full pb-16 font-sans">
       {/* 1. Page Header & Primary Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-[16px] border border-line shadow-xs">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-4 sm:p-6 rounded-[16px] border border-line shadow-xs">
         <div>
           <button
             type="button"
@@ -320,12 +320,12 @@ export default function CampaignDetailPage() {
         </div>
 
         {/* Header Action Buttons */}
-        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0">
           <Button
             type="button"
             variant="outline"
             onClick={() => setIsPreviewOpen(true)}
-            className="text-xs font-semibold rounded-[6px] h-9 px-3.5 gap-1.5 cursor-pointer bg-card hover:bg-canvas"
+            className="text-xs font-semibold rounded-[6px] h-9 px-3 sm:px-3.5 gap-1.5 cursor-pointer bg-card hover:bg-canvas"
           >
             <Eye size={15} />
             <span>View Ticket Pass</span>
@@ -335,7 +335,7 @@ export default function CampaignDetailPage() {
             type="button"
             variant="outline"
             onClick={handleExportCsv}
-            className="text-xs font-semibold rounded-[6px] h-9 px-3.5 gap-1.5 cursor-pointer bg-card hover:bg-canvas"
+            className="text-xs font-semibold rounded-[6px] h-9 px-3 sm:px-3.5 gap-1.5 cursor-pointer bg-card hover:bg-canvas"
           >
             <DownloadSimple size={15} />
             <span>Export CSV</span>
@@ -346,7 +346,7 @@ export default function CampaignDetailPage() {
               type="button"
               onClick={handleResendAll}
               disabled={isResending}
-              className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 px-4 gap-1.5 cursor-pointer shadow-xs"
+              className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 px-3.5 sm:px-4 gap-1.5 cursor-pointer shadow-xs"
             >
               <ArrowClockwise size={14} className={cn(isResending && "animate-spin")} weight="bold" />
               <span>{isResending ? "Resending..." : "Resend Undelivered"}</span>
@@ -357,7 +357,7 @@ export default function CampaignDetailPage() {
               variant="outline"
               onClick={handleResendAll}
               disabled={isResending}
-              className="text-xs font-semibold rounded-[6px] h-9 px-3.5 gap-1.5 cursor-pointer bg-card hover:bg-canvas text-muted hover:text-ink"
+              className="text-xs font-semibold rounded-[6px] h-9 px-3 sm:px-3.5 gap-1.5 cursor-pointer bg-card hover:bg-canvas text-muted hover:text-ink"
             >
               <ArrowClockwise size={14} className={cn(isResending && "animate-spin")} />
               <span>Resend to All</span>
@@ -392,13 +392,13 @@ export default function CampaignDetailPage() {
         className="sticky top-16 z-20 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-line-subtle bg-paper/95 backdrop-blur py-1.5 px-2 rounded-[12px]"
       >
         {/* Left: View Tabs */}
-        <ul className="flex items-center gap-1.5 flex-wrap">
-          <li>
+        <ul className="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full">
+          <li className="shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab("recipients")}
               className={cn(
-                "inline-flex h-8.5 items-center gap-2 rounded-full px-4 font-sans text-xs font-semibold transition-colors cursor-pointer",
+                "inline-flex h-8.5 items-center gap-2 rounded-full px-4 font-sans text-xs font-semibold transition-colors cursor-pointer shrink-0",
                 activeTab === "recipients"
                   ? "bg-ink text-paper shadow-2xs font-bold"
                   : "text-muted hover:bg-canvas hover:text-ink"
@@ -408,12 +408,12 @@ export default function CampaignDetailPage() {
               <span>All Recipients ({campaign.recipients.length})</span>
             </button>
           </li>
-          <li>
+          <li className="shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab("queue")}
               className={cn(
-                "inline-flex h-8.5 items-center gap-2 rounded-full px-4 font-sans text-xs font-semibold transition-colors cursor-pointer",
+                "inline-flex h-8.5 items-center gap-2 rounded-full px-4 font-sans text-xs font-semibold transition-colors cursor-pointer shrink-0",
                 activeTab === "queue"
                   ? "bg-ink text-paper shadow-2xs font-bold"
                   : "text-muted hover:bg-canvas hover:text-ink"
@@ -423,12 +423,12 @@ export default function CampaignDetailPage() {
               <span>Queue & Capacity</span>
             </button>
           </li>
-          <li>
+          <li className="shrink-0">
             <button
               type="button"
               onClick={() => setActiveTab("diagnostics")}
               className={cn(
-                "inline-flex h-8.5 items-center gap-2 rounded-full px-4 font-sans text-xs font-semibold transition-colors cursor-pointer",
+                "inline-flex h-8.5 items-center gap-2 rounded-full px-4 font-sans text-xs font-semibold transition-colors cursor-pointer shrink-0",
                 activeTab === "diagnostics"
                   ? "bg-ink text-paper shadow-2xs font-bold"
                   : "text-muted hover:bg-canvas hover:text-ink"
@@ -441,7 +441,7 @@ export default function CampaignDetailPage() {
         </ul>
 
         {/* Right: Sending Limits Button (Green Gradient Modal Trigger) */}
-        <div className="flex items-center justify-end">
+        <div className="flex items-center justify-start sm:justify-end shrink-0">
           <SendingLimitsTriggerButton onClick={() => setIsLimitsOpen(true)} />
         </div>
       </nav>

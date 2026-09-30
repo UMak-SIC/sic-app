@@ -20,10 +20,10 @@ export default function OverviewPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full pt-3">
+    <div className="flex flex-col gap-4 sm:gap-6 w-full pt-1 sm:pt-3">
       {/* Top Header & CTA */}
       <PageHeader
-        className="mt-3"
+        className="mt-1 sm:mt-3"
         title={
           <>
             Good Day, <span className="font-bold">Joey!</span>
@@ -41,15 +41,15 @@ export default function OverviewPage() {
       />
 
       {/* Main Content Grid: 55% Left (KPIs + Trend Chart) and 45% Right (Calendar, Upcoming Events, Registrations) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[55%_minmax(0,1fr)] gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[55%_minmax(0,1fr)] gap-4 sm:gap-6 items-start">
         {/* Left Column (55% Width): 3 KPI Stats Cards & Attendance Trend Area Chart */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
           <StatsOverview />
           <AttendanceTrendChart />
         </div>
 
         {/* Right Column (45% Width): Fixed-Height Calendar, Overhauled Upcoming Events, and Registration Breakdown */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
           <OverviewEventsSection />
         </div>
       </div>

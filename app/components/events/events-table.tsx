@@ -235,7 +235,8 @@ export function EventsTable({
       onPointerLeave={() => setHoverIndex(null)}
       className="relative rounded-[12px] border border-line bg-card shadow-2xs overflow-hidden"
     >
-      <Table className="table-fixed">
+      <div className="overflow-x-auto w-full">
+        <Table className="table-fixed min-w-[700px]">
         <TableHeader>
           <TableRow className="bg-canvas/50 hover:bg-canvas/50 border-b border-line">
             <TableHead className="w-14 pl-3">
@@ -501,11 +502,12 @@ export function EventsTable({
           })}
         </TableBody>
       </Table>
+    </div>
 
-      {/* Floating cover preview - only alive while an event row is hovered */}
+      {/* Floating cover preview - only alive on desktop while an event row is hovered */}
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute z-30 w-[240px] overflow-hidden rounded-[12px] border border-line bg-card shadow-2xl"
+        className="pointer-events-none absolute z-30 hidden md:block w-[240px] overflow-hidden rounded-[12px] border border-line bg-card shadow-2xl"
         style={{
           left: 0,
           top: 0,

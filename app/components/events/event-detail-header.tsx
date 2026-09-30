@@ -64,18 +64,18 @@ export function EventDetailHeader({
   return (
     <div className={cn("flex flex-col gap-4 w-full", className)}>
       {/* Event Cover Image Banner */}
-      <div className="relative w-full h-48 sm:h-60 md:h-64 rounded-[16px] overflow-hidden border border-line shadow-2xs group bg-ink">
+      <div className="relative w-full min-h-[260px] sm:min-h-0 sm:h-60 md:h-64 rounded-[16px] overflow-hidden border border-line shadow-2xs group bg-ink flex flex-col justify-between p-4">
         <img
           src={coverImage}
           alt={`${title} cover`}
-          className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
+          className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
         />
         {/* Subtle dark teal scrim overlay for optimal contrast */}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/40 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/50 to-ink/20 pointer-events-none" />
 
         {/* Top Badges overlay on banner */}
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
+        <div className="relative z-10 flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center rounded-full bg-paper/90 backdrop-blur-md px-3 py-1 font-sans text-xs font-semibold text-ink shadow-sm border border-line">
               {category}
             </span>
@@ -89,9 +89,9 @@ export function EventDetailHeader({
         </div>
 
         {/* Bottom Banner Content */}
-        <div className="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-3 pt-4">
           <div className="flex flex-col gap-1 max-w-2xl">
-            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
+            <h1 className="font-display text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white drop-shadow-sm">
               {title}
             </h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-sans text-xs sm:text-sm text-paper/90">
@@ -107,7 +107,7 @@ export function EventDetailHeader({
           </div>
 
           {/* Capacity Progress Pill */}
-          <div className="shrink-0 flex items-center gap-2 rounded-full bg-ink/80 backdrop-blur-md px-3.5 py-1.5 border border-white/15">
+          <div className="self-start sm:self-auto shrink-0 flex items-center gap-2 rounded-full bg-ink/80 backdrop-blur-md px-3.5 py-1.5 border border-white/15">
             <Users size={15} weight="bold" className="text-cyan" />
             <span className="font-sans text-xs font-semibold text-white">
               {registeredCount} / {capacity} attendees
@@ -126,12 +126,12 @@ export function EventDetailHeader({
           <span>Live attendance window active</span>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {isPublished ? (
             <Button
               size="sm"
               onClick={onLaunchScanner}
-              className="h-9 cursor-pointer gap-2 rounded-full bg-cyan px-5 font-sans text-xs font-semibold text-white shadow-xs hover:bg-cyan-hover active:translate-y-px"
+              className="h-9 cursor-pointer gap-2 rounded-full bg-cyan px-4 sm:px-5 font-sans text-xs font-semibold text-white shadow-xs hover:bg-cyan-hover active:translate-y-px"
             >
               <QrCode size={16} weight="bold" />
               <span>Launch live scanner</span>

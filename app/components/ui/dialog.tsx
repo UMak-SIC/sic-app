@@ -145,7 +145,7 @@ export const DialogContent = React.forwardRef<
         role="dialog"
         aria-modal="true"
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-line bg-card p-6 shadow-xl duration-200 animate-in fade-in-0 zoom-in-95 sm:rounded-[14px]",
+          "fixed left-[50%] top-[50%] z-50 grid w-[calc(100vw-2rem)] max-w-lg max-h-[90dvh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border border-line bg-card p-4 sm:p-6 shadow-xl duration-200 animate-in fade-in-0 zoom-in-95 rounded-[14px] sm:rounded-[16px]",
           className
         )}
         {...props}
@@ -155,7 +155,7 @@ export const DialogContent = React.forwardRef<
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none cursor-pointer text-muted hover:text-ink z-10"
+            className="absolute right-3.5 top-3.5 sm:right-4 sm:top-4 rounded-[4px] p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none cursor-pointer text-muted hover:text-ink z-10 hover:bg-canvas"
             aria-label="Close"
           >
             <X size={16} weight="bold" />

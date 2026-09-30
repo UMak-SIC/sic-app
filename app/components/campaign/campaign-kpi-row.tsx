@@ -245,8 +245,8 @@ function KpiCard({
   );
 
   return (
-    <div className="relative flex-1 min-w-[240px] overflow-hidden rounded-[16px] bg-card border border-line shadow-xs flex flex-col justify-between transition-all hover:border-cyan/50 hover:shadow-sm">
-      <div className="p-5 pb-0">
+    <div className="relative flex-1 min-w-0 w-full overflow-hidden rounded-[16px] bg-card border border-line shadow-xs flex flex-col justify-between transition-all hover:border-cyan/50 hover:shadow-sm">
+      <div className="p-4 sm:p-5 pb-0">
         <div className="flex items-center gap-2 text-sm text-muted">
           {item.icon && (
             <span aria-hidden className="flex text-ink shrink-0">

@@ -41,7 +41,7 @@ export function UpcomingEventsList({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-2xl border border-slate-200/70 bg-white p-5 sm:p-6 shadow-2xs h-[350px] sm:h-[360px] min-w-0",
+        "flex flex-col rounded-2xl border border-slate-200/70 bg-white p-4 sm:p-5 md:p-6 shadow-2xs h-auto min-h-[340px] sm:h-[360px] min-w-0",
         className
       )}
     >

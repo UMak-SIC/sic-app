@@ -149,7 +149,7 @@ export function LiveCheckinDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xl">
+        <DialogContent className="max-w-4xl w-[calc(100vw-1.5rem)] sm:w-full max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-2xl">
           {/* Header */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line pb-4">
             <div>

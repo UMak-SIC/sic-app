@@ -281,8 +281,8 @@ export function EventRoster({
         </div>
 
         {/* Search & Export */}
-        <div className="flex items-center gap-2">
-          <div className="relative w-full sm:w-64">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
             <MagnifyingGlass
               size={15}
               weight="bold"
@@ -426,188 +426,190 @@ export function EventRoster({
           )}
         </div>
       ) : (
-        <Table className="table-fixed">
-          <TableHeader>
-            <TableRow className="bg-canvas/50 hover:bg-canvas/50 border-b border-line">
-              <TableHead className="w-12 pl-4">
-                <Checkbox
-                  checked={
-                    isAllSelected
-                      ? true
-                      : isSomeSelected
-                      ? "indeterminate"
-                      : false
-                  }
-                  onCheckedChange={() => handleToggleSelectAll(filteredAttendees)}
-                  aria-label="Select all students in view"
-                />
-              </TableHead>
-              <TableHead className="w-[34%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
-                Student & Account
-              </TableHead>
-              <TableHead className="w-[18%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
-                College & Course
-              </TableHead>
-              <TableHead className="w-[16%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
-                Attendance Status
-              </TableHead>
-              <TableHead className="w-[16%] font-sans font-bold text-xs uppercase tracking-wider text-muted hidden md:table-cell">
-                Attended Time
-              </TableHead>
-              <TableHead className="w-[16%] font-sans font-bold text-xs uppercase tracking-wider text-muted text-right pr-4">
-                Quick Action
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+        <div className="overflow-x-auto w-full">
+          <Table className="min-w-[700px] table-fixed">
+            <TableHeader>
+              <TableRow className="bg-canvas/50 hover:bg-canvas/50 border-b border-line">
+                <TableHead className="w-12 pl-4">
+                  <Checkbox
+                    checked={
+                      isAllSelected
+                        ? true
+                        : isSomeSelected
+                        ? "indeterminate"
+                        : false
+                    }
+                    onCheckedChange={() => handleToggleSelectAll(filteredAttendees)}
+                    aria-label="Select all students in view"
+                  />
+                </TableHead>
+                <TableHead className="w-[34%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+                  Student & Account
+                </TableHead>
+                <TableHead className="w-[18%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+                  College & Course
+                </TableHead>
+                <TableHead className="w-[16%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+                  Attendance Status
+                </TableHead>
+                <TableHead className="w-[16%] font-sans font-bold text-xs uppercase tracking-wider text-muted hidden md:table-cell">
+                  Attended Time
+                </TableHead>
+                <TableHead className="w-[16%] font-sans font-bold text-xs uppercase tracking-wider text-muted text-right pr-4">
+                  Quick Action
+                </TableHead>
+              </TableRow>
+            </TableHeader>
 
-          <TableBody>
-            {filteredAttendees.map((student) => {
-              const isSelected = selectedIds.includes(student.id);
-              const badgeStyle = COURSE_BADGES[student.course] || COURSE_BADGES.BSIT;
+            <TableBody>
+              {filteredAttendees.map((student) => {
+                const isSelected = selectedIds.includes(student.id);
+                const badgeStyle = COURSE_BADGES[student.course] || COURSE_BADGES.BSIT;
 
-              return (
-                <TableRow
-                  key={student.id}
-                  data-state={isSelected ? "selected" : undefined}
-                  className={cn(
-                    "group transition-colors border-b border-line/60 hover:bg-canvas/40",
-                    isSelected && "bg-cyan-soft/30 hover:bg-cyan-soft/40"
-                  )}
-                >
-                  {/* Checkbox */}
-                  <TableCell className="pl-4 py-3">
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => handleToggleSelect(student.id)}
-                      aria-label={`Select ${student.name}`}
-                    />
-                  </TableCell>
+                return (
+                  <TableRow
+                    key={student.id}
+                    data-state={isSelected ? "selected" : undefined}
+                    className={cn(
+                      "group transition-colors border-b border-line/60 hover:bg-canvas/40",
+                      isSelected && "bg-cyan-soft/30 hover:bg-cyan-soft/40"
+                    )}
+                  >
+                    {/* Checkbox */}
+                    <TableCell className="pl-4 py-3">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => handleToggleSelect(student.id)}
+                        aria-label={`Select ${student.name}`}
+                      />
+                    </TableCell>
 
-                  {/* Profile Circle + Name, Student ID & Email */}
-                  <TableCell className="py-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <ProfileCircle name={student.name} size="md" />
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-sans text-sm font-bold text-ink group-hover:text-cyan transition-colors truncate">
-                          {student.name}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-xs text-muted truncate">
-                          <span className="font-mono text-muted-light font-medium shrink-0">
-                            {student.studentId}
+                    {/* Profile Circle + Name, Student ID & Email */}
+                    <TableCell className="py-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <ProfileCircle name={student.name} size="md" />
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-sans text-sm font-bold text-ink group-hover:text-cyan transition-colors truncate">
+                            {student.name}
                           </span>
-                          <span className="text-muted-light shrink-0">·</span>
-                          <span className="truncate">{student.email}</span>
+                          <div className="flex items-center gap-1.5 text-xs text-muted truncate">
+                            <span className="font-mono text-muted-light font-medium shrink-0">
+                              {student.studentId}
+                            </span>
+                            <span className="text-muted-light shrink-0">·</span>
+                            <span className="truncate">{student.email}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </TableCell>
+                    </TableCell>
 
-                  {/* Course & College Track */}
-                  <TableCell className="py-3">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "px-2 py-0.5 text-[10px] font-bold rounded-full border shadow-none",
-                            badgeStyle.bg,
-                            badgeStyle.text,
-                            badgeStyle.border
-                          )}
-                        >
-                          {student.course}
-                        </Badge>
-                        <span className="text-[11px] font-semibold text-muted font-sans">
-                          {student.college}
+                    {/* Course & College Track */}
+                    <TableCell className="py-3">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "px-2 py-0.5 text-[10px] font-bold rounded-full border shadow-none",
+                              badgeStyle.bg,
+                              badgeStyle.text,
+                              badgeStyle.border
+                            )}
+                          >
+                            {student.course}
+                          </Badge>
+                          <span className="text-[11px] font-semibold text-muted font-sans">
+                            {student.college}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted font-sans truncate" title={student.program}>
+                          {student.program}
                         </span>
                       </div>
-                      <span className="text-xs text-muted font-sans truncate" title={student.program}>
-                        {student.program}
-                      </span>
-                    </div>
-                  </TableCell>
+                    </TableCell>
 
-                  {/* Attendance Status */}
-                  <TableCell className="py-3">
-                    {student.status === "attended" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-green-border bg-green-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-green">
-                        <CheckCircle size={13} weight="bold" />
-                        Attended
-                      </span>
-                    ) : student.status === "pending" ? (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-border bg-amber-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-amber">
-                        <Clock size={13} weight="bold" />
-                        Pending
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-red-border bg-red-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-red">
-                        <XCircle size={13} weight="bold" />
-                        Absent
-                      </span>
-                    )}
-                  </TableCell>
-
-                  {/* Attended Time */}
-                  <TableCell className="py-3 hidden md:table-cell font-sans text-xs text-ink font-medium">
-                    {student.checkedInAt ?? <span className="text-muted-light">-</span>}
-                  </TableCell>
-
-                  {/* Quick Action Button & Options Dropdown */}
-                  <TableCell className="py-3 text-right pr-4">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {student.status === "pending" ? (
-                        <Button
-                          size="sm"
-                          onClick={() => handleMarkAttended(student.id)}
-                          className="h-7 rounded-full bg-cyan px-3 font-sans text-xs font-semibold text-white shadow-2xs hover:bg-cyan-hover cursor-pointer active:translate-y-px"
-                        >
-                          <Check size={13} weight="bold" className="mr-1" />
-                          Mark attended
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled
-                          className="h-7 px-2 font-sans text-xs text-muted font-medium"
-                        >
+                    {/* Attendance Status */}
+                    <TableCell className="py-3">
+                      {student.status === "attended" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-green-border bg-green-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-green">
+                          <CheckCircle size={13} weight="bold" />
                           Attended
-                        </Button>
+                        </span>
+                      ) : student.status === "pending" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-border bg-amber-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-amber">
+                          <Clock size={13} weight="bold" />
+                          Pending
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-red-border bg-red-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-red">
+                          <XCircle size={13} weight="bold" />
+                          Absent
+                        </span>
                       )}
+                    </TableCell>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                    {/* Attended Time */}
+                    <TableCell className="py-3 hidden md:table-cell font-sans text-xs text-ink font-medium">
+                      {student.checkedInAt ?? <span className="text-muted-light">-</span>}
+                    </TableCell>
+
+                    {/* Quick Action Button & Options Dropdown */}
+                    <TableCell className="py-3 text-right pr-4">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {student.status === "pending" ? (
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-[6px] text-muted hover:text-ink hover:bg-canvas cursor-pointer"
-                            aria-label="Student options"
+                            size="sm"
+                            onClick={() => handleMarkAttended(student.id)}
+                            className="h-7 rounded-full bg-cyan px-3 font-sans text-xs font-semibold text-white shadow-2xs hover:bg-cyan-hover cursor-pointer active:translate-y-px"
                           >
-                            <DotsThreeVertical size={16} weight="bold" />
+                            <Check size={13} weight="bold" className="mr-1" />
+                            Mark attended
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44 font-sans text-xs">
-                          <DropdownMenuItem className="cursor-pointer">
-                            <QrCode size={14} className="mr-2 text-cyan" />
-                            View digital pass
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="cursor-pointer">
-                            <EnvelopeSimple size={14} className="mr-2 text-muted" />
-                            Resend email
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="cursor-pointer text-red focus:text-red focus:bg-red-soft">
-                            Mark as absent
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled
+                            className="h-7 px-2 font-sans text-xs text-muted font-medium"
+                          >
+                            Attended
+                          </Button>
+                        )}
+
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-[6px] text-muted hover:text-ink hover:bg-canvas cursor-pointer"
+                              aria-label="Student options"
+                            >
+                              <DotsThreeVertical size={16} weight="bold" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44 font-sans text-xs">
+                            <DropdownMenuItem className="cursor-pointer">
+                              <QrCode size={14} className="mr-2 text-cyan" />
+                              View digital pass
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="cursor-pointer">
+                              <EnvelopeSimple size={14} className="mr-2 text-muted" />
+                              Resend email
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="cursor-pointer text-red focus:text-red focus:bg-red-soft">
+                              Mark as absent
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
     </div>
   );

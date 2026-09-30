@@ -67,9 +67,9 @@ export function AssetDetailSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl bg-card border-line rounded-[14px] p-0 overflow-hidden shadow-2xl font-sans">
+      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] sm:w-full bg-card border-line rounded-[14px] p-0 overflow-hidden shadow-2xl font-sans">
         {/* Header */}
-        <div className="p-5 pr-12 border-b border-line bg-paper flex items-center justify-between">
+        <div className="p-4 sm:p-5 pr-12 border-b border-line bg-paper flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
               className={cn(
@@ -229,7 +229,7 @@ export function AssetDetailSheet({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-line bg-paper flex items-center justify-between gap-3">
+        <div className="p-4 border-t border-line bg-paper flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Delete Action (Disabled if locked) */}
           {isLocked ? (
             <div className="text-[11px] text-muted flex items-center gap-1 font-sans">
@@ -262,7 +262,7 @@ export function AssetDetailSheet({
               type="button"
               variant="outline"
               onClick={handleDelete}
-              className="text-xs font-semibold text-red hover:bg-red-soft hover:border-red rounded-[6px] h-9 gap-1.5 cursor-pointer"
+              className="text-xs font-semibold text-red hover:bg-red-soft hover:border-red rounded-[6px] h-9 gap-1.5 cursor-pointer self-start sm:self-auto"
             >
               <Trash size={14} />
               <span>Delete File</span>
@@ -270,7 +270,7 @@ export function AssetDetailSheet({
           )}
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 self-end sm:self-auto">
             <Button
               type="button"
               variant="outline"

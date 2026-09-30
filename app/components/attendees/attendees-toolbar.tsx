@@ -66,7 +66,7 @@ export function AttendeesToolbar({
         {/* Left Side: Search & Filters */}
         <div className="flex flex-1 flex-wrap items-center gap-2.5">
           {/* Search Input */}
-          <div className="relative flex-1 min-w-[240px] max-w-md">
+          <div className="relative flex-1 min-w-[180px] sm:min-w-[240px] max-w-md w-full sm:w-auto">
             <MagnifyingGlass
               size={18}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
@@ -92,7 +92,7 @@ export function AttendeesToolbar({
 
           {/* Course Filter (BSIT / BSCS / BSINS) */}
           <Select value={courseFilter} onValueChange={onCourseFilterChange}>
-            <SelectTrigger className="h-10 w-[160px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
+            <SelectTrigger className="h-10 flex-1 sm:flex-initial sm:w-[160px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
               <div className="flex items-center gap-1.5 truncate">
                 <Funnel size={14} className="text-muted shrink-0" />
                 <SelectValue placeholder="All Courses" />
@@ -108,7 +108,7 @@ export function AttendeesToolbar({
 
           {/* Events Joined Filter */}
           <Select value={eventsFilter} onValueChange={onEventsFilterChange}>
-            <SelectTrigger className="h-10 w-[150px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
+            <SelectTrigger className="h-10 flex-1 sm:flex-initial sm:w-[150px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
               <SelectValue placeholder="All Events" />
             </SelectTrigger>
             <SelectContent className="font-sans">
@@ -121,7 +121,7 @@ export function AttendeesToolbar({
         </div>
 
         {/* Right Side: Actions */}
-        <div className="flex items-center gap-2 self-end md:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           <Button
             type="button"
             variant="outline"
@@ -143,7 +143,6 @@ export function AttendeesToolbar({
             <UploadSimple size={16} weight="bold" className="text-cyan" />
             <span>Import List</span>
           </Button>
-
         </div>
       </div>
 

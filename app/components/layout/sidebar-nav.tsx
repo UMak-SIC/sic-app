@@ -7,13 +7,14 @@ import { cn } from "@/lib/utils";
 
 interface SidebarNavProps {
   collapsed?: boolean;
+  onItemClick?: () => void;
 }
 
-export function SidebarNav({ collapsed = false }: SidebarNavProps) {
+export function SidebarNav({ collapsed = false, onItemClick }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex-1 space-y-6 px-2.5 py-4 overflow-y-auto">
+    <nav className="flex-1 space-y-6 px-2.5 py-4 overflow-y-auto overflow-x-hidden">
       {sidebarNavSections.map((section, idx) => (
         <div key={section.title || idx} className="space-y-1.5">
           {section.title && !collapsed && (
@@ -32,6 +33,7 @@ export function SidebarNav({ collapsed = false }: SidebarNavProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onItemClick}
                   aria-label={item.title}
                   className={cn(
                     "group relative flex items-center rounded-xl text-sm font-medium transition-all duration-150",

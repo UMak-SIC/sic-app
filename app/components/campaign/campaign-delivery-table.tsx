@@ -320,8 +320,9 @@ export function CampaignDeliveryTable({
         className
       )}
     >
-      <Table className="table-fixed">
-        <TableHeader>
+      <div className="overflow-x-auto w-full">
+        <Table className="min-w-[740px] table-fixed">
+          <TableHeader>
           <TableRow className="bg-canvas/50 hover:bg-canvas/50 border-b border-line">
             {/* Checkbox & Reorder Header */}
             <TableHead className="w-14 pl-3">
@@ -672,11 +673,12 @@ export function CampaignDeliveryTable({
           })}
         </TableBody>
       </Table>
+      </div>
 
       {/* Floating Ticket Pass Preview - alive while a student row is hovered */}
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute z-30 w-[270px] overflow-hidden rounded-[14px] border border-line bg-card shadow-2xl"
+        className="pointer-events-none absolute z-30 hidden md:block w-[270px] overflow-hidden rounded-[14px] border border-line bg-card shadow-2xl"
         style={{
           left: 0,
           top: 0,

@@ -158,15 +158,15 @@ export function AttendeesInsightsCard() {
       <div className="absolute inset-x-0 top-0 h-[2px] bg-linear-to-r from-cyan via-green to-amber opacity-60 z-20" />
 
       <CardHeader className="flex flex-col items-stretch border-b border-line p-0 sm:flex-row bg-linear-to-b from-canvas/40 via-card to-card">
-        <div className="flex flex-1 flex-col justify-center gap-1 px-6 pt-4 pb-3 sm:py-4">
-          <CardTitle className="text-xl font-bold font-display text-ink tracking-tight">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-4 sm:px-6 pt-4 pb-3 sm:py-4">
+          <CardTitle className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
             Course Participation Activity
           </CardTitle>
           <CardDescription className="text-xs text-muted font-sans mt-0.5">
             Daily student event check-ins and engagement across the 3 computing courses
           </CardDescription>
         </div>
-        <div className="flex">
+        <div className="flex divide-x divide-line border-t sm:border-t-0 border-line">
           {(["bsit", "bscs", "bsins"] as const).map((key) => {
             const chart = key;
             const isActive = activeChart === chart;
@@ -183,15 +183,15 @@ export function AttendeesInsightsCard() {
                 type="button"
                 data-active={isActive}
                 className={cn(
-                  "relative z-10 flex flex-1 flex-col justify-center gap-1 border-t border-line px-5 py-3 text-left even:border-l even:border-line sm:border-t-0 sm:border-l sm:px-6 sm:py-4 cursor-pointer transition-all duration-200",
+                  "relative z-10 flex flex-1 flex-col justify-center gap-1 px-3 sm:px-6 py-2.5 sm:py-4 text-left sm:border-l sm:border-line cursor-pointer transition-all duration-200",
                   activeGradientClass
                 )}
                 onClick={() => setActiveChart(chart)}
               >
-                <span className="text-xs font-semibold text-muted font-sans uppercase tracking-wider">
+                <span className="text-[10px] sm:text-xs font-semibold text-muted font-sans uppercase tracking-wider">
                   {chart.toUpperCase()}
                 </span>
-                <span className="text-base leading-none font-bold text-ink sm:text-2xl font-display">
+                <span className="text-sm leading-none font-bold text-ink sm:text-2xl font-display">
                   {total[key].toLocaleString()}
                 </span>
               </button>
