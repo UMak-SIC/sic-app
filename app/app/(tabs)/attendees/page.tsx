@@ -54,7 +54,14 @@ export default function AttendeesPage() {
    * synchronous state write on every render pass, and would also flash "loading"
    * again for a response that is already on screen.
    */
-  const wantedKey = `${searchQuery}|${currentPage}`;
+  /**
+   * Bumped after a write that changes what the directory shows, so the fetch
+   * effect re-runs. Cheaper and less error-prone than patching the rows locally
+   * and hoping the derived rates still agree with the database.
+   */
+  const [reloadToken, setReloadToken] = React.useState(0);
+
+  const wantedKey = `${searchQuery}|${currentPage}|${reloadToken}`;
   const [loadedKey, setLoadedKey] = React.useState<string | null>(null);
   const [loadError, setLoadError] = React.useState<{ key: string; message: string } | null>(null);
 
@@ -177,7 +184,6 @@ export default function AttendeesPage() {
       controller.abort();
     };
   }, [searchQuery, currentPage, wantedKey]);
-
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -204,7 +210,60 @@ export default function AttendeesPage() {
 
   const handleImportStudents = () => notSavedYet("Importing a student list");
 
-  const handleConfirmAddToEvent = () => notSavedYet("Adding students to an event");
+  /**
+   * Adds the selection to an event's roster.
+   *
+   * The only write on this page that has an endpoint. Everyone is added as
+   * pending, because nobody has arrived yet — check-in is what marks them
+   * attended.
+   */
+  const [isAddingToEvent, setIsAddingToEvent] = React.useState(false);
+
+  const handleConfirmAddToEvent = async (eventId: string) => {
+    const targets = targetStudentForEvent ? [targetStudentForEvent.id] : selectedIds;
+
+    if (targets.length === 0) return;
+
+    setIsAddingToEvent(true);
+    setNotice(null);
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/roster`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attendeeIds: targets }),
+      });
+
+      const body = (await response.json().catch(() => null)) as
+        | { error?: string; added?: number; alreadyOnRoster?: number; unknownCount?: number }
+        | null;
+
+      if (!response.ok) {
+        setNotice(body?.error ?? "Those students could not be added. Try again.");
+        return;
+      }
+
+      const added = body?.added ?? 0;
+      const already = body?.alreadyOnRoster ?? 0;
+      const unknown = body?.unknownCount ?? 0;
+
+      const parts = [
+        `${added} ${added === 1 ? "student was" : "students were"} added.`,
+        already > 0 ? ` ${already} already on the roster.` : "",
+        unknown > 0 ? ` ${unknown} could not be found in the directory.` : "",
+      ];
+
+      setNotice(parts.join(""));
+      setSelectedIds([]);
+      // The rates and event badges are derived from the roster, so the directory
+      // has to be re-read rather than patched locally.
+      setReloadToken((token) => token + 1);
+    } catch {
+      setNotice("The students could not be added. Check your connection and try again.");
+    } finally {
+      setIsAddingToEvent(false);
+    }
+  };
 
   const handleBatchDelete = () => notSavedYet("Removing students");
 
@@ -386,6 +445,7 @@ export default function AttendeesPage() {
         studentNames={targetStudentForEvent ? [targetStudentForEvent.name] : selectedStudentNames}
         onConfirm={handleConfirmAddToEvent}
         availableEvents={availableEvents}
+        submitting={isAddingToEvent}
       />
     </div>
   );

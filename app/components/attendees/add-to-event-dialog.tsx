@@ -35,6 +35,8 @@ interface AddToEventDialogProps {
   onConfirm: (eventId: string) => void;
   /** Real events from the registry. An empty list is shown as an empty state. */
   availableEvents?: AvailableEvent[];
+  /** True while the roster request is in flight. */
+  submitting?: boolean;
 }
 
 export function AddToEventDialog({
@@ -44,6 +46,7 @@ export function AddToEventDialog({
   studentNames = [],
   onConfirm,
   availableEvents = [],
+  submitting = false,
 }: AddToEventDialogProps) {
   // Empty until the caller supplies real events, rather than defaulting to a
   // sample list that would name events the database does not have.
@@ -150,10 +153,14 @@ export function AddToEventDialog({
             </Button>
             <Button
               type="submit"
+              // Disabled while the request is in flight or with no event chosen, so
+              // the button cannot be pressed twice and register the same people
+              // under two roster entries.
+              disabled={submitting || !selectedEventId}
               className="rounded-[6px] bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold gap-1.5"
             >
               <Check size={16} weight="bold" />
-              <span>Confirm & Register</span>
+              <span>{submitting ? "Adding…" : "Confirm & Register"}</span>
             </Button>
           </DialogFooter>
         </form>
