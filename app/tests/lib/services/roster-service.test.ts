@@ -94,8 +94,20 @@ test("de-duplicates the request before touching the database", async () => {
   await addAttendeesToEvent({ eventId: EVENT_ID, attendeeIds: [A, A, A] });
 
   expect(attendeeFindMany).toHaveBeenCalledWith(
-    expect.objectContaining({ where: { id: { in: [A] } } })
+    expect.objectContaining({ where: { id: { in: [A] }, deletedAt: null } })
   );
+});
+
+test("will not put a removed student on a roster", async () => {
+  // The existence check is filtered rather than trusting the id, so a student who has
+  // been removed from the directory is reported as not found instead of silently
+  // landing on an event's list.
+  attendeeFindMany.mockResolvedValue([]);
+
+  const result = await addAttendeesToEvent({ eventId: EVENT_ID, attendeeIds: [A] });
+
+  expect(createMany).not.toHaveBeenCalled();
+  expect(result).toMatchObject({ added: 0, unknownCount: 1, unknownStudentIds: [A] });
 });
 
 test("refuses a closed event", async () => {

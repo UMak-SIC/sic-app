@@ -25,7 +25,9 @@ function record({ row, ...rest }: Partial<IngestionRecord> & { row: number }): I
   };
 }
 
-function attendee(overrides: Partial<Record<string, string | null>> = {}) {
+// `deletedAt` is a Date when the student has been removed and null when they have
+// not, so the override type has to allow both alongside the text columns.
+function attendee(overrides: Partial<Record<string, string | Date | null>> = {}) {
   return {
     id: "attendee-1",
     name: "Existing Name",
@@ -34,6 +36,10 @@ function attendee(overrides: Partial<Record<string, string | null>> = {}) {
     displayEmail: "existing@example.com",
     course: null,
     program: null,
+    section: null,
+    // Every student is in the directory unless a test says otherwise, which is what
+    // a row arriving without the column would otherwise be read as.
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -274,6 +280,7 @@ test("previews an update when a row matches on student ID", async () => {
       record: expect.objectContaining({ row: 1, name: "Corrected Name" }),
       attendeeId: "attendee-1",
       matchedBy: "studentId",
+      isDeleted: false,
       changes: [
         { field: "name", current: "Existing Name", proposed: "Corrected Name" },
         {

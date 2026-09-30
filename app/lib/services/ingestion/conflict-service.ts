@@ -24,6 +24,14 @@ export type AttendeeUpdatePreview = {
   matchedBy: "studentId" | "email" | "both";
   /** Only the attributes that would actually change. */
   changes: AttendeeFieldChange[];
+  /**
+   * True when the matched student has been removed from the directory.
+   *
+   * Applying the row brings them back, so this is a change even when `changes` is
+   * empty. Without it the "already matches, nothing to write" shortcut would leave a
+   * removed student removed.
+   */
+  isDeleted: boolean;
 };
 
 export type AttendeeConflictReason =
@@ -155,6 +163,10 @@ export async function previewAttendeeConflicts(
   ];
 
   const existing = (await getPrismaClient().attendee.findMany({
+    // Deliberately not filtered on `deletedAt`. A removed student still holds their
+    // email and student number, so a row that matches one has to be reported as a
+    // match: the alternative is the import trying to create a second attendee and
+    // failing on the unique constraint. Applying the row brings them back instead.
     where: { OR: [{ studentId: { in: studentIds } }, { normalizedEmail: { in: emails } }] },
     select: {
       id: true,
@@ -165,8 +177,9 @@ export async function previewAttendeeConflicts(
       course: true,
       program: true,
       section: true,
+      deletedAt: true,
     },
-  })) as ExistingAttendee[];
+  })) as (ExistingAttendee & { deletedAt: Date | null })[];
 
   const byStudentId = new Map(existing.map((row) => [row.studentId, row]));
   const byEmail = new Map(existing.map((row) => [row.normalizedEmail, row]));
@@ -223,6 +236,9 @@ export async function previewAttendeeConflicts(
         attendeeId: matched.id,
         matchedBy: byId && byAddress ? "both" : byId ? "studentId" : "email",
         changes: diffAgainst(record, matched),
+        // Truthiness rather than `!== null`, so a row that somehow arrives without the
+        // column counts as present rather than being reported as removed.
+        isDeleted: Boolean(matched.deletedAt),
       });
       continue;
     }

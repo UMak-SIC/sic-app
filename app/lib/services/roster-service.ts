@@ -75,7 +75,8 @@ export async function addAttendeesToEvent({
     }
 
     const known = await transaction.attendee.findMany({
-      where: { id: { in: uniqueIds } },
+      // A removed student is not somebody an event can be expecting.
+      where: { id: { in: uniqueIds }, deletedAt: null },
       select: { id: true },
     });
 

@@ -76,6 +76,16 @@ model Attendee {
   /// The student's year and block, as the registrar writes it, e.g. "BSIT-2A".
   /// Free text and nullable. Substituted for {{section}} in campaign email (#110).
   section         String?  @map("section")
+  /// Set when an administrator removes this student from the directory.
+  ///
+  /// The row is kept rather than erased so roster entries and delivery history
+  /// still resolve to a real person, and so a student who is re-added keeps the
+  /// attendance they already had. Every read that offers an action filters on this
+  /// being null; the historical ones deliberately do not.
+  ///
+  /// `normalized_email` and `student_id` stay unique across removed students, so
+  /// re-adding someone matches the removed row and clears this rather than failing.
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
