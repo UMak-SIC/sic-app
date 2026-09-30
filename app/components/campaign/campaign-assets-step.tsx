@@ -204,9 +204,12 @@ export function CampaignAssetsStep({
     return raw
       .replace(/{{student_name}}/g, activeStudent.name)
       .replace(/{{student_id}}/g, activeStudent.studentId)
+      .replace(/{{section}}/g, activeStudent.section)
       .replace(/{{event_name}}/g, "UMak SIC General Assembly")
       .replace(/{{event_time}}/g, "Saturday, 17 Oct 2026 at 2:00 PM")
       .replace(/{{venue}}/g, "Audio Visual Room")
+      // Still a placeholder: the QR pass is not built, so it renders as nothing
+      // rather than pretending to be a ticket.
       .replace(/{{qr_ticket_pass}}/g, "");
   }, [messageContent, activeStudent]);
 
