@@ -78,7 +78,7 @@ placeholder agree. The error notice uses the `text-red` token rather than a
 Tailwind palette class, and the field is wired to the notice with
 `aria-describedby` and `aria-invalid`.
 
-## Open Blocker: Neon Auth Does Not Trust This Origin
+## Open Blocker 1: Neon Auth Does Not Trust This Origin
 
 Verified, not inferred. A probe against the running server, from a real browser
 context through the SDK client, with the correct JSON body:
@@ -96,13 +96,53 @@ RES 403 http://127.0.0.1:3100/api/auth/sign-in/email
 through this SDK. The allowlist lives on the Neon Auth instance, and the
 configured instance is `ep-lucky-forest-azzy2kd7.neonauth...`.
 
-**Action needed in the Neon console:** add this application's origin to the Neon
-Auth instance's trusted origins, for local (`http://localhost:3000`) and for
-whatever domain it is deployed on. Until then, sign-in cannot complete.
+The same request through the app with a trusted `Origin` returns **200** with a
+valid session, which isolates this to the allowlist and rules out the app's
+handler, the catch-all, and the client:
 
-## Second Blocker: The `admins` Table Is Empty
+```
+POST /api/auth/sign-in/email   Origin: <NEON_AUTH_BASE_URL>   ->  200
+POST /api/auth/sign-in/email   Origin: http://localhost:3000  ->  403 INVALID_ORIGIN
+```
 
-Read-only query against the development database:
+**Action needed in the Neon console:** add the application's origin to the Neon
+Auth instance's trusted origins.
+
+## Open Blocker 2: Session Cookies Are `__Secure-`, So Local Dev Needs HTTPS
+
+`NEON_AUTH_COOKIE_PREFIX` is the hardcoded constant `"__Secure-neon-auth"` in
+`@neondatabase/auth`. It is not configurable and not derived from the scheme, so
+the session cookies are always issued with the `Secure` attribute. Confirmed from
+a real sign-in response:
+
+```
+__Secure-neon-auth.session_token    secure=TRUE
+__Secure-neon-auth.local.session_data  secure=TRUE
+```
+
+A browser will not store or send a `Secure` cookie over plain HTTP. That means
+**`http://localhost:3000` cannot hold a session at all**, independently of
+blocker 1, so fixing the allowlist alone will not make local login work.
+
+This was confirmed rather than assumed. Sending the same cookies to the running
+app as an explicit `Cookie` header, which bypasses the browser's Secure rule,
+returns **200 on `/overview`** with no redirect to sign-in. The session, the
+`admins` row, and the layout guard are all working; only transport security is in
+the way.
+
+Local development therefore needs HTTPS. This Next version supports it directly:
+
+```
+next dev --experimental-https        # self-signed certificate
+```
+
+The origin then becomes `https://localhost:3000`, which also has to be on the
+trusted list. The alternative is to exercise sign-in on the deployed HTTPS
+environment, where the origin trust has to be configured anyway.
+
+## Blocker 3 (resolved): The `admins` Table Was Empty
+
+The development database was empty:
 
 ```
 ADMINS_ROWS=0
@@ -110,20 +150,23 @@ events=0 attendees=0 assets=0 campaigns=0
 ```
 
 The layout guard added in TSK-0203 authorizes against `admins`, not just the
-session. A valid session with no matching row is refused with 403 and lands on
-the access-denied page, which is that guard working correctly.
+session, so a valid session with no matching row is refused with 403 and lands
+on the access-denied page. That guard is working as intended.
 
 `app/scripts/bootstrap-admin.mjs` seeds the row and is idempotent. It needs
-`ADMIN_NEON_AUTH_USER_ID`, which is documented in `app/.env.example` but absent
-from `.env.local`, so it has never been run.
+`ADMIN_NEON_AUTH_USER_ID`, which is documented in `app/.env.example` but was
+absent from `.env.local`, so it had never been run.
 
 **To get in, in order:**
 
 1. Create a user in Neon Auth.
 2. Put its id in `.env.local` as `ADMIN_NEON_AUTH_USER_ID`.
-3. `pnpm admin:bootstrap`
-4. Add this app's origin to the Neon Auth trusted origins.
-5. Sign in at `/login`.
+3. `node --env-file=.env.local scripts/bootstrap-admin.mjs`
+4. Add the app's origin to the Neon Auth trusted origins, for `https://localhost:3000`
+   and for whatever domain it is deployed on.
+5. Run the app over HTTPS locally with `next dev --experimental-https`, or use the
+   deployed environment.
+6. Sign in at `/login`.
 
 ## Tests
 
