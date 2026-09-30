@@ -85,6 +85,7 @@ test("uploads validated private assets under an opaque key", async () => {
     originalFilename: "banner.png",
     mediaType: "image/webp",
     byteSize: 3,
+    storageBucket: "PRIVATE_IMAGES",
     uploadedById: "admin-id",
   });
 });

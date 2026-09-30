@@ -27,6 +27,11 @@ const defaultDependencies: UploadDependencies = {
   validateUpload,
 };
 
+const assetBucketValues = {
+  "private-images": "PRIVATE_IMAGES",
+  "public-images": "PUBLIC_IMAGES",
+} as const;
+
 async function parseUploadFormData(request: Request): Promise<FormData | Response> {
   const contentLength = Number(request.headers.get("content-length"));
 
@@ -112,6 +117,7 @@ export async function uploadAsset(
   try {
     const asset = await dependencies.createAsset({
       objectKey,
+      storageBucket: assetBucketValues[bucket],
       originalFilename: file.name,
       mediaType: validation.mediaType,
       byteSize: validation.bytes.byteLength,
