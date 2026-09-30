@@ -12,13 +12,10 @@ import {
   Camera,
   ArrowsClockwise,
   Clock,
-  WarningCircle,
-  X,
 } from "@phosphor-icons/react";
 import { ScannerViewport } from "./scanner-viewport";
 import { ManualTicketEntry } from "./manual-ticket-entry";
 import { ScanConflictDialog, type ScanConflictDetails } from "./scan-conflict-dialog";
-import { cn } from "@/lib/utils";
 import type { CheckInResponse } from "@/lib/services/checkin-service";
 
 interface LiveCheckinDialogProps {
@@ -28,7 +25,7 @@ interface LiveCheckinDialogProps {
   eventName: string;
   totalAttended?: number;
   totalRegistered?: number;
-  onCheckinSuccess?: (attendee: any) => void;
+  onCheckinSuccess?: (attendee: NonNullable<CheckInResponse["attendee"]>) => void;
 }
 
 export function LiveCheckinDialog({

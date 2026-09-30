@@ -10,10 +10,8 @@ import {
 import {
   QrCode,
   PaperPlaneTilt,
-  X,
   CheckCircle,
   WarningCircle,
-  User,
   ShieldCheck,
   FilePdf,
 } from "@phosphor-icons/react";
@@ -122,17 +120,20 @@ export function CampaignPreviewDialog({
   onSubmitCampaign,
 }: CampaignPreviewDialogProps) {
   const [selectedStudentId, setSelectedStudentId] = React.useState("stu_1");
+  const [prevTestEmail, setPrevTestEmail] = React.useState(testEmailAddress);
   const [localTestEmail, setLocalTestEmail] = React.useState(testEmailAddress);
+
+  if (prevTestEmail !== testEmailAddress) {
+    setPrevTestEmail(testEmailAddress);
+    setLocalTestEmail(testEmailAddress);
+  }
+
   const [isSendingTest, setIsSendingTest] = React.useState(false);
   const [testSuccessMessage, setTestSuccessMessage] = React.useState<string | null>(null);
   const [testErrorMessage, setTestErrorMessage] = React.useState<string | null>(null);
 
   const student =
     SAMPLE_STUDENTS.find((s) => s.id === selectedStudentId) || SAMPLE_STUDENTS[0];
-
-  React.useEffect(() => {
-    setLocalTestEmail(testEmailAddress);
-  }, [testEmailAddress]);
 
   const renderedBody = React.useMemo(() => {
     let body =

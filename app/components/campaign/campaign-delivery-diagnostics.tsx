@@ -197,7 +197,6 @@ export function ProviderBadge({
 }
 
 export function CampaignDeliveryDiagnostics({
-  eventName = "UMak SIC General Assembly",
   diagnostics = DEFAULT_DIAGNOSTICS,
   onRetryNow,
   className,
@@ -206,8 +205,16 @@ export function CampaignDeliveryDiagnostics({
   const wrap = React.useRef<HTMLDivElement>(null);
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
   const [pos, setPos] = React.useState({ x: 0, y: 0 });
+  const [bounds, setBounds] = React.useState({ width: 800, height: 500 });
 
+  const [prevDiagnostics, setPrevDiagnostics] = React.useState(diagnostics);
   const [items, setItems] = React.useState<DeliveryDiagnosticItem[]>(diagnostics);
+
+  if (prevDiagnostics !== diagnostics) {
+    setPrevDiagnostics(diagnostics);
+    setItems(diagnostics);
+  }
+
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | "issues_only" | "queued" | "sent">("all");
@@ -220,14 +227,11 @@ export function CampaignDeliveryDiagnostics({
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
   const [dropPosition, setDropPosition] = React.useState<"top" | "bottom" | null>(null);
 
-  React.useEffect(() => {
-    setItems(diagnostics);
-  }, [diagnostics]);
-
   const onMove = (e: React.PointerEvent) => {
     const r = wrap.current?.getBoundingClientRect();
     if (r) {
       setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
+      setBounds({ width: r.width, height: r.height });
     }
   };
 
@@ -866,11 +870,11 @@ export function CampaignDeliveryDiagnostics({
           animate={{
             x: Math.max(
               12,
-              Math.min(pos.x + 24, (wrap.current?.clientWidth ?? 800) - 292)
+              Math.min(pos.x + 24, bounds.width - 292)
             ),
             y: Math.max(
               10,
-              Math.min(pos.y - 80, (wrap.current?.clientHeight ?? 500) - 220)
+              Math.min(pos.y - 80, bounds.height - 220)
             ),
             opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
             scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.95,

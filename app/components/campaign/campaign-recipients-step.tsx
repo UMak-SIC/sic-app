@@ -345,13 +345,10 @@ function RecipientKpiCard({
   delay,
 }: RecipientKpiCardProps) {
   const reduced = useReducedMotion();
-  const [displayValue, setDisplayValue] = React.useState(value);
+  const [displayValue, setDisplayValue] = React.useState(0);
 
   React.useEffect(() => {
-    if (reduced) {
-      setDisplayValue(value);
-      return;
-    }
+    if (reduced) return;
     const controls = animate(0, value, {
       duration: 1.0,
       delay,
@@ -360,6 +357,8 @@ function RecipientKpiCard({
     });
     return () => controls.stop();
   }, [value, delay, reduced]);
+
+  const resolvedValue = reduced ? value : displayValue;
 
   return (
     <div className="relative flex-1 min-w-[240px] overflow-hidden rounded-[16px] bg-card border border-line shadow-xs flex flex-col justify-between transition-all hover:border-cyan/50 hover:shadow-sm">
@@ -392,7 +391,7 @@ function RecipientKpiCard({
             className="tabular-nums text-3xl sm:text-4xl font-extrabold font-display text-ink tracking-tight"
             style={{ lineHeight: 1 }}
           >
-            {displayValue}
+            {resolvedValue}
           </span>
           <span className="text-xs text-muted font-sans font-medium">
             {subLabel}
@@ -506,7 +505,7 @@ export function CampaignRecipientsStep({
             Choose Event & Review Students
           </h2>
           <p className="text-xs text-muted mt-1 font-sans">
-            Select which event's registered students will receive this announcement.
+            Select which event&apos;s registered students will receive this announcement.
           </p>
         </div>
 

@@ -213,29 +213,27 @@ function KpiCard({
   delay: number;
 }) {
   const reduced = useReducedMotion();
-  const data = item.data.length ? item.data : [0];
+  const data = React.useMemo(() => item.data.length ? item.data : [0], [item.data]);
   const format = item.format ?? fallbackFormat;
   const color = item.color ?? CYAN;
   const target = data[data.length - 1];
 
-  const [v, setV] = React.useState(target);
-  const shown = React.useRef(target);
+  const [v, setV] = React.useState(0);
 
   React.useEffect(() => {
     if (reduced) return;
-    shown.current = 0;
-    setV(0);
     const controls = animate(0, target, {
       duration: 1.1,
       delay,
       ease: EASE,
       onUpdate: (n) => {
-        shown.current = n;
         setV(n);
       },
     });
     return () => controls.stop();
   }, [target, delay, reduced]);
+
+  const displayVal = reduced ? target : v;
 
   const spark = React.useMemo(
     () => (
@@ -262,7 +260,7 @@ function KpiCard({
             className="tabular-nums text-3xl sm:text-4xl font-extrabold font-display text-ink tracking-tight"
             style={{ lineHeight: 1 }}
           >
-            {format(v)}
+            {format(displayVal)}
           </span>
           {item.delta && (
             <span

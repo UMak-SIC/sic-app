@@ -29,7 +29,6 @@ import {
   Eye,
   CheckCircle,
   Clock,
-  HourglassMedium,
   WarningCircle,
   ShieldCheck,
   ArrowClockwise,
@@ -178,20 +177,23 @@ export function CampaignDeliveryTable({
   const wrap = React.useRef<HTMLDivElement>(null);
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
   const [pos, setPos] = React.useState({ x: 0, y: 0 });
+  const [bounds, setBounds] = React.useState({ width: 800, height: 500 });
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
   // Local list state to support immediate responsive reordering
+  const [prevRecipients, setPrevRecipients] = React.useState(recipients);
   const [items, setItems] = React.useState<StudentRecipient[]>(recipients);
 
-  // Sync internal items when parent recipients change
-  React.useEffect(() => {
+  if (prevRecipients !== recipients) {
+    setPrevRecipients(recipients);
     setItems(recipients);
-  }, [recipients]);
+  }
 
   const onMove = (e: React.PointerEvent) => {
     const r = wrap.current?.getBoundingClientRect();
     if (r) {
       setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
+      setBounds({ width: r.width, height: r.height });
     }
   };
 
@@ -688,11 +690,11 @@ export function CampaignDeliveryTable({
         animate={{
           x: Math.max(
             12,
-            Math.min(pos.x + 24, (wrap.current?.clientWidth ?? 800) - 282)
+            Math.min(pos.x + 24, bounds.width - 282)
           ),
           y: Math.max(
             10,
-            Math.min(pos.y - 80, (wrap.current?.clientHeight ?? 500) - 240)
+            Math.min(pos.y - 80, bounds.height - 240)
           ),
           opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
           scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.95,

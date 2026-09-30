@@ -41,7 +41,7 @@ export function ManualTicketEntry({
       setResult(res);
     } catch {
       setResult({
-        status: "malformed",
+        status: "invalid",
         message: "Unable to validate ticket code. Please try again.",
       });
     } finally {

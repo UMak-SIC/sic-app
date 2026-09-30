@@ -62,9 +62,12 @@ export function DialogTrigger({
   const { onOpenChange } = useDialog();
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<any>, {
+    const childElement = children as React.ReactElement<{
+      onClick?: (e: React.MouseEvent) => void;
+    }>;
+    return React.cloneElement(childElement, {
       onClick: (e: React.MouseEvent) => {
-        (children.props as any).onClick?.(e);
+        childElement.props.onClick?.(e);
         onOpenChange(true);
       },
     });
@@ -77,13 +80,14 @@ export function DialogTrigger({
   );
 }
 
-export function DialogPortal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = React.useState(false);
+const emptySubscribe = () => () => {};
 
-  React.useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
+export function DialogPortal({ children }: { children: React.ReactNode }) {
+  const mounted = React.useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  );
 
   if (!mounted || typeof document === "undefined") {
     return null;

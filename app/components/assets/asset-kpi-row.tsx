@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { animate, motion, useReducedMotion } from "motion/react";
+import { animate, useReducedMotion } from "motion/react";
 import {
   HardDrives,
   FolderOpen,
@@ -9,7 +9,6 @@ import {
   CloudCheck,
 } from "@phosphor-icons/react";
 import { StorageKpis } from "./asset-types";
-import { cn } from "@/lib/utils";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -20,15 +19,11 @@ interface AssetKpiRowProps {
 export function AssetKpiRow({ kpis }: AssetKpiRowProps) {
   const reduced = useReducedMotion();
 
-  const [displayFiles, setDisplayFiles] = React.useState(kpis.totalFilesCount);
-  const [displayLocked, setDisplayLocked] = React.useState(kpis.referencedCount);
+  const [displayFiles, setDisplayFiles] = React.useState(0);
+  const [displayLocked, setDisplayLocked] = React.useState(0);
 
   React.useEffect(() => {
-    if (reduced) {
-      setDisplayFiles(kpis.totalFilesCount);
-      setDisplayLocked(kpis.referencedCount);
-      return;
-    }
+    if (reduced) return;
 
     const c1 = animate(0, kpis.totalFilesCount, {
       duration: 0.8,
@@ -48,6 +43,9 @@ export function AssetKpiRow({ kpis }: AssetKpiRowProps) {
       c2.stop();
     };
   }, [kpis.totalFilesCount, kpis.referencedCount, reduced]);
+
+  const filesCount = reduced ? kpis.totalFilesCount : displayFiles;
+  const lockedCount = reduced ? kpis.referencedCount : displayLocked;
 
   const storageUsagePercent = Math.max(
     1,
@@ -114,7 +112,7 @@ export function AssetKpiRow({ kpis }: AssetKpiRowProps) {
         <div className="mt-3">
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-display font-bold text-ink tracking-tight tabular-nums">
-              {displayFiles}
+              {filesCount}
             </span>
             <span className="text-xs text-muted font-sans font-medium">
               total assets
@@ -145,7 +143,7 @@ export function AssetKpiRow({ kpis }: AssetKpiRowProps) {
         <div className="mt-3">
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-display font-bold text-ink tracking-tight tabular-nums">
-              {displayLocked}
+              {lockedCount}
             </span>
             <span className="text-xs text-muted font-sans font-medium">
               locked files

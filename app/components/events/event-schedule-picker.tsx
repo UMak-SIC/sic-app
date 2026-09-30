@@ -62,15 +62,16 @@ export function EventSchedulePicker({
   className,
 }: EventSchedulePickerProps) {
   // Calendar viewport (month/year currently viewed)
+  const [prevStartDate, setPrevStartDate] = React.useState(startDate);
   const [viewYear, setViewYear] = React.useState(startDate.getFullYear());
   const [viewMonth, setViewMonth] = React.useState(startDate.getMonth());
   const [isSelectingRange, setIsSelectingRange] = React.useState(false);
 
-  // Sync view when startDate changes externally
-  React.useEffect(() => {
+  if (prevStartDate !== startDate) {
+    setPrevStartDate(startDate);
     setViewYear(startDate.getFullYear());
     setViewMonth(startDate.getMonth());
-  }, [startDate]);
+  }
 
   const handlePrevMonth = () => {
     if (viewMonth === 0) {

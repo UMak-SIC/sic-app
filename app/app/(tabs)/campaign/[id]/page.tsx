@@ -16,7 +16,6 @@ import {
   Lightning,
   ArrowLeft,
   PaperPlaneTilt,
-  X,
 } from "@phosphor-icons/react";
 import { getCampaignById } from "@/components/campaign/campaign-data";
 import { CampaignSummary, StudentRecipient } from "@/components/campaign/campaign-types";
@@ -47,6 +46,12 @@ export default function CampaignDetailPage() {
   }, [campaignId]);
 
   const [campaign, setCampaign] = React.useState<CampaignSummary>(initialData);
+  const [prevCampaignId, setPrevCampaignId] = React.useState(campaignId);
+  if (prevCampaignId !== campaignId) {
+    setPrevCampaignId(campaignId);
+    setCampaign(getCampaignById(campaignId) || getCampaignById("cmp_1")!);
+  }
+
   const [activeTab, setActiveTab] = React.useState<CampaignSubTab>("recipients");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<
@@ -57,12 +62,6 @@ export default function CampaignDetailPage() {
   const [resendSuccessMessage, setResendSuccessMessage] = React.useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const [isLimitsOpen, setIsLimitsOpen] = React.useState(false);
-
-  // Sync state if id param changes
-  React.useEffect(() => {
-    const data = getCampaignById(campaignId) || getCampaignById("cmp_1")!;
-    setCampaign(data);
-  }, [campaignId]);
 
   const deliveryPercent = Math.round(
     (campaign.deliveredCount / (campaign.totalStudents || 1)) * 100

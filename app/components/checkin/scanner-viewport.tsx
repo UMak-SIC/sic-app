@@ -3,10 +3,8 @@
 import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  Camera,
   ArrowsClockwise,
   Lightning,
-  WarningCircle,
   VideoCameraSlash,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -30,58 +28,59 @@ export function ScannerViewport({
   const [permissionDenied, setPermissionDenied] = React.useState<boolean>(false);
   const [torchOn, setTorchOn] = React.useState<boolean>(false);
   const [facingMode, setFacingMode] = React.useState<"user" | "environment">("environment");
+  const [retryKey, setRetryKey] = React.useState(0);
   const prefersReducedMotion = useReducedMotion();
 
-  // Initialize camera
-  const startCamera = React.useCallback(async () => {
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setHasCamera(false);
+  React.useEffect(() => {
+    if (!active) {
+      return;
+    }
+
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       onError?.("unsupported");
       return;
     }
 
-    try {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+    let isMounted = true;
+    let localStream: MediaStream | null = null;
 
-      const newStream = await navigator.mediaDevices.getUserMedia({
+    navigator.mediaDevices
+      .getUserMedia({
         video: {
           facingMode,
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
+      })
+      .then((newStream) => {
+        if (!isMounted) {
+          newStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        localStream = newStream;
+        setStream(newStream);
+        setPermissionDenied(false);
+        setHasCamera(true);
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = newStream;
+          videoRef.current.play().catch(() => {});
+        }
+      })
+      .catch((err: unknown) => {
+        if (!isMounted) return;
+        console.warn("Camera access failed:", err);
+        setPermissionDenied(true);
+        onError?.("permission");
       });
 
-      setStream(newStream);
-      setPermissionDenied(false);
-      setHasCamera(true);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = newStream;
-        videoRef.current.play().catch(() => {});
-      }
-    } catch (err: unknown) {
-      console.warn("Camera access failed:", err);
-      setPermissionDenied(true);
-      onError?.("permission");
-    }
-  }, [facingMode, onError, stream]);
-
-  React.useEffect(() => {
-    if (active) {
-      startCamera();
-    } else if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      isMounted = false;
+      if (localStream) {
+        localStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [active, facingMode]);
+  }, [active, facingMode, onError, retryKey]);
 
   // Toggle camera switch
   const toggleFacingMode = () => {
@@ -93,10 +92,14 @@ export function ScannerViewport({
     if (!stream) return;
     const track = stream.getVideoTracks()[0];
     if (!track) return;
-    const capabilities = track.getCapabilities?.() as { torch?: boolean };
-    if (capabilities?.torch) {
+    const trackAny = track as unknown as {
+      getCapabilities?: () => Record<string, unknown>;
+      applyConstraints?: (constraints: unknown) => Promise<void>;
+    };
+    const caps = trackAny.getCapabilities?.();
+    if (caps && Boolean(caps.torch) && trackAny.applyConstraints) {
       try {
-        await (track as any).applyConstraints({
+        await trackAny.applyConstraints({
           advanced: [{ torch: !torchOn }],
         });
         setTorchOn(!torchOn);
@@ -134,7 +137,7 @@ export function ScannerViewport({
           </p>
           <button
             type="button"
-            onClick={startCamera}
+            onClick={() => setRetryKey((k) => k + 1)}
             className="flex items-center gap-2 rounded-[6px] bg-cyan px-3 py-1.5 font-sans text-xs font-semibold text-paper transition-all hover:bg-cyan-dark"
           >
             <ArrowsClockwise size={16} weight="bold" />

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -13,12 +14,10 @@ import {
   LockKey,
   Copy,
   Check,
-  DownloadSimple,
   Trash,
   CalendarBlank,
   EnvelopeSimple,
   ShieldCheck,
-  WarningCircle,
   FileText,
   Clock,
   User,
@@ -281,13 +280,13 @@ export function AssetDetailSheet({
               <span>{copied ? "Link Copied!" : "Copy Link"}</span>
             </Button>
 
-            <a
+            <Link
               href="/campaign/new"
               className="inline-flex items-center justify-center bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 px-3.5 gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
               <EnvelopeSimple size={14} weight="bold" />
               <span>Use in Announcement</span>
-            </a>
+            </Link>
 
             <Button
               type="button"

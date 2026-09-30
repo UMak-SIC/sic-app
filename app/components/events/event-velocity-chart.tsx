@@ -130,7 +130,9 @@ export function EventVelocityChart({ className }: { className?: string }) {
                 Registrations
               </span>
             </div>
-            <Info size={15} className="text-muted-light" title="Total registered students" />
+            <span title="Total registered students">
+              <Info size={15} className="text-muted-light" />
+            </span>
           </div>
 
           <div className="flex items-baseline gap-2 mt-1">
@@ -163,7 +165,9 @@ export function EventVelocityChart({ className }: { className?: string }) {
                 Emails sent
               </span>
             </div>
-            <Info size={15} className="text-muted-light" title="Confirmation emails delivered" />
+            <span title="Confirmation emails delivered">
+              <Info size={15} className="text-muted-light" />
+            </span>
           </div>
 
           <div className="flex items-baseline gap-2 mt-1">
@@ -196,7 +200,9 @@ export function EventVelocityChart({ className }: { className?: string }) {
                 Attended
               </span>
             </div>
-            <Info size={15} className="text-muted-light" title="Students present at the event" />
+            <span title="Students present at the event">
+              <Info size={15} className="text-muted-light" />
+            </span>
           </div>
 
           <div className="flex items-baseline gap-2 mt-1">
@@ -274,7 +280,7 @@ export function EventVelocityChart({ className }: { className?: string }) {
                 return (
                   <text
                     x={x}
-                    y={y + 12}
+                    y={Number(y) + 12}
                     textAnchor="middle"
                     fill={isCurrent ? "#087f8c" : "#607579"}
                     fontSize={11}

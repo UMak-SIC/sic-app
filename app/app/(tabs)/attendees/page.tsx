@@ -8,7 +8,6 @@ import { AttendeesToolbar } from "@/components/attendees/attendees-toolbar";
 import {
   AttendeesTable,
   AttendeeItem,
-  CourseType,
 } from "@/components/attendees/attendees-table";
 import { AttendeesPagination } from "@/components/attendees/attendees-pagination";
 import { AddAttendeeDialog } from "@/components/attendees/add-attendee-dialog";
@@ -395,17 +394,11 @@ export default function AttendeesPage() {
     });
   }, [students, searchQuery, courseFilter, eventsFilter]);
 
-  // Reset page on search or filter change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, courseFilter, eventsFilter]);
-
   // Pagination calculation
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
-  const paginatedStudents = React.useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredStudents.slice(start, start + PAGE_SIZE);
-  }, [filteredStudents, currentPage]);
+  const safePage = Math.min(currentPage, totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const paginatedStudents = filteredStudents.slice(start, start + PAGE_SIZE);
 
   // Export CSV
   const handleExportCSV = () => {
@@ -485,11 +478,20 @@ export default function AttendeesPage() {
       {/* Directory Toolbar with Search & Course Filter */}
       <AttendeesToolbar
         searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={(q) => {
+          setSearchQuery(q);
+          setCurrentPage(1);
+        }}
         courseFilter={courseFilter}
-        onCourseFilterChange={setCourseFilter}
+        onCourseFilterChange={(cf) => {
+          setCourseFilter(cf);
+          setCurrentPage(1);
+        }}
         eventsFilter={eventsFilter}
-        onEventsFilterChange={setEventsFilter}
+        onEventsFilterChange={(ef) => {
+          setEventsFilter(ef);
+          setCurrentPage(1);
+        }}
         totalCount={students.length}
         filteredCount={filteredStudents.length}
         selectedCount={selectedIds.length}

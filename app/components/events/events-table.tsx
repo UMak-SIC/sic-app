@@ -102,19 +102,22 @@ export function EventsTable({
   const wrap = React.useRef<HTMLDivElement>(null);
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
   const [pos, setPos] = React.useState({ x: 0, y: 0 });
+  const [bounds, setBounds] = React.useState({ width: 800, height: 500 });
 
   // Local list state to support immediate responsive reordering
+  const [prevEvents, setPrevEvents] = React.useState(events);
   const [items, setItems] = React.useState<EventItem[]>(events);
 
-  // Sync internal items when parent events change
-  React.useEffect(() => {
+  if (prevEvents !== events) {
+    setPrevEvents(events);
     setItems(events);
-  }, [events]);
+  }
 
   const onMove = (e: React.PointerEvent) => {
     const r = wrap.current?.getBoundingClientRect();
     if (r) {
       setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
+      setBounds({ width: r.width, height: r.height });
     }
   };
 
@@ -517,11 +520,11 @@ export function EventsTable({
         animate={{
           x: Math.max(
             12,
-            Math.min(pos.x + 24, (wrap.current?.clientWidth ?? 800) - 252)
+            Math.min(pos.x + 24, bounds.width - 252)
           ),
           y: Math.max(
             10,
-            Math.min(pos.y - 70, (wrap.current?.clientHeight ?? 500) - 210)
+            Math.min(pos.y - 70, bounds.height - 210)
           ),
           opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
           scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.96,

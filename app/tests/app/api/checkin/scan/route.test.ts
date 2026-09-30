@@ -9,7 +9,7 @@ vi.mock("@/lib/auth/require-admin", () => ({
 }));
 
 vi.mock("@/lib/services/checkin-service", () => ({
-  recordCheckIn: (params: any) => recordCheckIn(params),
+  recordCheckIn: (params: unknown) => recordCheckIn(params),
 }));
 
 import { POST } from "@/app/api/checkin/scan/route";

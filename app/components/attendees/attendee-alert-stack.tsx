@@ -1,6 +1,6 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import * as React from "react";
+import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Sparkle, X, CheckCircle, Warning, Info, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -58,20 +58,22 @@ export function AttendeeAlertStack({
 }: AttendeeAlertStackProps) {
   const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
+  const initialRows: AlertItem[] = React.useMemo(() => {
+    return alerts.map((a, idx) => {
+      if (typeof a === "string") {
+        return { id: `alert-${idx}-${a}`, type: "neutral", message: a };
+      }
+      return a;
+    });
+  }, [alerts]);
 
-  // Normalize input alerts to unified shape
-  const initialRows: AlertItem[] = alerts.map((a, idx) => {
-    if (typeof a === "string") {
-      return { id: `alert-${idx}-${a}`, type: "neutral", message: a };
-    }
-    return a;
-  });
-
+  const [prevAlerts, setPrevAlerts] = useState(alerts);
   const [rows, setRows] = useState<AlertItem[]>(initialRows);
 
-  useEffect(() => {
+  if (prevAlerts !== alerts) {
+    setPrevAlerts(alerts);
     setRows(initialRows);
-  }, [alerts]);
+  }
 
   if (rows.length === 0 && initialRows.length === 0) return null;
 

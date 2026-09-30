@@ -98,11 +98,13 @@ export function AttendeesTable({
   onRemoveAttendee,
   className,
 }: AttendeesTableProps) {
+  const [prevAttendees, setPrevAttendees] = React.useState(attendees);
   const [items, setItems] = React.useState<AttendeeItem[]>(attendees);
 
-  React.useEffect(() => {
+  if (prevAttendees !== attendees) {
+    setPrevAttendees(attendees);
     setItems(attendees);
-  }, [attendees]);
+  }
 
   // Drag and drop state
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);

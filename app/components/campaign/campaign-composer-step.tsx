@@ -13,11 +13,9 @@ import {
   ListBullets,
   Link as LinkIcon,
   FloppyDisk,
-  ShieldCheck,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
 
 interface CampaignComposerStepProps {
   eventId: string;
@@ -100,7 +98,7 @@ export function CampaignComposerStep({
   // Dynamic preview text interpolation with bold highlights for replaced variables
   const previewFormatted = React.useMemo(() => {
     const raw = messageContent || "";
-    let formatted = raw
+    const formatted = raw
       .replace(/{{student_name}}/g, "Andrea Santos")
       .replace(/{{student_id}}/g, "2023-00182-MK")
       .replace(/{{event_name}}/g, eventName || "UMak SIC General Assembly")

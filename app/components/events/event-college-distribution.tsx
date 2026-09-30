@@ -80,16 +80,23 @@ export function EventCollegeDistribution({
 
   const focus = hot ?? selectedCollege;
 
-  let acc = 0;
-  const segs = sorted.map((d) => {
-    const frac = d.value / sum;
-    const span = frac * 360;
-    const gap = Math.min(GAP_DEG, span * 0.5);
-    const a0 = acc * 360 + gap / 2;
-    const a1 = (acc + frac) * 360 - gap / 2;
-    acc += frac;
-    return { ...d, a0, a1: Math.max(a1, a0 + 0.5), frac };
-  });
+  const { segs } = sorted.reduce<{
+    acc: number;
+    segs: Array<(typeof sorted)[number] & { a0: number; a1: number; frac: number }>;
+  }>(
+    (res, d) => {
+      const frac = sum > 0 ? d.value / sum : 0;
+      const span = frac * 360;
+      const gap = Math.min(GAP_DEG, span * 0.5);
+      const a0 = res.acc * 360 + gap / 2;
+      const a1 = (res.acc + frac) * 360 - gap / 2;
+      return {
+        acc: res.acc + frac,
+        segs: [...res.segs, { ...d, a0, a1: Math.max(a1, a0 + 0.5), frac }],
+      };
+    },
+    { acc: 0, segs: [] }
+  );
 
   const arc = (a0: number, a1: number) => {
     const rad = (a: number) => ((a - 90) * Math.PI) / 180;

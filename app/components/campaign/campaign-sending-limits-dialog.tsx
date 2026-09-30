@@ -12,14 +12,10 @@ import {
   Lightning,
   ShieldCheck,
   ArrowsLeftRight,
-  Clock,
   CheckCircle,
-  X,
   Gauge,
   Sparkle,
-  ArrowRight,
   LockKey,
-  CalendarBlank,
 } from "@phosphor-icons/react";
 import { ProviderQuotaInfo } from "./campaign-types";
 import { cn } from "@/lib/utils";
@@ -63,7 +59,6 @@ export function CampaignSendingLimitsDialog({
 
   const totalUsed = mailgun.used + brevo.used;
   const totalLimit = mailgun.total + brevo.total;
-  const totalPercent = Math.round((totalUsed / totalLimit) * 100);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -383,7 +378,7 @@ export function CampaignSendingLimitsDialog({
                     Immutable QR Check-In Pass
                   </strong>
                   <p className="text-xs text-muted leading-relaxed font-sans">
-                    A student's QR code remains constant even if their email is resent or re-delivered, ensuring seamless scanner verification at the venue doors.
+                    A student&apos;s QR code remains constant even if their email is resent or re-delivered, ensuring seamless scanner verification at the venue doors.
                   </p>
                 </div>
               </div>
