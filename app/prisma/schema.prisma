@@ -40,7 +40,6 @@ enum EmailProvider {
 }
 
 enum CampaignAssetRole {
-  HEADER     @map("header")
   INLINE     @map("inline")
   ATTACHMENT @map("attachment")
 }
@@ -145,13 +144,13 @@ model CampaignAsset {
   campaignId String            @map("campaign_id") @db.Uuid
   assetId    String            @map("asset_id") @db.Uuid
   role       CampaignAssetRole
-  position   Int               @default(0)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   asset    Asset    @relation(fields: [assetId], references: [id], onDelete: Restrict)
 
-  @@unique([campaignId, assetId, role])
-  @@index([campaignId, role, position])
+  @@unique([campaignId, assetId])
+  @@index([campaignId, role, createdAt])
   @@map("campaign_assets")
 }
 
