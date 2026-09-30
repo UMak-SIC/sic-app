@@ -40,6 +40,8 @@ export type AttendeeDirectoryItem = {
   /** Free text, null when never recorded. Grouped on for the course KPI. */
   course: string | null;
   program: string | null;
+  /** The student's year and block, e.g. "BSIT-2A". */
+  section: string | null;
   joinedDate: Date;
   events: AttendeeEventSummary[];
   totalEventsJoined: number;
@@ -116,6 +118,7 @@ export async function listAttendees({
         displayEmail: true,
         course: true,
         program: true,
+        section: true,
         createdAt: true,
         rosterEntries: {
           orderBy: { event: { startsAt: "desc" } },
@@ -144,6 +147,7 @@ export async function listAttendees({
         email: row.displayEmail,
         course: row.course,
         program: row.program,
+        section: row.section,
         joinedDate: row.createdAt,
         events: row.rosterEntries.map((entry) => ({
           id: entry.event.id,

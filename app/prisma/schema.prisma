@@ -73,6 +73,9 @@ model Attendee {
   // Nullable because DMA-02 does not require it and a CSV may omit the column.
   course          String?  @map("course")
   program         String?  @map("program")
+  /// The student's year and block, as the registrar writes it, e.g. "BSIT-2A".
+  /// Free text and nullable. Substituted for {{section}} in campaign email (#110).
+  section         String?  @map("section")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

@@ -18,6 +18,7 @@ function record({ row, ...rest }: Partial<IngestionRecord> & { row: number }): I
     studentId: null,
     course: null,
     program: null,
+    section: null,
     displayEmail,
     normalizedEmail: displayEmail.toLowerCase(),
     ...rest,
@@ -113,15 +114,49 @@ test("does not report a change when the course already matches", async () => {
   expect(updates[0].changes).toEqual([]);
 });
 
-test("selects course and program from the database", async () => {
+test("reports a changed section as a change", async () => {
+  returns(attendee({ section: "BSIT-1A" }));
+
+  const { updates } = await previewAttendeeConflicts([
+    record({
+      row: 1,
+      name: "Existing Name",
+      studentId: "2023-1",
+      displayEmail: "existing@example.com",
+      section: "BSIT-2A",
+    }),
+  ]);
+
+  expect(updates[0].changes).toEqual([
+    { field: "section", current: "BSIT-1A", proposed: "BSIT-2A" },
+  ]);
+});
+
+test("does not report a section change when the import carried none", async () => {
+  returns(attendee({ section: "BSIT-1A" }));
+
+  // Otherwise a CSV with no section column would offer to blank every section.
+  const { updates } = await previewAttendeeConflicts([
+    record({
+      row: 1,
+      name: "Existing Name",
+      studentId: "2023-1",
+      displayEmail: "existing@example.com",
+    }),
+  ]);
+
+  expect(updates[0].changes).toEqual([]);
+});
+
+test("selects course, program and section from the database", async () => {
   returns();
 
   await previewAttendeeConflicts([record({ row: 1, studentId: "2023-1" })]);
 
-  // The diff reads the current value, so the columns have to be selected.
+  // The diff reads the current values, so the columns have to be selected.
   expect(findMany).toHaveBeenCalledWith(
     expect.objectContaining({
-      select: expect.objectContaining({ course: true, program: true }),
+      select: expect.objectContaining({ course: true, program: true, section: true }),
     })
   );
 });

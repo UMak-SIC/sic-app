@@ -35,6 +35,7 @@ function attendee(overrides: Record<string, unknown> = {}) {
     displayEmail: "andrea.santos@umak.edu.ph",
     course: null,
     program: null,
+    section: null,
     createdAt: new Date("2026-09-12T00:00:00.000Z"),
     rosterEntries: [attended, pending],
     ...overrides,
@@ -64,6 +65,7 @@ test("returns the directory shape the table already expects", async () => {
       email: "andrea.santos@umak.edu.ph",
       course: null,
       program: null,
+      section: null,
       joinedDate: new Date("2026-09-12T00:00:00.000Z"),
       events: [
         {
@@ -101,6 +103,7 @@ test("returns no event short code", async () => {
     "joinedDate",
     "name",
     "program",
+    "section",
     "studentId",
     "totalEventsJoined",
   ]);

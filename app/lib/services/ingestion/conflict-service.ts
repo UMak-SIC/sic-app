@@ -4,7 +4,13 @@ import { getPrismaClient } from "@/lib/prisma";
 
 import type { IngestionRecord } from "./parser";
 
-export type AttendeeField = "name" | "displayEmail" | "studentId" | "course" | "program";
+export type AttendeeField =
+  | "name"
+  | "displayEmail"
+  | "studentId"
+  | "course"
+  | "program"
+  | "section";
 
 export type AttendeeFieldChange = {
   field: AttendeeField;
@@ -50,6 +56,7 @@ type ExistingAttendee = {
   displayEmail: string;
   course: string | null;
   program: string | null;
+  section: string | null;
 };
 
 function describe(record: IngestionRecord): string {
@@ -91,6 +98,10 @@ function diffAgainst(
 
   if (record.program !== null && record.program !== existing.program) {
     changes.push({ field: "program", current: existing.program, proposed: record.program });
+  }
+
+  if (record.section !== null && record.section !== existing.section) {
+    changes.push({ field: "section", current: existing.section, proposed: record.section });
   }
 
   return changes;
@@ -135,6 +146,7 @@ export async function previewAttendeeConflicts(
       displayEmail: true,
       course: true,
       program: true,
+      section: true,
     },
   })) as ExistingAttendee[];
 

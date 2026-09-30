@@ -6,6 +6,7 @@ export const ATTENDEE_NAME_MAX_LENGTH = 200;
 // never normalised or coerced to a fixed set.
 export const ATTENDEE_COURSE_MAX_LENGTH = 100;
 export const ATTENDEE_PROGRAM_MAX_LENGTH = 100;
+export const ATTENDEE_SECTION_MAX_LENGTH = 50;
 
 // Deliberately conservative rather than a full RFC 5322 parser. It accepts the
 // shapes real student addresses use and rejects the malformed input that US-10
@@ -23,7 +24,7 @@ const EMAIL_TOP_LEVEL_DOMAIN = /^[A-Za-z]{2,}$/;
 
 const STUDENT_ID_ALLOWED_CHARACTERS = /^[A-Za-z0-9._/-]+$/;
 
-export type AttendeeField = "email" | "studentId" | "name" | "course" | "program";
+export type AttendeeField = "email" | "studentId" | "name" | "course" | "program" | "section";
 
 export type EmailValidationResult =
   | { valid: true; normalizedEmail: string; displayEmail: string }
@@ -39,7 +40,7 @@ export type AttendeeNameValidationResult =
 
 export type AttendeeCourseValidationResult =
   | { valid: true; value: string }
-  | { valid: false; field: "course" | "program"; error: string };
+  | { valid: false; field: "course" | "program" | "section"; error: string };
 
 // Generic so the returned `field` keeps its literal type and satisfies each
 // result union rather than widening to AttendeeField.
@@ -164,8 +165,18 @@ export function validateAttendeeProgram(value: string): AttendeeCourseValidation
   return validateFreeText("program", value, ATTENDEE_PROGRAM_MAX_LENGTH);
 }
 
+/**
+ * Validates the student's year and block, as the registrar writes it
+ * ("BSIT-2A"). Free text for the same reason as course and program: the source
+ * is the organizer's own export, and a section code that gets normalised into a
+ * fixed set stops matching the registrar's paperwork.
+ */
+export function validateAttendeeSection(value: string): AttendeeCourseValidationResult {
+  return validateFreeText("section", value, ATTENDEE_SECTION_MAX_LENGTH);
+}
+
 function validateFreeText(
-  field: "course" | "program",
+  field: "course" | "program" | "section",
   value: string,
   maxLength: number,
 ): AttendeeCourseValidationResult {
@@ -182,6 +193,12 @@ function validateFreeText(
   return { valid: true, value: text } as AttendeeCourseValidationResult;
 }
 
-function label(field: "course" | "program"): string {
-  return field === "course" ? "Course" : "Program";
+const FIELD_LABELS: Record<"course" | "program" | "section", string> = {
+  course: "Course",
+  program: "Program",
+  section: "Section",
+};
+
+function label(field: "course" | "program" | "section"): string {
+  return FIELD_LABELS[field];
 }

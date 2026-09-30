@@ -24,6 +24,7 @@ function record(overrides: Partial<IngestionRecord> = {}): IngestionRecord {
     studentId: null,
     course: null,
     program: null,
+    section: null,
     displayEmail,
     normalizedEmail: displayEmail.toLowerCase(),
     ...overrides,
@@ -120,7 +121,30 @@ test("applies a changed course and program", async () => {
   });
 });
 
-test("stores the course and program of a newly created attendee", async () => {
+test("applies a changed section", async () => {
+  update.mockResolvedValue({ id: "attendee-1" });
+
+  await applyAttendeeImport(
+    preview({
+      updates: [
+        {
+          record: record(),
+          attendeeId: "attendee-1",
+          matchedBy: "studentId",
+          changes: [{ field: "section", current: "BSIT-1A", proposed: "BSIT-2A" }],
+        },
+      ],
+    }),
+  );
+
+  expect(update).toHaveBeenCalledWith({
+    where: { id: "attendee-1" },
+    data: { section: "BSIT-2A" },
+    select: { id: true },
+  });
+});
+
+test("stores the course, program and section of a newly created attendee", async () => {
   create.mockResolvedValue({ id: "attendee-new" });
 
   await applyAttendeeImport(
@@ -134,6 +158,7 @@ test("stores the course and program of a newly created attendee", async () => {
           normalizedEmail: "ana@example.com",
           course: "BSINS",
           program: "BS Information Systems",
+          section: "BSINS-1B",
         }),
       ],
     }),
@@ -144,6 +169,7 @@ test("stores the course and program of a newly created attendee", async () => {
       data: expect.objectContaining({
         course: "BSINS",
         program: "BS Information Systems",
+        section: "BSINS-1B",
       }),
     })
   );
@@ -224,6 +250,7 @@ test("creates new attendees with both email columns", async () => {
       displayEmail: "Ana@Example.com",
       course: null,
       program: null,
+      section: null,
     },
     select: { id: true },
   });

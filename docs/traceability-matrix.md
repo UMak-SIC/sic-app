@@ -76,12 +76,13 @@ This document provides bidirectional traceability between product requirements i
 
 The registry's read half is [#107](https://github.com/UMak-SIC/sic-app/issues/107), not a numbered task: `GET /api/attendees` serves the directory list and the past-attendee source, which TSK-0505 and US-08 both need. EPIC-05 previously had a write path with no read path at all.
 
-`attendees.course` and `attendees.program` are nullable free text, added per the decision on [#109](https://github.com/UMak-SIC/sic-app/issues/109) so the course-reach KPI can group on them. Two decisions are worth recording because they are easy to undo by accident:
+`attendees.course` and `attendees.program` are nullable free text, added per the decision on [#109](https://github.com/UMak-SIC/sic-app/issues/109) so the course-reach KPI can group on them. `attendees.section` joins them per the decision on [#110](https://github.com/UMak-SIC/sic-app/issues/110), which confirmed `{{section}}` is a *student* attribute (the year and block, e.g. `BSIT-2A`). Three decisions are worth recording because they are easy to undo by accident:
 
-- **They are stored as written, never coerced to a fixed set.** The previous client-side parser defaulted any unrecognised course to `BSIT`, which invented a value and folded every other course into one bucket — destroying the signal the KPI is for. Casing is preserved for the same reason, and an over-long value is a row error rather than a truncation.
-- **They are two nullable scalars, not a join table.** The question of single- versus multi-valued was raised in #109 and not answered; two scalars were chosen because the KPI needs only `course` and the UI already treats course and program as 1:1. The accepted limitation is that a student in two programs is not representable.
+- **They are stored as written, never coerced to a fixed set.** The previous client-side parser defaulted any unrecognised course to `BSIT`, which invented a value and folded every other course into one bucket — destroying the signal the KPI is for. Casing is preserved for the same reason, and a section code is not normalised because it has to keep matching the registrar's paperwork. An over-long value is a row error rather than a truncation.
+- **They are nullable scalars, not a join table.** The question of single- versus multi-valued was raised in #109 and not answered; scalars were chosen because the KPI needs only `course` and the UI already treats course and program as 1:1. The accepted limitation is that a student in two programs is not representable.
+- **A missing column produces no change.** The conflict diff reports these fields only when the import actually carried a value, so a CSV with no course column cannot offer to blank every existing course.
 
-`Event.short_code` was **not** added. #109 recorded that the event already has a unique id, so the abbreviation earned nothing, and it has been removed from the UI instead (`EventBadgeItem` and the seed literals in the attendees page).
+`Event.short_code` was **not** added. #109 recorded that the event already has a unique id, so the abbreviation earned nothing, and it has been removed from the UI instead (`EventBadgeItem` and the seed literals in the attendees page). `Event.venue` **was** added, per #110, and is what `{{venue}}` resolves from.
 
 TSK-0505 and US-08 stay `[ ] Planned` until the selector itself exists.
 

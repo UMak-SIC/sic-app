@@ -22,6 +22,7 @@ describe("parseCsv", () => {
         // than an empty string, which would create an empty KPI bucket.
         course: null,
         program: null,
+        section: null,
         normalizedEmail: "juan@example.com",
         displayEmail: "juan@example.com",
       },
@@ -31,6 +32,7 @@ describe("parseCsv", () => {
         studentId: "2023-2",
         course: null,
         program: null,
+        section: null,
         normalizedEmail: "maria@example.com",
         displayEmail: "maria@example.com",
       },
@@ -283,6 +285,59 @@ describe("parsePastedRecipients", () => {
     );
 
     expect(result.records[0]).toMatchObject({ course: null, program: "BSIT" });
+  });
+
+  test("reads a student section from a named column", () => {
+    const result = parseCsv(
+      [
+        "Name,Email,Student ID,Course,Program,Section",
+        "Ana Reyes,ana@example.com,2023-1,BSIT,BS Information Technology,BSIT-2A",
+      ].join("\n"),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.records[0]).toMatchObject({
+      course: "BSIT",
+      program: "BS Information Technology",
+      section: "BSIT-2A",
+    });
+  });
+
+  test("maps a block or year column onto section", () => {
+    // Registrar exports label the same value three ways; dropping the other two
+    // would lose the field for most templates.
+    for (const header of ["Block", "Year"]) {
+      const result = parseCsv(
+        [`Name,Email,Student ID,${header}`, "Ana,ana@example.com,2023-1,BSIT-2A"].join("\n"),
+      );
+
+      expect(result.records[0], `header ${header}`).toMatchObject({ section: "BSIT-2A" });
+    }
+  });
+
+  test("reads a section positionally when there is no header", () => {
+    const result = parseCsv("Ana Reyes,ana@example.com,2023-1,BSIT,BS Information Technology,BSIT-2A");
+
+    expect(result.records[0]).toMatchObject({ section: "BSIT-2A" });
+  });
+
+  test("keeps an unrecognised section exactly as written", () => {
+    const result = parseCsv(
+      ["Name,Email,Student ID,Section", "Ana,ana@example.com,2023-1,bsit 2a"].join("\n"),
+    );
+
+    // Normalising a section code would stop it matching the registrar's
+    // paperwork, which is what the value is checked against.
+    expect(result.records[0]).toMatchObject({ section: "bsit 2a" });
+  });
+
+  test("rejects a section that is too long", () => {
+    const result = parseCsv(
+      ["Name,Email,Student ID,Section", `Ana,ana@example.com,2023-1,${"S".repeat(51)}`].join("\n"),
+    );
+
+    expect(result.records).toEqual([]);
+    expect(result.errors[0]).toMatchObject({ field: "section" });
   });
 
   test("reports each malformed entry and keeps the rest", () => {

@@ -2,6 +2,7 @@ import {
   validateAttendeeCourse,
   validateAttendeeName,
   validateAttendeeProgram,
+  validateAttendeeSection,
   validateEmail,
   validateStudentId,
   type AttendeeField,
@@ -19,6 +20,8 @@ export type IngestionRecord = {
    */
   course: string | null;
   program: string | null;
+  /** The student's year and block, e.g. "BSIT-2A". Null when not supplied. */
+  section: string | null;
   normalizedEmail: string;
   displayEmail: string;
 };
@@ -45,6 +48,7 @@ type ColumnMap = {
   /** Absent is -1, which readCell turns into null rather than an empty string. */
   course: number;
   program: number;
+  section: number;
 };
 
 type CsvRow = {
@@ -69,10 +73,20 @@ const HEADER_ALIASES: Record<string, keyof ColumnMap> = {
   course: "course",
   program: "program",
   degree: "program",
+  section: "section",
+  block: "section",
+  year: "section",
 };
 
 // Positional fallback when the CSV has no header row.
-const POSITIONAL: ColumnMap = { name: 0, email: 1, studentId: 2, course: 3, program: 4 };
+const POSITIONAL: ColumnMap = {
+  name: 0,
+  email: 1,
+  studentId: 2,
+  course: 3,
+  program: 4,
+  section: 5,
+};
 
 function splitCsvRows(text: string): CsvRow[] {
   const rows: CsvRow[] = [];
@@ -151,7 +165,14 @@ function normalizeHeader(value: string): string {
 }
 
 function detectColumns(header: string[]): ColumnMap | null {
-  const map: ColumnMap = { name: -1, email: -1, studentId: -1, course: -1, program: -1 };
+  const map: ColumnMap = {
+    name: -1,
+    email: -1,
+    studentId: -1,
+    course: -1,
+    program: -1,
+    section: -1,
+  };
 
   header.forEach((cell, index) => {
     const alias = HEADER_ALIASES[normalizeHeader(cell)];
@@ -192,6 +213,7 @@ function buildRecord(
   // (DMA-02), so it never carries a course or program of its own.
   rawCourse: string | null = null,
   rawProgram: string | null = null,
+  rawSection: string | null = null,
 ): BuildOutcome {
   if (rawEmail === null) {
     return { error: { row, field: "email", message: "Email address is required." } };
@@ -251,6 +273,18 @@ function buildRecord(
     program = validated.value;
   }
 
+  let section: string | null = null;
+
+  if (rawSection !== null) {
+    const validated = validateAttendeeSection(rawSection);
+
+    if (!validated.valid) {
+      return { error: { row, field: validated.field, message: validated.error } };
+    }
+
+    section = validated.value;
+  }
+
   return {
     record: {
       row,
@@ -258,6 +292,7 @@ function buildRecord(
       studentId,
       course,
       program,
+      section,
       normalizedEmail: email.normalizedEmail,
       displayEmail: email.displayEmail,
     },
@@ -430,6 +465,7 @@ export function parseCsv(input: string): ParseResult {
         readCell(row.cells, columns.studentId),
         readCell(row.cells, columns.course),
         readCell(row.cells, columns.program),
+        readCell(row.cells, columns.section),
       ),
       records,
       errors,
