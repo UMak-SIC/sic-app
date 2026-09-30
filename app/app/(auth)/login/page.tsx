@@ -3,18 +3,71 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createAuthClient, isAuthApiError } from "@neondatabase/auth/next";
 import { Eye, EyeSlash } from "@phosphor-icons/react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+// Takes no arguments by design: the client is bound to this origin and talks to
+// the /api/auth catch-all. Passing options is explicitly not supported while
+// Auth is managed by Neon.
+const authClient = createAuthClient();
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+export default function LoginPage() {
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // The form used to call preventDefault and nothing else, so signing in was
+  // impossible even though the route behind it works.
+  //
+  // This goes through the SDK's browser client rather than a hand-rolled fetch
+  // to /api/auth/sign-in/email. A raw fetch gets rejected with INVALID_ORIGIN,
+  // because better-auth validates the request Origin against trustedOrigins and
+  // the app's own origin is not on that list. The client is the supported path
+  // and takes no arguments; it talks to the same-origin catch-all.
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const { error } = await authClient.signIn.email({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        // One message covers a wrong password and an unknown address alike.
+        // The API distinguishes them, and saying which would tell an attacker
+        // which addresses are registered. The charter also bans surfacing raw
+        // API error strings.
+        setErrorMessage(
+          isAuthApiError(error)
+            ? "That email and password combination did not work. Check them and try again."
+            : "We could not sign you in just now. Try again in a moment.",
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // A session that is not on the administrators list is refused by the
+      // layout guard and lands on the access-denied page, so this is the right
+      // destination either way. refresh() is what makes the new session visible
+      // to the server components behind it.
+      router.replace("/overview");
+      router.refresh();
+    } catch {
+      setErrorMessage(
+        "We could not reach the sign-in service. Check your connection and try again.",
+      );
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -42,18 +95,22 @@ export default function LoginPage() {
             </p>
 
             <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4 sm:gap-5">
-              {/* Email / Username Field */}
+              {/* Email Field */}
               <div className="flex flex-col gap-1.5 sm:gap-2">
-                <Label htmlFor="username" className="text-ink">
+                <Label htmlFor="email" className="text-ink">
                   Email
                 </Label>
                 <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username"
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
                   required
+                  aria-invalid={errorMessage ? true : undefined}
+                  aria-describedby={errorMessage ? "sign-in-error" : undefined}
                   className="bg-white text-ink border-line placeholder:text-muted-light focus-visible:border-green focus-visible:ring-green/10"
                 />
               </div>
@@ -98,14 +155,28 @@ export default function LoginPage() {
                 Forgot Password?
               </Link>
 
+              {/* Sign-in error. Plain language only, per the charter's ban on
+                  surfacing API error strings. */}
+              {errorMessage ? (
+                <p
+                  id="sign-in-error"
+                  role="alert"
+                  className="text-sm font-sans text-red leading-relaxed"
+                >
+                  {errorMessage}
+                </p>
+              ) : null}
+
               {/* Primary Login Button */}
               <Button
                 type="submit"
                 variant="pill"
                 size="xl"
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
                 className="w-full bg-green hover:bg-green-hover text-white active:scale-[0.99] mt-1 shadow-sm font-bold"
               >
-                Login
+                {isSubmitting ? "Signing in" : "Login"}
               </Button>
 
               {/* Google SSO Button */}
