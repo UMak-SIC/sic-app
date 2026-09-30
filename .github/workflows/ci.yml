@@ -16,6 +16,14 @@ jobs:
     defaults:
       run:
         working-directory: app
+    env:
+      # Throwaway placeholders for the test server started by Playwright. These
+      # are not credentials: nothing in CI authenticates against Neon Auth, and
+      # an unauthenticated request is redirected before the base URL is ever
+      # called. They exist because app/proxy.ts resolves the auth client on a
+      # guarded request and would otherwise throw with no configuration present.
+      NEON_AUTH_BASE_URL: "https://auth.example.invalid/neon_auth"
+      NEON_AUTH_COOKIE_SECRET: "ci-only-placeholder-not-a-real-secret-0123456789"
 
     steps:
       - uses: actions/checkout@v4

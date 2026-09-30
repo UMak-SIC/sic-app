@@ -41,9 +41,17 @@ test("delegates to the Neon Auth middleware with the sign-in route", async () =>
 
   const { default: proxy, config } = await import("@/proxy");
 
-  expect(middleware).toHaveBeenCalledWith({ loginUrl: "/auth/sign-in" });
   expect(typeof proxy).toBe("function");
   expect(config.matcher).toEqual(["/checkin/:path*", "/events/:path*"]);
+
+  // The auth client is resolved per request rather than at module scope, so
+  // importing this module must not touch the auth environment.
+  expect(getNeonAuth).not.toHaveBeenCalled();
+
+  await proxy({} as never);
+
+  expect(getNeonAuth).toHaveBeenCalledTimes(1);
+  expect(middleware).toHaveBeenCalledWith({ loginUrl: "/auth/sign-in" });
 });
 
 test("protects the check-in and event administration pages", async () => {
