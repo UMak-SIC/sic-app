@@ -44,7 +44,7 @@ This document provides bidirectional traceability between product requirements i
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-0301** | Implement AWS S3 SDK client configured for Neon Object Storage | `app/lib/storage/neon-storage-client.ts` | US-14, NFR-03 | S3 client instantiates with Neon-injected credentials without exposing secrets to client. | `[ ] Planned` |
 | **TSK-0302** | Build administrator-only public/private asset upload API routes with PNG/JPEG/WebP to WebP conversion, PDF validation, and size limits | `app/app/api/assets/` | US-14, DMA-11 | Unauthorized uploads return 401/403; invalid media returns 400; valid images upload as WebP and PDFs upload to the selected Neon Object Storage bucket. | `[x] Completed` |
-| **TSK-0303** | Persist uploaded asset metadata (key, original filename, media type, byte size, uploader reference) in `assets` | `app/lib/services/asset-service.ts` | DMA-11 | Database record in `assets` matches uploaded file properties and returns stable asset UUID reference. | `[x] Completed` |
+| **TSK-0303** | Persist uploaded asset metadata (bucket, key, original filename, media type, byte size, uploader reference) in `assets` | `app/lib/services/asset-service.ts` | DMA-11 | Database record in `assets` matches uploaded file properties and returns stable asset UUID reference. | `[x] Completed` |
 
 ---
 
@@ -53,10 +53,10 @@ This document provides bidirectional traceability between product requirements i
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-0401** | Implement Event domain service managing draft, published, and closed lifecycle transitions | `app/lib/services/event-service.ts` | US-03, US-04, US-05, DMA-03 | Event created as draft; publishing validates required fields; closed state prevents editing. | `[ ] Planned` |
+| **TSK-0401** | Implement Event domain service managing draft, published, and closed lifecycle transitions | `app/lib/services/event-service.ts` | US-03, US-04, US-05, DMA-03 | Event created as draft; publishing validates required fields; closed state prevents editing. | `[x] Completed` |
 | **TSK-0402** | Build admin event management UI (list, create/edit form, image upload, timezone-aware datetime picker) | `app/app/events/page.tsx`, `app/components/events/` | US-03, US-04, US-05 | Admin creates and edits event; UI displays organization timezone and links uploaded Neon Object Storage banner. | `[ ] Planned` |
-| **TSK-0403** | Implement `/api/cron/close-events` endpoint secured by dedicated high-entropy secret header | `app/app/api/cron/close-events/route.ts` | US-06, DMA-06 | Requests without `X-Cron-Secret` header return 401 Unauthorized; valid requests trigger closure logic. | `[ ] Planned` |
-| **TSK-0404** | Implement event closure transition updating expired events to `closed` and pending roster entries to `absent` | `app/lib/services/event-close-service.ts` | US-06, DMA-04, DMA-06 | Events past `ends_at` transition to `closed`; all `pending` roster entries atomically update to `absent`. | `[ ] Planned` |
+| **TSK-0403** | Implement `/api/cron/close-events` endpoint secured by dedicated high-entropy secret header | `app/app/api/cron/close-events/route.ts` | US-06, DMA-06 | Requests without `X-Cron-Secret` header return 401 Unauthorized; valid requests trigger closure logic. | `[x] Completed` |
+| **TSK-0404** | Implement event closure transition updating expired events to `closed` and pending roster entries to `absent` | `app/lib/services/event-close-service.ts` | US-06, DMA-04, DMA-06 | Events past `ends_at` transition to `closed`; all `pending` roster entries atomically update to `absent`. | `[x] Completed` |
 
 ---
 

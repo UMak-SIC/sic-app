@@ -16,7 +16,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "admin:bootstrap": "node scripts/bootstrap-admin.mjs"
+    "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
+    "assets:backfill-buckets": "node scripts/backfill-asset-buckets.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",
