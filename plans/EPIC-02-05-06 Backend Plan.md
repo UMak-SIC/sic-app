@@ -255,3 +255,15 @@ verification criteria.
   with `Related issue: #N` rather than a closing keyword, includes
   `plans/<TASK> Plan.md`, and flips only its own TSK row in
   `docs/traceability-matrix.md`.
+
+## Commit Message Convention
+
+Commit subjects are one line. The body carries a `Refs: #N` trailer for
+traceability and nothing else.
+
+Design rationale, rule tables, rejected alternatives, and known limitations
+belong in the task's `plans/<TASK> Plan.md` file and in the pull request body,
+both committed alongside the code. `CONTRIBUTING.md` asks for a body only "when
+the change needs context beyond the summary", and these changes do not: the plan
+file and PR body are the durable, reviewable place for that reasoning. Repeating
+it in the commit log makes `git log` unreadable and rots faster than either.
