@@ -6,14 +6,19 @@ import { beforeEach, expect, test, vi } from "vitest";
 // 403 lands on the denial page, and a 401 lands on sign-in. The proxy only
 // covers the first half of that decision, so nothing else exercises it.
 
-const { requireAdmin, redirect, appShell } = vi.hoisted(() => ({
+const { requireAdmin, redirect, appShell, connection } = vi.hoisted(() => ({
   requireAdmin: vi.fn(),
   redirect: vi.fn(),
   appShell: vi.fn(),
+  connection: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/require-admin", () => ({ requireAdmin }));
 vi.mock("next/navigation", () => ({ redirect }));
+// connection() throws outside a request scope, which is exactly the situation a
+// unit test is in. Mocked so the test exercises the auth branch rather than the
+// prerender guard.
+vi.mock("next/server", () => ({ connection }));
 vi.mock("@/components/layout/app-shell", () => ({
   AppShell: appShell,
 }));
@@ -22,6 +27,7 @@ vi.mock("@/components/layout/app-shell", () => ({
 // layout would fall through and render the shell it was trying to refuse.
 beforeEach(() => {
   vi.resetAllMocks();
+  connection.mockResolvedValue(undefined);
   redirect.mockImplementation((target: string) => {
     throw Object.assign(new Error(`NEXT_REDIRECT:${target}`), { target });
   });
@@ -33,6 +39,23 @@ async function renderLayout() {
 
   return DashboardLayout({ children: "page-content" } as never);
 }
+
+test("stops prerendering before touching auth", async () => {
+  // The regression guard. Without connection(), Next prerenders these pages at
+  // build time, calls requireAdmin() with no request in scope, and the deploy
+  // host has no NEON_AUTH_BASE_URL, so the build dies on "NEON_AUTH_BASE_URL is
+  // required to initialize Neon Auth". Locally the same call returns a 401 and
+  // redirects, which Next tolerates, so only CI sees it. Asserting the ordering
+  // is the only way a unit test can catch it.
+  requireAdmin.mockResolvedValue({ adminId: "admintypicalid" });
+
+  await renderLayout();
+
+  expect(connection).toHaveBeenCalledTimes(1);
+  expect(connection.mock.invocationCallOrder[0]).toBeLessThan(
+    requireAdmin.mock.invocationCallOrder[0]
+  );
+});
 
 test("renders the admin shell for an allowlisted admin", async () => {
   requireAdmin.mockResolvedValue({ adminId: "admintypicalid" });
