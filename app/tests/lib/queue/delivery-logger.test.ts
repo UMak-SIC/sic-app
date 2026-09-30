@@ -10,7 +10,7 @@ import { recordDeliveryAttempt } from "@/lib/queue/delivery-logger";
 
 const deliveryAttempt = { create: vi.fn() };
 const emailDelivery = { update: vi.fn() };
-const queueJob = { findUnique: vi.fn(), update: vi.fn() };
+const queueJob = { findFirst: vi.fn(), update: vi.fn() };
 const transaction = { deliveryAttempt, emailDelivery, queueJob };
 const database = { $transaction: vi.fn() };
 
@@ -25,17 +25,28 @@ afterEach(() => {
 });
 
 test("records a successful attempt and marks the email delivery sent", async () => {
-  queueJob.findUnique.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 0, maxRetries: 3 });
+  queueJob.findFirst.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 0, maxRetries: 3 });
 
   await expect(
     recordDeliveryAttempt({
       queueJobId: "queue-job-id",
+      workerId: "worker-a",
       provider: EmailProvider.MAILGUN,
       succeeded: true,
       providerMessageId: "mailgun-message-id",
       httpStatus: 200,
     }),
   ).resolves.toEqual({ deadLettered: false });
+
+  expect(queueJob.findFirst).toHaveBeenCalledWith({
+    where: {
+      id: "queue-job-id",
+      status: "PROCESSING",
+      lockedBy: "worker-a",
+      lockExpiresAt: { gt: expect.any(Date) },
+    },
+    select: { deliveryId: true, retryCount: true, maxRetries: true },
+  });
 
   expect(deliveryAttempt.create).toHaveBeenCalledWith({
     data: {
@@ -73,11 +84,12 @@ test("records a successful attempt and marks the email delivery sent", async () 
 });
 
 test("returns a failed delivery to the queue while retries remain", async () => {
-  queueJob.findUnique.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 2, maxRetries: 3 });
+  queueJob.findFirst.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 2, maxRetries: 3 });
 
   await expect(
     recordDeliveryAttempt({
       queueJobId: "queue-job-id",
+      workerId: "worker-a",
       provider: EmailProvider.BREVO,
       succeeded: false,
       httpStatus: 503,
@@ -108,11 +120,12 @@ test("returns a failed delivery to the queue while retries remain", async () => 
 });
 
 test("moves a delivery to the dead-letter queue after more than three retries", async () => {
-  queueJob.findUnique.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 3, maxRetries: 3 });
+  queueJob.findFirst.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 3, maxRetries: 3 });
 
   await expect(
     recordDeliveryAttempt({
       queueJobId: "queue-job-id",
+      workerId: "worker-a",
       provider: EmailProvider.BREVO,
       succeeded: false,
       httpStatus: 500,
