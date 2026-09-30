@@ -16,7 +16,7 @@ export default defineConfig({
   webServer: {
     command: isCi
       ? `pnpm exec next start --hostname 127.0.0.1 --port ${port}`
-      : `pnpm exec next dev --hostname 127.0.0.1 --port ${port}`,
+      : `pnpm exec next dev --webpack --hostname 127.0.0.1 --port ${port}`,
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,
     timeout: 120_000,
