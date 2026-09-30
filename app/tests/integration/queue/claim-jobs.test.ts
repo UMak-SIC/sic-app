@@ -83,4 +83,7 @@ test.skipIf(!hasTestDatabase())("does not claim the same job twice concurrently"
   await expect(
     getTestDatabase().queueJob.findUniqueOrThrow({ where: { deliveryId } }),
   ).resolves.toMatchObject({ status: "PROCESSING", lockedBy: expect.stringMatching(/^worker-[ab]$/) });
+  await expect(
+    getTestDatabase().emailDelivery.findUniqueOrThrow({ where: { id: deliveryId } }),
+  ).resolves.toMatchObject({ status: "SENDING" });
 });
