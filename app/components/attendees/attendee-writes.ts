@@ -113,3 +113,36 @@ export async function removeStudent(id: string, signal?: AbortSignal): Promise<{
 
   return (await response.json()) as { id: string };
 }
+
+export type RemoveStudentsResult = {
+  removed: number;
+  alreadyRemoved: number;
+  unknownCount: number;
+  unknownIds: string[];
+};
+
+/**
+ * Removes several students in one request.
+ *
+ * All or nothing, which is why this is a single call rather than a loop over
+ * `removeStudent`. Fifty separate requests means fifty chances to stop part way, and
+ * a bulk removal that quietly did half of what was asked is worse than one that did
+ * none, because nobody can tell which half.
+ */
+export async function removeStudents(
+  ids: string[],
+  signal?: AbortSignal
+): Promise<RemoveStudentsResult> {
+  const response = await fetch("/api/attendees/remove", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw await readRefusal(response, "Those students could not be removed. Try again.");
+  }
+
+  return (await response.json()) as RemoveStudentsResult;
+}

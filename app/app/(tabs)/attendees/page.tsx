@@ -11,7 +11,7 @@ import {
 } from "@/components/attendees/attendees-table";
 import { AttendeesPagination } from "@/components/attendees/attendees-pagination";
 import { AttendeeFormDialog } from "@/components/attendees/attendee-form-dialog";
-import { RemoveAttendeeDialog } from "@/components/attendees/remove-attendee-dialog";
+import { RemoveAttendeesDialog } from "@/components/attendees/remove-attendees-dialog";
 import { ImportAttendeesDialog } from "@/components/attendees/import-attendees-dialog";
 import { AddToEventDialog, type AvailableEvent } from "@/components/attendees/add-to-event-dialog";
 import {
@@ -71,7 +71,7 @@ export default function AttendeesPage() {
   // Dialog States
   const [isAddOpen, setIsAddOpen] = React.useState(false);
   const [attendeeBeingEdited, setAttendeeBeingEdited] = React.useState<AttendeeItem | null>(null);
-  const [attendeeBeingRemoved, setAttendeeBeingRemoved] = React.useState<AttendeeItem | null>(null);
+  const [attendeesPendingRemoval, setAttendeesPendingRemoval] = React.useState<AttendeeItem[]>([]);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [isAddToEventOpen, setIsAddToEventOpen] = React.useState(false);
   const [targetStudentForEvent, setTargetStudentForEvent] = React.useState<AttendeeItem | null>(null);
@@ -235,7 +235,11 @@ export default function AttendeesPage() {
     }
   };
 
-  const handleBatchDelete = () => notSavedYet("Removing students");
+  const handleBatchDelete = () => {
+    // Resolved to whole students before the dialog opens, so what it names is what
+    // will be removed. Ids from a previous page would otherwise be confirmed blind.
+    setAttendeesPendingRemoval(selectedStudents);
+  };
 
   /**
    * Called after a student is added or edited.
@@ -254,11 +258,24 @@ export default function AttendeesPage() {
     );
   };
 
-  const handleAttendeeRemoved = (attendee: AttendeeItem) => {
+  const handleAttendeesRemoved = ({
+    removed,
+    alreadyRemoved,
+  }: {
+    removed: number;
+    alreadyRemoved: number;
+  }) => {
     setReloadToken((token) => token + 1);
-    setAttendeeBeingRemoved(null);
-    setSelectedIds((current) => current.filter((id) => id !== attendee.id));
-    setNotice(`${attendee.name} was removed from the directory.`);
+    setAttendeesPendingRemoval([]);
+    setSelectedIds([]);
+
+    const parts = [`${removed} ${removed === 1 ? "student was" : "students were"} removed.`];
+
+    if (alreadyRemoved > 0) {
+      parts.push(` ${alreadyRemoved} had already been removed.`);
+    }
+
+    setNotice(parts.join(""));
   };
 
   const handleReorder = () => notSavedYet("Reordering");
@@ -308,9 +325,8 @@ export default function AttendeesPage() {
     document.body.removeChild(link);
   };
 
-  const selectedStudentNames = students
-    .filter((s) => selectedIds.includes(s.id))
-    .map((s) => s.name);
+  const selectedStudents = students.filter((s) => selectedIds.includes(s.id));
+  const selectedStudentNames = selectedStudents.map((s) => s.name);
 
   return (
     <div className="flex flex-col gap-6 w-full pb-12 font-sans">
@@ -406,7 +422,9 @@ export default function AttendeesPage() {
           }}
           onEditAttendee={(student) => setAttendeeBeingEdited(student)}
           onRemoveAttendee={(id) =>
-            setAttendeeBeingRemoved(students.find((student) => student.id === id) ?? null)
+            setAttendeesPendingRemoval(
+              students.filter((student) => student.id === id)
+            )
           }
         />
       ) : null}
@@ -436,14 +454,14 @@ export default function AttendeesPage() {
         />
       ) : null}
 
-      {attendeeBeingRemoved ? (
-        <RemoveAttendeeDialog
+      {attendeesPendingRemoval.length > 0 ? (
+        <RemoveAttendeesDialog
           open
           onOpenChange={(next) => {
-            if (!next) setAttendeeBeingRemoved(null);
+            if (!next) setAttendeesPendingRemoval([]);
           }}
-          attendee={attendeeBeingRemoved}
-          onRemoved={handleAttendeeRemoved}
+          attendees={attendeesPendingRemoval}
+          onRemoved={handleAttendeesRemoved}
         />
       ) : null}
 

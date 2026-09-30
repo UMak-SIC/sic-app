@@ -218,8 +218,7 @@ export async function updateAttendee({
  * happened, and the row they point at has to keep existing for them to mean anything.
  * A student who is added again picks the same row back up.
  */
-export async function softDeleteAttendee({ id }: { id: string }): Promise<{ id: string }> {
-  const now = new Date();
+export async function softDeleteAttendee({ id }: { id: string }): Promise<{ id: string }> {  const now = new Date();
 
   // Conditional on still being present, so removing the same student twice reports
   // the same thing rather than moving a timestamp nobody can see.
@@ -245,6 +244,74 @@ export async function softDeleteAttendee({ id }: { id: string }): Promise<{ id: 
     "That student has already been removed from the directory.",
     "not_found",
   );
+}
+
+/** Bounds one request's batch. Well above any page of the directory. */
+export const MAX_REMOVE_BATCH = 500;
+
+export type RemoveAttendeesResult = {
+  removed: number;
+  /** Already removed, so the request was a no-op for them. */
+  alreadyRemoved: number;
+  /** Ids that match nobody in the registry. */
+  unknownCount: number;
+  unknownIds: string[];
+};
+
+/**
+ * Removes several students from the directory at once.
+ *
+ * One statement rather than a loop over `softDeleteAttendee`. Removing fifty students
+ * in fifty requests means fifty chances to fail part way, and a bulk removal that
+ * quietly did half of what was asked is worse than one that did none: the operator has
+ * no way to tell which half. A single conditional `updateMany` either marks them all
+ * or marks none.
+ *
+ * Rows that are already removed, or that match nobody, are counted rather than
+ * treated as a failure, so re-running a partly applied selection is safe and reports
+ * what it actually did.
+ */
+export async function removeAttendees({
+  ids,
+}: {
+  ids: string[];
+}): Promise<RemoveAttendeesResult> {
+  if (ids.length === 0) {
+    throw new AttendeeWriteError("Choose at least one student to remove.");
+  }
+
+  if (ids.length > MAX_REMOVE_BATCH) {
+    throw new AttendeeWriteError(`Remove at most ${MAX_REMOVE_BATCH} students at a time.`);
+  }
+
+  const uniqueIds = [...new Set(ids)];
+  const now = new Date();
+
+  return getPrismaClient().$transaction(async (transaction) => {
+    const rows = await transaction.attendee.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, deletedAt: true },
+    });
+
+    const found = new Map(rows.map((row) => [row.id, row]));
+    const removable = rows.filter((row) => row.deletedAt === null).map((row) => row.id);
+    const alreadyRemoved = rows.length - removable.length;
+    const unknownIds = uniqueIds.filter((id) => !found.has(id));
+
+    if (removable.length > 0) {
+      await transaction.attendee.updateMany({
+        where: { id: { in: removable }, deletedAt: null },
+        data: { deletedAt: now },
+      });
+    }
+
+    return {
+      removed: removable.length,
+      alreadyRemoved,
+      unknownCount: unknownIds.length,
+      unknownIds,
+    };
+  });
 }
 
 export type UnappliedReason =
