@@ -34,7 +34,7 @@ This document provides bidirectional traceability between product requirements i
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-0201** | Enable Neon Managed Better Auth and configure `@neondatabase/auth` with environment values, catch-all auth handler, and email/password sign-in flow | `app/app/(auth)`, `app/app/api/auth/[...path]/route.ts`, `app/lib/auth/server.ts`, `app/proxy.ts` | US-01, DMA-01 | Unauthenticated visitors attempting to access admin routes are redirected to the Neon Auth sign-in route; a valid email/password session is established. | `[x] Completed` |
 | **TSK-0202** | Implement admin authorization guard validating the Neon Auth session user against Neon `admins` (`neon_auth_user_id`) | `app/lib/auth/require-admin.ts`, `app/proxy.ts` | US-01, US-02, DMA-01 | Authorized admin session resolves successfully; an authenticated non-admin receives 403 response. | `[x] Completed` |
-| **TSK-0203** | Build unauthorized access denial page with clear operator messaging | `app/app/unauthorized/page.tsx` | US-02 | Non-allowlisted user sees access-denied screen with no admin navigation or confidential data rendered. | `[ ] Planned` |
+| **TSK-0203** | Build unauthorized access denial page with clear operator messaging | `app/app/unauthorized/page.tsx` | US-02 | Non-allowlisted user sees access-denied screen with no admin navigation or confidential data rendered. | `[x] Completed` |
 
 ---
 

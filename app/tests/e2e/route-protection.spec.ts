@@ -50,8 +50,50 @@ test("forwards the original query string to the sign-in route", async ({
   expect((await redirectedTo(response, baseURL as string)).search).toBe("?event=123");
 });
 
-test("leaves the public home page reachable", async ({ request }) => {
-  const response = await request.get("/");
+test("puts the root URL behind sign-in, since it redirects to the overview", async ({
+  request,
+  baseURL,
+}) => {
+  // app/app/page.tsx redirects "/" to /overview, so leaving the root reachable
+  // only moved the login wall one hop away. This app is an internal tool, so the
+  // whole surface sits behind sign-in.
+  const response = await request.get("/", { maxRedirects: 0 });
+
+  expect(response.status()).toBe(307);
+  expect((await redirectedTo(response, baseURL as string)).pathname).toBe(
+    SIGN_IN
+  );
+});
+
+test("guards the admin screens added after the original matcher", async ({
+  request,
+  baseURL,
+}) => {
+  // These answered 200 with no session while the matcher was an allowlist of
+  // /checkin and /events, because the frontend merge added them without
+  // touching the proxy. Each is about to start showing real data, so this is
+  // the guard for that exposure.
+  for (const path of [
+    "/attendees",
+    "/assets",
+    "/campaign",
+    "/campaign/new",
+    "/overview",
+    "/settings",
+  ]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+
+    expect(response.status(), `${path} should redirect`).toBe(307);
+    expect((await redirectedTo(response, baseURL as string)).pathname).toBe(
+      SIGN_IN
+    );
+  }
+});
+
+test("keeps the sign-in screen reachable so a bounced visitor can sign in", async ({
+  request,
+}) => {
+  const response = await request.get(SIGN_IN);
 
   expect(response.status()).toBe(200);
 });

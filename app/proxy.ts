@@ -28,6 +28,22 @@ export function proxy(request: NextRequest) {
 
 export default proxy;
 
+// The matcher excludes only what has to stay reachable: the two auth screens
+// (so a bounced visitor can sign in), the auth handler and the rest of /api
+// (API routes carry their own requireAdmin() and must keep answering JSON
+// 401/403 rather than an HTML 307), and static assets.
+//
+// This started as an allowlist of ["/checkin/:path*", "/events/:path*"], which
+// was correct when those were the only admin pages. The frontend merge added
+// /attendees, /assets, /campaign, /overview, and /settings, and every one of
+// them answered 200 with no session. A deny-by-default matcher means the next
+// admin page added is protected without anyone having to remember this file.
+//
+// `/` is intentionally not excluded. app/app/page.tsx redirects it to
+// /overview, so excluding the root would only move the login wall one hop
+// away; this app is an internal tool and the whole surface sits behind sign-in.
 export const config = {
-  matcher: ["/checkin/:path*", "/events/:path*"],
+  matcher: [
+    "/((?!login|register|api|_next/static|_next/image|favicon.ico).*)",
+  ],
 };
