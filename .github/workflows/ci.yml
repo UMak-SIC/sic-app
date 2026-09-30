@@ -16,6 +16,14 @@ jobs:
     defaults:
       run:
         working-directory: app
+    env:
+      # Throwaway placeholders for the test server started by Playwright. These
+      # are not credentials: nothing in CI authenticates against Neon Auth, and
+      # an unauthenticated request is redirected before the base URL is ever
+      # called. They exist because app/proxy.ts resolves the auth client on a
+      # guarded request and would otherwise throw with no configuration present.
+      NEON_AUTH_BASE_URL: "https://auth.example.invalid/neon_auth"
+      NEON_AUTH_COOKIE_SECRET: "ci-only-placeholder-not-a-real-secret-0123456789"
 
     steps:
       - uses: actions/checkout@v4
@@ -32,9 +40,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL || secrets.NEON_TEST_DATABASE_URL }}
       - name: Reject browser-exposed service credentials
         run: |
-          if rg -n --glob '!app/api/**' --glob '*.{ts,tsx}' 'NEXT_PUBLIC_(AWS|NEON_AUTH|MAILGUN|BREVO|RETENTION_CRON_SECRET)|process\.env\.(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|NEON_AUTH_COOKIE_SECRET|MAILGUN|BREVO|RETENTION_CRON_SECRET)' app; then
+          if rg -n --glob '!app/api/**' --glob '*.{ts,tsx}' 'NEXT_PUBLIC_(AWS|NEON_AUTH|MAILGUN|BREVO|RETENTION_CRON_SECRET|QR_TICKET_SECRET)|process\.env\.(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|NEON_AUTH_COOKIE_SECRET|MAILGUN|BREVO|RETENTION_CRON_SECRET|QR_TICKET_SECRET)' app; then
             exit 1
           fi
       - run: pnpm lint

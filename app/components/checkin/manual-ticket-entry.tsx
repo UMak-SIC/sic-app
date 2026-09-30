@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Key, CircleNotch, CheckCircle, WarningCircle } from "@phosphor-icons/react";
-import { normalizeTicketCode } from "@/lib/security/qr-signer";
+import { normalizeTicketCode } from "@/lib/security/ticket-code";
 import { cn } from "@/lib/utils";
 import type { CheckInResponse } from "@/lib/services/checkin-service";
 
