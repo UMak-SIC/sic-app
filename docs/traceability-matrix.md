@@ -23,6 +23,7 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0102** | Define complete Prisma schema matching Data Model Addendum (`admins`, `attendees`, `events`, `event_roster_entries`, `campaigns`, `email_deliveries`, `queue_jobs`, `delivery_attempts`, `provider_daily_usage`, `assets`) | `app/prisma/schema.prisma` | DMA-01, DMA-02, DMA-03, DMA-04, DMA-08, DMA-09, DMA-10, DMA-11 | `npx prisma validate` passes; schema models all required foreign keys, enums, and unique constraints. | `[ ] Planned` |
 | **TSK-0103** | Generate and apply initial database migrations against Neon | `app/prisma/migrations` | Implementation Decisions | `prisma migrate deploy` executes up/down migrations without error. | `[ ] Planned` |
 | **TSK-0104** | Configure test runner (Vitest) with database seed/clean utilities and transactional test environment | `app/tests/setup.ts`, `app/vitest.config.mts` | Testing Decisions | Test command `pnpm test` executes and reports passing test runner sanity check. | `[ ] Planned` |
+| **TSK-0105** | Decide whether the `neon.ts` preview function is still needed, and either give it a real entry point or remove it | `neon.ts`, `hello.ts` | Implementation Decisions, NFR-01 | `neon.ts` either declares a function the project runs, with a real entry point, or no longer declares one | `[ ] Planned` |
 
 ---
 
@@ -70,6 +71,7 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0503** | Build conflict preview service detecting existing student IDs and normalized emails against Neon `attendees` | `app/lib/services/ingestion/conflict-service.ts` | DMA-02 | Ingestion staging identifies existing records vs new records and previews proposed attribute changes. | `[ ] Planned` |
 | **TSK-0504** | Implement attendee upsert transaction executing approved conflict overwrites | `app/lib/services/attendee-service.ts` | DMA-02 | On admin approval, existing attendee records overwrite fields while preserving UUIDs; new attendees created. | `[ ] Planned` |
 | **TSK-0505** | Build recipient selector component filtering prior event attendees for new campaign inclusion | `app/components/recipients/PastAttendeeSelector.tsx` | US-08 | Admin can search, filter, and multi-select attendees who attended previous events into a new recipient list. | `[ ] Planned` |
+| **TSK-0506** | Decide the `student_id` policy for pasted address-only imports and amend DMA-02 accordingly | `app/lib/services/attendee-service.ts`, `docs/traceability-matrix.md` | DMA-02, US-07, US-09 | The policy is recorded, DMA-02 describes the import consequence, and TSK-0505 can be built without guessing | `[ ] Planned` |
 
 ---
 
@@ -83,6 +85,8 @@ This document provides bidirectional traceability between product requirements i
 | **TSK-0603** | Implement QR code image renderer converting signed ticket into embedded email CID image / data URL | `app/lib/email/qr-image-generator.ts` | US-15 | Generates readable QR code image buffer containing only the opaque signed token. | `[ ] Planned` |
 | **TSK-0604** | Build email composer UI with recipient preview drawer rendering personalized Markdown, image, and QR code | `app/app/campaigns/new/page.tsx`, `app/components/email/` | US-12, US-16 | Preview reflects selected recipient attributes, rendered HTML markup, and dynamic QR ticket placement. | `[ ] Planned` |
 | **TSK-0605** | Implement single-address test send action executing immediate dispatch via provider client | `app/app/api/campaigns/test-send/route.ts` | US-17 | Test email successfully delivers to specified test address without enqueuing batch roster jobs. | `[ ] Planned` |
+| **TSK-0606** | Decide the `QR_TICKET_SECRET` rotation policy and document a safe runbook | `app/.env.example`, `app/.env.test.example` | DMA-05, DMA-07 | A rotation policy is recorded and a runbook states how to rotate without invalidating a live event's tickets | `[ ] Planned` |
+| **TSK-0607** | Define `campaign_assets` with a DMA entry, and own binding an asset to a campaign | `app/prisma/schema.prisma`, `docs/traceability-matrix.md` | DMA-11, US-14, US-16 | A DMA entry describes the table and its roles, a task owns the binding, and TSK-0604 can be built against a defined model | `[ ] Planned` |
 
 ---
 
@@ -181,17 +185,18 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | Requirement ID | Requirement Summary | Assigned Task ID(s) | Verification Status |
 | :--- | :--- | :--- | :--- |
 | **DMA-01** | `admins` table keyed by `neon_auth_user_id`; exactly one record; credentials and sessions owned by Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202 | `[ ] Planned` |
-| **DMA-02** | `attendees` table with UUID PK, normalized email, display email, required name, required unique `student_id`; conflict preview and overwrite | TSK-0102, TSK-0501, TSK-0503, TSK-0504 | `[ ] Planned` |
+| **DMA-02** | `attendees` table with UUID PK, normalized email, display email, required name, required unique `student_id`; conflict preview and overwrite | TSK-0102, TSK-0501, TSK-0503, TSK-0504, TSK-0506 | `[ ] Planned` |
 | **DMA-03** | `events` table with UUID PK, name, details, Neon Object Storage banner ref, UTC timestamps, org timezone display, status | TSK-0102, TSK-0401, TSK-0402 | `[ ] Planned` |
 | **DMA-04** | `event_roster_entries` replaces standalone attendance; unique `(event_id, attendee_id)`, status: `pending` \| `attended` \| `absent`, `arrived_at`, `scanned_by_admin_id` | TSK-0102, TSK-0801, TSK-0903 | `[ ] Planned` |
-| **DMA-05** | Check-in window rule: scan accepted 2 hours before `starts_at` until 2 hours after `ends_at` | TSK-0602, TSK-0902 | `[ ] Planned` |
+| **DMA-05** | Check-in window rule: scan accepted 2 hours before `starts_at` until 2 hours after `ends_at` | TSK-0602, TSK-0606, TSK-0902 | `[ ] Planned` |
 | **DMA-06** | Event-close scheduler calls endpoint with high-entropy secret; marks still-pending entries `absent` | TSK-0403, TSK-0404 | `[ ] Planned` |
-| **DMA-07** | Opaque HMAC-signed QR tickets bound to roster entry & event; expire after check-in window; no reissue in v1 | TSK-0602, TSK-0603, TSK-0902 | `[ ] Planned` |
+| **DMA-07** | Opaque HMAC-signed QR tickets bound to roster entry & event; expire after check-in window; no reissue in v1 | TSK-0602, TSK-0603, TSK-0606, TSK-0902 | `[ ] Planned` |
 | **DMA-08** | `campaigns` & `email_deliveries` (`queued` \| `sending` \| `sent` \| `bounced` \| `failed`) | TSK-0102, TSK-0707, TSK-0801 | `[ ] Planned` |
 | **DMA-09** | `queue_jobs` (worker mechanics, lock state, retries) & `delivery_attempts` (immutable HTTP log) | TSK-0102, TSK-0702, TSK-0707 | `[ ] Planned` |
 | **DMA-10** | `provider_daily_usage` transactional quota tracking & reservation (Mailgun $\to$ Brevo $\to$ hold) | TSK-0102, TSK-0705, TSK-0706 | `[ ] Planned` |
-| **DMA-11** | `assets` table for Neon Object Storage object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303 | `[ ] Planned` |
+| **DMA-11** | `assets` table for Neon Object Storage object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303, TSK-0607 | `[ ] Planned` |
 | **DMA-12** | Data retention rule: 5-year maximum retention, then delete or anonymize | TSK-1001 | `[ ] Planned` |
+| **DMA-13** | `campaign_assets` binds an asset to a campaign with a `header` / `inline` / `attachment` role and an ordered position | TSK-0102, TSK-0607 | `[ ] Planned` |
 
 ---
 
