@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const queryRaw = vi.hoisted(() => vi.fn());
+const { queryRaw, transaction } = vi.hoisted(() => ({
+  queryRaw: vi.fn(),
+  transaction: vi.fn(),
+}));
 
-vi.mock("@/lib/prisma", () => ({ getPrismaClient: () => ({ $queryRaw: queryRaw }) }));
+// Two queries, read together: the per-course figures and the per-event axis. Both
+// promises are built before the transaction runs, so the stub resolves whatever
+// `$queryRaw` was queued to return for each.
+vi.mock("@/lib/prisma", () => ({
+  getPrismaClient: () => ({ $queryRaw: queryRaw, $transaction: transaction }),
+}));
 
 import { getCourseParticipation } from "@/lib/services/attendee-insights-service";
 
@@ -13,17 +21,49 @@ import { getCourseParticipation } from "@/lib/services/attendee-insights-service
  * three: a value nobody recognises has to survive to the caller as itself.
  */
 
-function returns(...rows: {
+type CourseDbRow = {
   course: string;
   students: number;
   roster_entries: number;
   attended_check_ins: number;
-}[]) {
-  queryRaw.mockResolvedValue(rows);
+};
+
+type EventDbRow = {
+  event_id: string;
+  event_name: string;
+  event_starts_at: Date;
+  course: string;
+  roster_entries: number;
+  attended_check_ins: number;
+};
+
+const ORIENTATION = {
+  event_id: "e-1",
+  event_name: "Orientation",
+  event_starts_at: new Date("2026-01-10T00:00:00.000Z"),
+};
+
+const HACKATHON = {
+  event_id: "e-2",
+  event_name: "Hackathon",
+  event_starts_at: new Date("2026-02-14T00:00:00.000Z"),
+};
+
+/** The per-course query's rows; the per-event query returns nothing. */
+function returns(...rows: CourseDbRow[]) {
+  queryRaw.mockResolvedValueOnce(rows).mockResolvedValueOnce([]);
+}
+
+/** The per-event query's rows, for the chart's axis. */
+function withEvents(...rows: EventDbRow[]) {
+  queryRaw.mockResolvedValueOnce([]).mockResolvedValueOnce(rows);
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  transaction.mockImplementation(async (operations: Promise<unknown>[]) =>
+    Promise.all(operations)
+  );
   queryRaw.mockResolvedValue([]);
 });
 
@@ -139,19 +179,100 @@ test("leaves removed students out", async () => {
   await getCourseParticipation();
 
   // The filter has to be in the query: pulling students out and discarding them
-  // afterwards would count a removed student against a course they left.
-  expect(queryRaw).toHaveBeenCalledOnce();
-  const [statement] = queryRaw.mock.calls[0] as [{ strings: string[] }];
-  const sql = statement.strings.join(" ");
-  expect(sql).toContain("deleted_at IS NULL");
+  // afterwards would count a removed student against a course they left. Both
+  // queries need it, or the axis would disagree with the figures above it.
+  expect(queryRaw).toHaveBeenCalledTimes(2);
+  for (const [statement] of queryRaw.mock.calls as [{ strings: string[] }][]) {
+    expect(statement.strings.join(" ")).toContain("deleted_at IS NULL");
+  }
 });
 
 test("counts check-ins by the status the column actually stores", async () => {
   await getCourseParticipation();
 
-  const [statement] = queryRaw.mock.calls[0] as [{ strings: string[] }];
+  for (const [statement] of queryRaw.mock.calls as [{ strings: string[] }][]) {
+    // The enum maps ATTENDED to 'attended'. Comparing against the TypeScript name
+    // would silently match nothing and report every course as zero.
+    expect(statement.strings.join(" ")).toContain("= 'attended'");
+  }
+});
 
-  // The enum maps ATTENDED to 'attended'. Comparing against the TypeScript name
-  // would silently match nothing and report every course as zero.
-  expect(statement.strings.join(" ")).toContain("= 'attended'");
+test("reports one entry per event, oldest first", async () => {
+  withEvents(
+    { ...HACKATHON, course: "BSIT", roster_entries: 4, attended_check_ins: 3 },
+    { ...ORIENTATION, course: "BSIT", roster_entries: 5, attended_check_ins: 2 }
+  );
+
+  const result = await getCourseParticipation();
+
+  // The chart's axis runs in date order, so this has to be sorted here rather than
+  // relying on the database's grouping order.
+  expect(result.events.map((event) => event.id)).toEqual(["e-1", "e-2"]);
+  expect(result.events[0]).toMatchObject({ name: "Orientation", onRoster: 5, attended: 2 });
+});
+
+test("breaks an event down by course", async () => {
+  withEvents(
+    { ...ORIENTATION, course: "BSIT", roster_entries: 6, attended_check_ins: 3 },
+    { ...ORIENTATION, course: "BSCS", roster_entries: 4, attended_check_ins: 1 }
+  );
+
+  const [event] = (await getCourseParticipation()).events;
+
+  expect(event.counts).toEqual({ BSIT: 3, BSCS: 1 });
+  expect(event.onRoster).toBe(10);
+  expect(event.attended).toBe(4);
+});
+
+test("keeps an event nobody turned up to, as a zero rather than nothing", async () => {
+  withEvents({ ...ORIENTATION, course: "BSIT", roster_entries: 9, attended_check_ins: 0 });
+
+  const [event] = (await getCourseParticipation()).events;
+
+  // "The event happened and nobody came" is a finding. Reporting no bar at all
+  // would be indistinguishable from the event not existing.
+  expect(event.onRoster).toBe(9);
+  expect(event.attended).toBe(0);
+  expect(event.counts).toEqual({});
+});
+
+test("groups students whose course was never recorded on the axis too", async () => {
+  withEvents({ ...ORIENTATION, course: "", roster_entries: 2, attended_check_ins: 2 });
+
+  const [event] = (await getCourseParticipation()).events;
+
+  // Keyed by the raw stored value, which is what the per-course query reports too,
+  // so the two halves of the card agree on who is who.
+  expect(event.counts).toEqual({ "": 2 });
+});
+
+test("the events and the per-course totals describe the same attendance", async () => {
+  returns({ course: "BSIT", students: 5, roster_entries: 15, attended_check_ins: 9 });
+  queryRaw.mockReset();
+  queryRaw
+    .mockResolvedValueOnce([{ course: "BSIT", students: 5, roster_entries: 15, attended_check_ins: 9 }])
+    .mockResolvedValueOnce([
+      { ...ORIENTATION, course: "BSIT", roster_entries: 8, attended_check_ins: 6 },
+      { ...HACKATHON, course: "BSIT", roster_entries: 7, attended_check_ins: 3 },
+    ]);
+
+  const result = await getCourseParticipation();
+
+  // Two queries that disagree would put a tab total and a set of bars that cannot
+  // both be right, and nothing on the card would reveal it.
+  expect(result.totalAttended).toBe(9);
+  expect(result.totals.attendedCheckIns).toBe(9);
+  expect(result.totalAttended).toBe(result.totals.attendedCheckIns);
+});
+
+test("an event with nobody on its roster is not on the axis", async () => {
+  // It is the inner join that does this: an event nobody was ever added to says
+  // nothing about participation, and would otherwise take up a slot on the axis.
+  await getCourseParticipation();
+
+  const [statement] = [queryRaw.mock.calls[1] as [{ strings: string[] }]][0];
+  const sql = statement.strings.join(" ");
+
+  expect(sql).toContain("JOIN public.events");
+  expect(sql).not.toContain("LEFT JOIN public.events");
 });

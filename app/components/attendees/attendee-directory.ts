@@ -304,45 +304,63 @@ function slug(value: string): string {
     .slice(0, 40);
 }
 
-/**
- * Course participation per event, for the directory's insights chart.
- */
-export type ParticipationEvent = {
-  id: string;
-  name: string;
-  startsAt: string;
-  /** Students of each course who were marked present. */
-  counts: Record<string, number>;
-  attended: number;
-  onRoster: number;
-};
-
-export type Participation = {
-  events: ParticipationEvent[];
-  courses: string[];
-  totals: Record<string, number>;
+export type CourseInsights = {
+  courses: {
+    /** The stored value, or "" for students whose course was never recorded. */
+    course: string;
+    students: number;
+    rosterEntries: number;
+    attendedCheckIns: number;
+    attendanceRate: number;
+  }[];
+  totals: {
+    courseCount: number;
+    students: number;
+    rosterEntries: number;
+    attendedCheckIns: number;
+    attendanceRate: number;
+  };
+  /**
+   * The chart's horizontal axis: one entry per event, oldest first. Only events with
+   * somebody on their roster are here.
+   */
+  events: {
+    id: string;
+    name: string;
+    startsAt: string;
+    /** Students of each course marked present, keyed by stored course value. */
+    counts: Record<string, number>;
+    onRoster: number;
+    attended: number;
+  }[];
+  /** Everyone marked present, across every event and course. */
   totalAttended: number;
   timezone: string;
 };
 
-export async function fetchCourseParticipation(
-  signal?: AbortSignal
-): Promise<Participation> {
-  const response = await fetch("/api/events/participation", {
+/**
+ * Course participation, for the insights card.
+ *
+ * A separate request from the directory because it is an aggregate over the whole
+ * registry. Computing it from the page on screen would describe one page of results
+ * while sitting directly above a table of them.
+ */
+export async function fetchCourseInsights(signal?: AbortSignal): Promise<CourseInsights> {
+  const response = await fetch("/api/attendees/insights", {
     signal,
     headers: { Accept: "application/json" },
   });
 
   if (response.status === 401) {
-    throw new Error("Your session has ended. Sign in again to see the directory.");
+    throw new Error("Your session has ended. Sign in again to see these figures.");
   }
 
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(body?.error ?? "The participation figures could not be loaded. Try again.");
+    throw new Error(body?.error ?? "These figures could not be loaded. Try again.");
   }
 
-  return (await response.json()) as Participation;
+  return (await response.json()) as CourseInsights;
 }
 
 /**

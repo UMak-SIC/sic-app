@@ -16,9 +16,9 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { canonicalCourseCode, UNRECORDED_COURSE } from "@/lib/courses";
+import { canonicalCourseCode, compareCourses, isUnrecordedCourse } from "@/lib/courses";
 import { cn } from "@/lib/utils";
-import { fetchCourseParticipation, type Participation, type ParticipationEvent } from "./attendee-directory";
+import { fetchCourseInsights, type CourseInsights } from "./attendee-directory";
 
 /**
  * Course participation, per event.
@@ -87,12 +87,17 @@ const FALLBACK: CourseTheme = {
  * spelling, so "BS-IT" is drawn as BSIT and not as an unrecognised course.
  */
 function themeFor(course: string): CourseTheme {
-  if (course === UNRECORDED_COURSE) return FALLBACK;
+  if (isUnrecordedCourse(course)) return FALLBACK;
 
   const code = canonicalCourseCode(course);
   if (!code) return FALLBACK;
 
   return KNOWN[code === "BSIT" ? 0 : code === "BSCS" ? 1 : 2];
+}
+
+/** The registry stores an empty string for a student with no course recorded. */
+function courseLabel(course: string): string {
+  return isUnrecordedCourse(course) ? "Not recorded" : course;
 }
 
 const chartConfig = {
@@ -103,9 +108,28 @@ const chartConfig = {
 
 // Stable identities for the "nothing loaded yet" case. A fresh `[]` on every render
 // would be a new dependency each time and defeat the memo below.
-const NO_EVENTS: ParticipationEvent[] = [];
+const NO_EVENTS: { id: string; name: string; startsAt: string; counts: Record<string, number> }[] = [];
 const NO_COURSES: string[] = [];
 const NO_TOTALS: Record<string, number> = {};
+
+/**
+ * Turns the insights payload into the shape the chart draws.
+ *
+ * The tab figures are the course's own `attendedCheckIns`, which is already the
+ * number of that course's students marked present across every event. Recomputing it
+ * from the per-event counts here would be the same total by a longer route, and the
+ * service's figure is the one the tests pin.
+ */
+function toChartModel(data: CourseInsights) {
+  const courses = data.courses.map((row) => row.course);
+
+  const totals: Record<string, number> = {};
+  for (const row of data.courses) {
+    totals[row.course] = row.attendedCheckIns;
+  }
+
+  return { courses, totals, events: data.events, timezone: data.timezone };
+}
 
 /** Event names are long; the axis gets a short one and the tooltip the whole thing. */
 function shorten(name: string): string {
@@ -132,7 +156,7 @@ function rowFromPayload(payload: unknown[]): Record<string, unknown> | undefined
 }
 
 export function AttendeesInsightsCard() {
-  const [participation, setParticipation] = React.useState<Participation | null>(null);
+  const [insights, setInsights] = React.useState<CourseInsights | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [chosenCourse, setChosenCourse] = React.useState<string | null>(null);
 
@@ -140,17 +164,17 @@ export function AttendeesInsightsCard() {
     const controller = new AbortController();
     let active = true;
 
-    fetchCourseParticipation(controller.signal)
+    fetchCourseInsights(controller.signal)
       .then((result) => {
         if (!active) return;
-        setParticipation(result);
+        setInsights(result);
         setError(null);
       })
       .catch((caught: unknown) => {
         // An aborted request is one that was superseded, not a failure to report.
         if (!active || (caught instanceof DOMException && caught.name === "AbortError")) return;
 
-        setParticipation(null);
+        setInsights(null);
         setError(
           caught instanceof Error
             ? caught.message
@@ -164,8 +188,10 @@ export function AttendeesInsightsCard() {
     };
   }, []);
 
-  const courses = participation?.courses ?? NO_COURSES;
-  const events = participation?.events ?? NO_EVENTS;
+  const model = React.useMemo(() => (insights ? toChartModel(insights) : null), [insights]);
+
+  const courses = model?.courses ?? NO_COURSES;
+  const events = model?.events ?? NO_EVENTS;
 
   // Falls back to the first course when the chosen one is not in this result, so a
   // reload with different data cannot leave the chart showing nothing.
@@ -191,7 +217,7 @@ export function AttendeesInsightsCard() {
     [events, courses]
   );
 
-  const totals = participation?.totals ?? NO_TOTALS;
+  const totals = model?.totals ?? NO_TOTALS;
 
   const card = (body: React.ReactNode) => (
     <Card className="relative py-0 rounded-[12px] border-line bg-card shadow-2xs font-sans overflow-hidden">
@@ -210,7 +236,7 @@ export function AttendeesInsightsCard() {
     );
   }
 
-  if (!participation) {
+  if (!insights) {
     // Shaped like the finished card so the page does not jump when the figures land.
     return card(
       <div className="flex flex-col gap-4 px-4 py-6 sm:px-6" role="status" aria-live="polite">
@@ -276,7 +302,7 @@ export function AttendeesInsightsCard() {
                 onClick={() => setChosenCourse(course)}
               >
                 <span className="text-[10px] sm:text-xs font-semibold text-muted font-sans uppercase tracking-wider">
-                  {course}
+                  {courseLabel(course)}
                 </span>
                 <span className="text-sm leading-none font-bold text-ink sm:text-2xl font-display">
                   {(totals[course] ?? 0).toLocaleString()}
@@ -339,7 +365,7 @@ export function AttendeesInsightsCard() {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
-                      timeZone: participation.timezone,
+                      timeZone: model?.timezone,
                     }).format(new Date(event.startsAt));
 
                     return `${event.name} · ${date}`;
