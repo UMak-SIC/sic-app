@@ -58,6 +58,17 @@ export type ListAttendeesResult = {
     total: number;
     totalPages: number;
   };
+  /**
+   * The courses actually present in the directory, so the toolbar's course filter
+   * lists what is really there instead of a fixed set of three.
+   *
+   * Optional because the live read path is `attendee-search-service.ts`, which
+   * computes this separately: the search runs inside a Postgres function that returns
+   * only the page of rows, so the list of courses is a second query.
+   */
+  facets?: {
+    courses: string[];
+  };
 };
 
 export const DEFAULT_PAGE_SIZE = 25;

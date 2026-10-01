@@ -1,13 +1,18 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const queryRaw = vi.hoisted(() => vi.fn());
+const { queryRaw, findMany } = vi.hoisted(() => ({ queryRaw: vi.fn(), findMany: vi.fn() }));
 
-vi.mock("@/lib/prisma", () => ({ getPrismaClient: () => ({ $queryRaw: queryRaw }) }));
+// The facets query is a separate Prisma call rather than something the search
+// function returns, so the mock carries both.
+vi.mock("@/lib/prisma", () => ({
+  getPrismaClient: () => ({ $queryRaw: queryRaw, attendee: { findMany } }),
+}));
 
 import { searchGlobalAttendees } from "@/lib/services/attendee-search-service";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  findMany.mockResolvedValue([{ course: "BSIT" }, { course: "BSCS" }]);
   queryRaw.mockResolvedValue([
     {
       id: "6a5d30af-f299-4c8c-8de2-cbfa9d79d3df",
@@ -41,6 +46,25 @@ test("maps the guarded search result into the directory shape", async () => {
     pagination: { page: 2, pageSize: 25, total: 4, totalPages: 1 },
   });
   expect(result.attendees[0].events[0].startsAt).toEqual(new Date("2026-10-17T00:00:00.000Z"));
+  // The courses actually on file, so the filter does not list a fixed set of three.
+  expect(result.facets).toEqual({ courses: ["BSIT", "BSCS"] });
+});
+
+test("the course list is not narrowed by the filters already in force", async () => {
+  await searchGlobalAttendees({
+    adminId: "admin-1",
+    course: "BSIT",
+    eventId: "6a5d30af-f299-4c8c-8de2-cbfa9d79d3df",
+    attendedOnly: true,
+    page: 1,
+    pageSize: 25,
+  });
+
+  // Otherwise picking a course would remove every other course from the dropdown and
+  // there would be no way back.
+  expect(findMany).toHaveBeenCalledWith(
+    expect.objectContaining({ where: { deletedAt: null, course: { not: null } } })
+  );
 });
 
 test("reports an empty search as one empty page", async () => {

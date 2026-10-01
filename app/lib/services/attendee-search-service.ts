@@ -25,19 +25,31 @@ type SearchRow = {
 export async function searchGlobalAttendees({
   adminId,
   search,
+  course,
+  eventId,
   attendedOnly,
   page,
   pageSize,
 }: {
   adminId: string;
   search?: string;
+  /**
+   * Exact free-text course, matched as stored. One of the values `facets.courses`
+   * reports, which is how the toolbar's filter is populated.
+   */
+  course?: string;
+  /** Only students on this event's roster. */
+  eventId?: string;
   attendedOnly: boolean;
   page: number;
   pageSize: number;
 }): Promise<ListAttendeesResult> {
   const rows = await getPrismaClient().$queryRaw<SearchRow[]>(Prisma.sql`
     SELECT *
-    FROM public.search_global_attendees(${adminId}, ${search ?? null}, ${attendedOnly}, ${page}, ${pageSize})
+    FROM public.search_global_attendees(
+      ${adminId}, ${search ?? null}, ${attendedOnly}, ${course ?? null},
+      ${eventId ?? null}::uuid, ${page}, ${pageSize}
+    )
   `);
 
   const attendees: AttendeeDirectoryItem[] = rows.map((row) => {
@@ -61,8 +73,28 @@ export async function searchGlobalAttendees({
   });
   const total = rows.length === 0 ? 0 : Number(rows[0].total_count);
 
+  /*
+   * The courses present, for the toolbar's filter.
+   *
+   * A second query rather than something derived from `rows`: this is how the
+   * operator picks a filter, so it must not be narrowed by the filter already in
+   * force, or the other values become unreachable. And it cannot come out of the
+   * search function, which returns one page of students.
+   */
+  const courseFacets = await getPrismaClient().attendee.findMany({
+    where: { deletedAt: null, course: { not: null } },
+    distinct: ["course"],
+    orderBy: { course: "asc" },
+    select: { course: true },
+  });
+
   return {
     attendees,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+    facets: {
+      courses: courseFacets
+        .map((row) => row.course)
+        .filter((value): value is string => typeof value === "string" && value.trim() !== ""),
+    },
   };
 }
