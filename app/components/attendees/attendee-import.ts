@@ -125,6 +125,7 @@ export type ImportPreview = {
 export type ImportCommitResult = {
   created: number;
   updated: number;
+  attendeeIds: string[];
   skipped: number;
   unapplied: { record: ImportedRecord; reason: string; message: string }[];
   withheld: { row: number; reason: string; message: string }[];

@@ -67,7 +67,7 @@ interface AttendeeFormDialogProps {
    * thing. A student who was removed and has now been added back is not the same
    * event as a new record, and the person who did it should not have to guess.
    */
-  onSaved: (result: { restored: boolean }) => void;
+  onSaved: (result: { id: string; restored: boolean }) => void;
 }
 
 export function AttendeeFormDialog({
@@ -125,11 +125,11 @@ export function AttendeeFormDialog({
 
     try {
       if (attendee) {
-        await updateStudent(attendee.id, details);
-        onSaved({ restored: false });
+        const result = await updateStudent(attendee.id, details);
+        onSaved({ ...result, restored: false });
       } else {
         const result = await createStudent(details);
-        onSaved({ restored: result.restored });
+        onSaved(result);
       }
 
       onOpenChange(false);
@@ -159,12 +159,12 @@ export function AttendeeFormDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-lg font-bold font-display text-ink">
-              {isEdit ? "Edit Student Profile" : "Add Student to Master Directory"}
+              {isEdit ? "Edit Student Profile" : "Add Student to Global Attendees"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted font-sans">
               {isEdit
                 ? "Change any detail. Anything left blank is cleared."
-                : "Add a new student profile to the CCIS master directory."}
+                : "Add a new student profile to the Global Attendees directory."}
             </DialogDescription>
           </DialogHeader>
 

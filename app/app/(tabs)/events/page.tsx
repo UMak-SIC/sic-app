@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CalendarBlank, PencilSimple, Plus } from "@phosphor-icons/react";
+import { CalendarBlank, PencilSimple, Plus, PaperPlaneTilt, UsersThree } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EventStatusBadge, type EventStatus } from "@/components/events/event-status-badge";
 import { EventFormDialog, type EditableEvent } from "@/components/events/event-form-dialog";
+import { EventPeopleDialog } from "@/components/events/event-people-dialog";
 
 type Event = EditableEvent & { status: "DRAFT" | "PUBLISHED" | "CLOSED" };
 
@@ -21,6 +22,7 @@ export default function EventsPage() {
   const [loading, setLoading] = React.useState(true);
   const [editing, setEditing] = React.useState<EditableEvent | undefined>();
   const [formOpen, setFormOpen] = React.useState(false);
+  const [managingPeople, setManagingPeople] = React.useState<Event | null>(null);
 
   const loadEvents = React.useEffectEvent(async () => {
     setLoading(true);
@@ -66,15 +68,18 @@ export default function EventsPage() {
                 <p className="mt-1 text-sm text-muted">{displayDate(event.startsAt)} to {displayDate(event.endsAt)}</p>
                 <p className="mt-2 max-w-3xl text-sm text-ink">{event.details}</p>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <Button asChild variant="outline" className="rounded-[6px]"><Link href={`/events/${event.id}`}>View event</Link></Button>
-                {event.status === "DRAFT" && <Button variant="outline" className="rounded-[6px]" onClick={() => { setEditing(event); setFormOpen(true); }}><PencilSimple size={18} weight="bold" /> Edit</Button>}
+               <div className="flex shrink-0 gap-2">
+                 <Button asChild variant="outline" className="rounded-[6px]"><Link href={`/events/${event.id}`}>View event</Link></Button>
+                 <Button variant="outline" className="rounded-[6px]" onClick={() => setManagingPeople(event)}><UsersThree size={18} weight="bold" /> People</Button>
+                 <Button asChild className="rounded-[6px] bg-cyan text-white hover:bg-cyan-hover"><Link href={`/campaign/new?eventId=${event.id}`}><PaperPlaneTilt size={18} weight="bold" /> Compose email</Link></Button>
+                 {event.status === "DRAFT" && <Button variant="outline" className="rounded-[6px]" onClick={() => { setEditing(event); setFormOpen(true); }}><PencilSimple size={18} weight="bold" /> Edit</Button>}
               </div>
             </article>
           ))}
         </div>
       )}
       <EventFormDialog open={formOpen} onOpenChange={setFormOpen} event={editing} timezone={timezone} onSaved={loadEvents} />
+      {managingPeople && <EventPeopleDialog eventId={managingPeople.id} eventName={managingPeople.name} open onOpenChange={(open) => { if (!open) setManagingPeople(null); }} />}
     </div>
   );
 }
