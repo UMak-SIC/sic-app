@@ -12,9 +12,14 @@ import { readAttendeeDetails } from "@/lib/validation/attendee-validation";
  * Query parameters, all optional:
  *
  * - `q`            free text matched against name, email and student number
+ * - `course`       exact free-text course, matched as stored
+ * - `eventId`      only students on that event's roster
  * - `attendedOnly` `true` to return only people marked present at least once
  * - `page`         1-based page number
  * - `pageSize`     rows per page, capped at 100
+ *
+ * The response also carries `facets.courses`: the distinct courses actually present,
+ * so the toolbar's course filter lists real values rather than a fixed set of three.
  *
  * Validation is hand-rolled rather than zod, per the dependency policy: this is
  * four scalar parameters and a shared secret check, which is not a reason to add
@@ -100,9 +105,16 @@ export async function GET(request: Request): Promise<Response> {
     throw error;
   }
 
+// Same rule as `q`: an empty parameter means absent, so `?course=` behaves like
+  // omitting it rather than filtering for a course nobody wrote.
+  const rawCourse = params.get("course")?.trim();
+  const rawEventId = params.get("eventId")?.trim();
+
   const result = await searchGlobalAttendees({
     adminId: authorization.adminId,
     search,
+    course: rawCourse ? rawCourse : undefined,
+    eventId: rawEventId ? rawEventId : undefined,
     attendedOnly,
     page,
     pageSize,

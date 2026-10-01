@@ -10,3 +10,8 @@ node_modules/
 mockup/
 .worktrees/
 
+# npm writes this when someone runs npm install by mistake. The project uses pnpm,
+# whose lockfile is app/pnpm-lock.yaml, and two lockfiles disagreeing is worse than
+# one missing.
+app/package-lock.json
+

@@ -19,6 +19,7 @@ import {
   Trash,
   X,
   Funnel,
+  CalendarDots,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +28,13 @@ interface AttendeesToolbarProps {
   onSearchChange: (value: string) => void;
   courseFilter: string;
   onCourseFilterChange: (value: string) => void;
-  eventsFilter: string;
-  onEventsFilterChange: (value: string) => void;
+  /** Courses actually present in the directory, from the API's facets. */
+  courseOptions: string[];
+  /** The event whose roster is being filtered to. Empty means every event. */
+  eventIdFilter: string;
+  onEventIdFilterChange: (value: string) => void;
+  /** Events offered in the filter, including ones already finished. */
+  eventOptions: { id: string; label: string }[];
   totalCount: number;
   filteredCount: number;
   selectedCount: number;
@@ -36,15 +42,11 @@ interface AttendeesToolbarProps {
   onBatchAddToEvent?: () => void;
   onBatchDelete?: () => void;
   onExport: () => void;
+  /** True while the export is walking the registry, so the button says so. */
+  isExporting?: boolean;
   onOpenImport: () => void;
   onOpenAddStudent?: () => void;
   className?: string;
-  /**
-   * True while the API cannot serve the course or event filter, which is the
-   * case today. The controls stay visible and say so on use, rather than
-   * appearing to work while filtering a single page of results.
-   */
-  filtersUnavailable?: boolean;
 }
 
 export function AttendeesToolbar({
@@ -52,8 +54,10 @@ export function AttendeesToolbar({
   onSearchChange,
   courseFilter,
   onCourseFilterChange,
-  eventsFilter,
-  onEventsFilterChange,
+  courseOptions,
+  eventIdFilter,
+  onEventIdFilterChange,
+  eventOptions,
   totalCount,
   filteredCount,
   selectedCount,
@@ -61,10 +65,10 @@ export function AttendeesToolbar({
   onBatchAddToEvent,
   onBatchDelete,
   onExport,
+  isExporting = false,
   onOpenImport,
   onOpenAddStudent,
   className,
-  filtersUnavailable = false,
 }: AttendeesToolbarProps) {
   return (
     <div className={cn("flex flex-col gap-3 font-sans", className)}>
@@ -97,16 +101,20 @@ export function AttendeesToolbar({
             )}
           </div>
 
-          {/* Course Filter (BSIT / BSCS / BSINS) */}
-          <Select
-            value={courseFilter}
-            onValueChange={onCourseFilterChange}
-            // Muted rather than removed: the course breakdown is wanted, and the
-            // API just cannot filter by it yet. An unavailable control that says
-            // so is better than one that silently filters a single page.
-            disabled={filtersUnavailable}
-          >
-            <SelectTrigger className="h-10 flex-1 sm:flex-initial sm:w-[160px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
+          {/*
+            Course filter, listing the courses actually in the directory.
+
+            It used to be a fixed BSIT/BSCS/BSINS list and disabled, because the API
+            could not filter by course. `course` is free text, so a fixed list could
+            not have been right even once filtering worked: a registrar export
+            containing anything else would have been unreachable, and students whose
+            course was never recorded had no way to be found.
+          */}
+          <Select value={courseFilter} onValueChange={onCourseFilterChange}>
+            <SelectTrigger
+              aria-label="Filter by course"
+              className="h-10 flex-1 sm:flex-initial sm:w-[170px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer"
+            >
               <div className="flex items-center gap-1.5 truncate">
                 <Funnel size={14} className="text-muted shrink-0" />
                 <SelectValue placeholder="All Courses" />
@@ -114,29 +122,50 @@ export function AttendeesToolbar({
             </SelectTrigger>
             <SelectContent className="font-sans">
               <SelectItem value="all">All Courses</SelectItem>
-              <SelectItem value="BSIT">BSIT (Info Tech)</SelectItem>
-              <SelectItem value="BSCS">BSCS (Comp Sci)</SelectItem>
-              <SelectItem value="BSINS">BSINS (Info Systems)</SelectItem>
+              {courseOptions.map((course) => (
+                <SelectItem key={course} value={course}>
+                  {course}
+                </SelectItem>
+              ))}
+              {courseOptions.length === 0 ? (
+                <SelectItem value="none" disabled>
+                  No courses recorded yet
+                </SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
 
-          {/* Events Joined Filter */}
-          <Select value={eventsFilter} onValueChange={onEventsFilterChange} disabled={filtersUnavailable}>
-            <SelectTrigger className="h-10 flex-1 sm:flex-initial sm:w-[150px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer">
-              <SelectValue placeholder="All Events" />
+          {/*
+            Event filter: students on one event's roster.
+
+            This was labelled "All Events" but offered how many events a student had
+            joined, which is a different question and the label did not describe it.
+            Filtering by a named event is what the control's name promised.
+          */}
+          <Select value={eventIdFilter} onValueChange={onEventIdFilterChange}>
+            <SelectTrigger
+              aria-label="Filter by event"
+              className="h-10 flex-1 sm:flex-initial sm:w-[180px] rounded-[6px] border-line bg-card text-xs font-medium text-ink cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <CalendarDots size={14} className="text-muted shrink-0" />
+                <SelectValue placeholder="All Events" />
+              </div>
             </SelectTrigger>
             <SelectContent className="font-sans">
-              <SelectItem value="all">All Students</SelectItem>
-              <SelectItem value="active">Joined ≥1 Event</SelectItem>
-              <SelectItem value="unassigned">Not in Any Event (0)</SelectItem>
-              <SelectItem value="multiple">3+ Events Joined</SelectItem>
+              <SelectItem value="all">All Events</SelectItem>
+              {eventOptions.map((event) => (
+                <SelectItem key={event.id} value={event.id}>
+                  {event.label}
+                </SelectItem>
+              ))}
+              {eventOptions.length === 0 ? (
+                <SelectItem value="none" disabled>
+                  No events yet
+                </SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
-          {filtersUnavailable ? (
-            <span className="text-[11px] text-muted font-sans sm:self-center">
-              Course and event filters are not available yet.
-            </span>
-          ) : null}
         </div>
 
         {/* Right Side: Actions */}
@@ -146,10 +175,14 @@ export function AttendeesToolbar({
             variant="outline"
             size="sm"
             onClick={onExport}
-            className="h-10 gap-1.5 rounded-[6px] border-line bg-card px-3.5 text-xs font-semibold text-ink hover:bg-canvas cursor-pointer shadow-2xs"
+            // Disabled while the export walks the registry. The button used to look
+            // instant and silently built a file from one page; now it reports that it
+            // is working, and cannot be pressed twice.
+            disabled={isExporting}
+            className="h-10 gap-1.5 rounded-[6px] border-line bg-card px-3.5 text-xs font-semibold text-ink hover:bg-canvas cursor-pointer shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <DownloadSimple size={16} weight="bold" className="text-muted" />
-            <span>Export CSV</span>
+            <span>{isExporting ? "Exporting…" : "Export CSV"}</span>
           </Button>
 
           <Button

@@ -4,6 +4,7 @@ const requireAdmin = vi.hoisted(() => vi.fn());
 const createAttendee = vi.hoisted(() => vi.fn());
 const updateAttendee = vi.hoisted(() => vi.fn());
 const softDeleteAttendee = vi.hoisted(() => vi.fn());
+const removeAttendees = vi.hoisted(() => vi.fn());
 const AttendeeWriteError = vi.hoisted(() =>
   class AttendeeWriteError extends Error {
     constructor(
@@ -21,11 +22,13 @@ vi.mock("@/lib/services/attendee-service", () => ({
   createAttendee: (input: unknown) => createAttendee(input),
   updateAttendee: (input: unknown) => updateAttendee(input),
   softDeleteAttendee: (input: unknown) => softDeleteAttendee(input),
+  removeAttendees: (input: unknown) => removeAttendees(input),
   AttendeeWriteError,
 }));
 
 import { POST } from "@/app/api/attendees/route";
 import { DELETE, PATCH } from "@/app/api/attendees/[id]/route";
+import { POST as removePost } from "@/app/api/attendees/remove/route";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 
@@ -48,6 +51,17 @@ function callDelete(id = ID) {
   return DELETE(request("DELETE", undefined, id), { params: Promise.resolve({ id }) });
 }
 
+function callRemove(body?: unknown) {
+  return removePost(
+    new Request("http://localhost/api/attendees/remove", {
+      method: "POST",
+      ...(body === undefined
+        ? {}
+        : { body: typeof body === "string" ? body : JSON.stringify(body) }),
+    })
+  );
+}
+
 const goodStudent = {
   name: "Andrea Santos",
   studentId: "2023-00182",
@@ -61,6 +75,12 @@ beforeEach(() => {
   createAttendee.mockResolvedValue({ id: ID, restored: false });
   updateAttendee.mockResolvedValue({ id: ID });
   softDeleteAttendee.mockResolvedValue({ id: ID });
+  removeAttendees.mockResolvedValue({
+    removed: 2,
+    alreadyRemoved: 0,
+    unknownCount: 0,
+    unknownIds: [],
+  });
 });
 
 afterEach(() => {
@@ -252,5 +272,82 @@ describe("DELETE /api/attendees/[id]", () => {
     const res = await callDelete();
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/attendees/remove", () => {
+  const SECOND = "22222222-2222-4222-8222-222222222222";
+
+  it("refuses a caller with no session", async () => {
+    requireAdmin.mockResolvedValue(Response.json({ error: "Unauthorized" }, { status: 401 }));
+
+    expect((await callRemove({ ids: [ID] })).status).toBe(401);
+    expect(removeAttendees).not.toHaveBeenCalled();
+  });
+
+  it("removes the whole batch in one request and reports the counts", async () => {
+    const res = await callRemove({ ids: [ID, SECOND] });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      removed: 2,
+      alreadyRemoved: 0,
+      unknownCount: 0,
+      unknownIds: [],
+    });
+    // One call carrying every id, rather than one per student.
+    expect(removeAttendees).toHaveBeenCalledOnce();
+    expect(removeAttendees).toHaveBeenCalledWith({ ids: [ID, SECOND] });
+  });
+
+  it("answers 200 when every student was already gone", async () => {
+    // Not a failure: the rows the operator selected have left the directory, which is
+    // what they asked for. The counts say nothing changed.
+    removeAttendees.mockResolvedValue({
+      removed: 0,
+      alreadyRemoved: 2,
+      unknownCount: 0,
+      unknownIds: [],
+    });
+
+    const res = await callRemove({ ids: [ID, SECOND] });
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).alreadyRemoved).toBe(2);
+  });
+
+  it("rejects a missing or empty list", async () => {
+    for (const ids of [undefined, [], "nope", 5]) {
+      expect((await callRemove({ ids })).status, String(ids)).toBe(400);
+    }
+
+    expect(removeAttendees).not.toHaveBeenCalled();
+  });
+
+  it("rejects a list containing something that is not an id", async () => {
+    // Checked here rather than left to the database, so the message names the problem
+    // instead of surfacing as a query failure.
+    expect((await callRemove({ ids: [ID, "not-an-id"] })).status).toBe(400);
+    expect(removeAttendees).not.toHaveBeenCalled();
+  });
+
+  it("rejects a body that is not JSON", async () => {
+    expect((await callRemove("{not json")).status).toBe(400);
+    expect(removeAttendees).not.toHaveBeenCalled();
+  });
+
+  it("passes a refusal through as a 400 with its message", async () => {
+    removeAttendees.mockRejectedValue(new AttendeeWriteError("Remove at most 500 students."));
+
+    const res = await callRemove({ ids: [ID] });
+
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Remove at most 500 students.");
+  });
+
+  it("does not swallow an unexpected failure", async () => {
+    removeAttendees.mockRejectedValue(new Error("connection lost"));
+
+    await expect(callRemove({ ids: [ID] })).rejects.toThrow("connection lost");
   });
 });

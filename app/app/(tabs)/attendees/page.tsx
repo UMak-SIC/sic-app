@@ -11,11 +11,14 @@ import {
 } from "@/components/attendees/attendees-table";
 import { AttendeesPagination } from "@/components/attendees/attendees-pagination";
 import { AttendeeFormDialog } from "@/components/attendees/attendee-form-dialog";
-import { RemoveAttendeeDialog } from "@/components/attendees/remove-attendee-dialog";
+import { RemoveAttendeesDialog } from "@/components/attendees/remove-attendees-dialog";
 import { ImportAttendeesDialog } from "@/components/attendees/import-attendees-dialog";
 import { AddToEventDialog, type AvailableEvent } from "@/components/attendees/add-to-event-dialog";
 import {
   DEFAULT_PAGE_SIZE,
+  describeExportScope,
+  downloadAttendeeCsv,
+  fetchAllAttendees,
   fetchAttendeeDirectory,
   fetchAvailableEvents,
   type PageSize,
@@ -42,9 +45,12 @@ export default function AttendeesPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
   const [courseFilter, setCourseFilter] = React.useState("all");
-  const [eventsFilter, setEventsFilter] = React.useState("all");
+  const [eventIdFilter, setEventIdFilter] = React.useState("all");
+  /** Courses the directory actually holds, from the API's facets. */
+  const [courseOptions, setCourseOptions] = React.useState<string[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [isExporting, setIsExporting] = React.useState(false);
 
   /**
    * Which request the rows and any error on screen belong to.
@@ -61,7 +67,7 @@ export default function AttendeesPage() {
    */
   const [reloadToken, setReloadToken] = React.useState(0);
 
-  const wantedKey = `${searchQuery}|${currentPage}|${reloadToken}`;
+  const wantedKey = `${searchQuery}|${courseFilter}|${eventIdFilter}|${currentPage}|${reloadToken}`;
   const [loadedKey, setLoadedKey] = React.useState<string | null>(null);
   const [loadError, setLoadError] = React.useState<{ key: string; message: string } | null>(null);
 
@@ -71,27 +77,43 @@ export default function AttendeesPage() {
   // Dialog States
   const [isAddOpen, setIsAddOpen] = React.useState(false);
   const [attendeeBeingEdited, setAttendeeBeingEdited] = React.useState<AttendeeItem | null>(null);
-  const [attendeeBeingRemoved, setAttendeeBeingRemoved] = React.useState<AttendeeItem | null>(null);
+  const [attendeesPendingRemoval, setAttendeesPendingRemoval] = React.useState<AttendeeItem[]>([]);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
   const [isAddToEventOpen, setIsAddToEventOpen] = React.useState(false);
   const [targetStudentForEvent, setTargetStudentForEvent] = React.useState<AttendeeItem | null>(null);
 
-  // Events for the "add to event" picker. Not the directory page's own rows, which
-  // hold one page of one filtered result.
+  // Events for the "add to event" picker, and for the event filter. Not the directory
+  // page's own rows, which hold one page of one filtered result.
+  //
+  // Fetched once with closed events included, then split: the picker takes the open
+  // ones and the filter takes all of them, because the event somebody wants to look
+  // up is usually one that has already happened.
   const [availableEvents, setAvailableEvents] = React.useState<AvailableEvent[]>([]);
+  const [eventFilterOptions, setEventFilterOptions] = React.useState<
+    { id: string; label: string }[]
+  >([]);
 
   React.useEffect(() => {
     const controller = new AbortController();
     let active = true;
 
-    fetchAvailableEvents(controller.signal)
+    fetchAvailableEvents({ signal: controller.signal, includeClosed: true })
       .then((result) => {
-        if (active) setAvailableEvents(result.events);
+        if (!active) return;
+        setAvailableEvents(result.openEvents);
+        setEventFilterOptions(
+          result.events.map((event) => ({
+            id: event.id,
+            label: event.closed ? `${event.title} (${event.date})` : `${event.title} — ${event.date}`,
+          }))
+        );
       })
       .catch(() => {
-        // The picker shows an empty state rather than a stale list, so this is
+        // Both pickers show an empty state rather than a stale list, so this is
         // deliberately not surfaced as a page-level error.
-        if (active) setAvailableEvents([]);
+        if (!active) return;
+        setAvailableEvents([]);
+        setEventFilterOptions([]);
       });
 
     return () => {
@@ -118,6 +140,18 @@ export default function AttendeesPage() {
     setSelectedIds([]);
   };
 
+  /**
+   * Changing a filter returns to the first page and drops the selection.
+   *
+   * Without the reset, filtering while on page four would leave the operator looking
+   * at an empty page four, and a selection would name people no longer on screen.
+   */
+  const applyFilter = <T,>(setter: (value: T) => void, value: T) => {
+    setter(value);
+    setCurrentPage(1);
+    setSelectedIds([]);
+  };
+
   // The registry is the source of truth. Every load replaces the table rather than
   // merging into it, so nothing on screen can claim to be a person who is not in
   // the database.
@@ -127,6 +161,8 @@ export default function AttendeesPage() {
 
     fetchAttendeeDirectory({
       query: searchQuery,
+      course: courseFilter === "all" ? undefined : courseFilter,
+      eventId: eventIdFilter === "all" ? undefined : eventIdFilter,
       page: currentPage,
       pageSize: DEFAULT_PAGE_SIZE,
       signal: controller.signal,
@@ -135,6 +171,7 @@ export default function AttendeesPage() {
         if (!active) return;
         setStudents(result.attendees);
         setPagination(result.pagination);
+        setCourseOptions(result.courses);
         setLoadError(null);
         setLoadedKey(wantedKey);
       })
@@ -158,7 +195,8 @@ export default function AttendeesPage() {
       active = false;
       controller.abort();
     };
-  }, [searchQuery, currentPage, wantedKey]);
+  }, [searchQuery, courseFilter, eventIdFilter, currentPage, wantedKey]);
+
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -235,7 +273,11 @@ export default function AttendeesPage() {
     }
   };
 
-  const handleBatchDelete = () => notSavedYet("Removing students");
+  const handleBatchDelete = () => {
+    // Resolved to whole students before the dialog opens, so what it names is what
+    // will be removed. Ids from a previous page would otherwise be confirmed blind.
+    setAttendeesPendingRemoval(selectedStudents);
+  };
 
   /**
    * Called after a student is added or edited.
@@ -254,63 +296,83 @@ export default function AttendeesPage() {
     );
   };
 
-  const handleAttendeeRemoved = (attendee: AttendeeItem) => {
+  const handleAttendeesRemoved = ({
+    removed,
+    alreadyRemoved,
+  }: {
+    removed: number;
+    alreadyRemoved: number;
+  }) => {
     setReloadToken((token) => token + 1);
-    setAttendeeBeingRemoved(null);
-    setSelectedIds((current) => current.filter((id) => id !== attendee.id));
-    setNotice(`${attendee.name} was removed from the directory.`);
+    setAttendeesPendingRemoval([]);
+    setSelectedIds([]);
+
+    const parts = [`${removed} ${removed === 1 ? "student was" : "students were"} removed.`];
+
+    if (alreadyRemoved > 0) {
+      parts.push(` ${alreadyRemoved} had already been removed.`);
+    }
+
+    setNotice(parts.join(""));
   };
 
   const handleReorder = () => notSavedYet("Reordering");
 
-  // Export CSV — client-side over what is on screen, so it exports the current
-  // page rather than the whole registry.
-  const handleExportCSV = () => {
-    const exportSource =
-      selectedIds.length > 0
-        ? students.filter((s) => selectedIds.includes(s.id))
-        : students;
+  /**
+ * Exports every student matching the current filters, not the page on screen.
+ *
+ * This used to build the file from the rows already loaded, so a CSV of a filtered
+ * directory contained one page of students and gave no hint that it did. It now
+ * walks the registry with the same filters the table is showing, which is what
+ * somebody exporting a course or an event's roster is asking for.
+ *
+ * A selection still wins when there is one, because choosing particular rows and
+ * then exporting means those rows.
+ */
+  const handleExportCSV = async () => {
+    if (isExporting) return;
 
-    const headers = [
-      "Name",
-      "Student ID",
-      "Email",
-      "Course Track",
-      "Degree Program",
-      "Section",
-      "Registered Events Count",
-      "Attendance Rate (%)",
-      "Joined Date",
-    ];
+    setIsExporting(true);
+    setNotice(null);
 
-    const rows = exportSource.map((s) => [
-      `"${s.name}"`,
-      `"${s.studentId}"`,
-      `"${s.email}"`,
-      `"${s.course ?? ""}"`,
-      `"${s.program ?? ""}"`,
-      `"${s.section ?? ""}"`,
-      `"${s.totalEventsJoined}"`,
-      `"${s.attendanceRate.toFixed(1)}%"`,
-      `"${s.joinedDate}"`,
-    ]);
+    try {
+      const filters = {
+        query: searchQuery,
+        course: courseFilter === "all" ? undefined : courseFilter,
+        eventId: eventIdFilter === "all" ? undefined : eventIdFilter,
+      };
 
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+      const { attendees } = await fetchAllAttendees(filters);
+      const exportSource =
+        selectedIds.length > 0
+          ? attendees.filter((student) => selectedIds.includes(student.id))
+          : attendees;
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `student_directory_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      if (exportSource.length === 0) {
+        setNotice("There is nothing to export for these filters.");
+        return;
+      }
+
+      downloadAttendeeCsv(exportSource, describeExportScope(filters, selectedIds.length));
+
+      setNotice(
+        `Exported ${exportSource.length} ${
+          exportSource.length === 1 ? "student" : "students"
+        }.`,
+      );
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "The list could not be exported. Try again."
+      );
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const selectedStudentNames = students
-    .filter((s) => selectedIds.includes(s.id))
-    .map((s) => s.name);
+  const selectedStudents = students.filter((s) => selectedIds.includes(s.id));
+  const selectedStudentNames = selectedStudents.map((s) => s.name);
 
   return (
     <div className="flex flex-col gap-6 w-full pb-12 font-sans">
@@ -359,13 +421,15 @@ export default function AttendeesPage() {
         searchQuery={searchInput}
         onSearchChange={setSearchInput}
         courseFilter={courseFilter}
-        onCourseFilterChange={setCourseFilter}
-        eventsFilter={eventsFilter}
-        onEventsFilterChange={setEventsFilter}
-        filtersUnavailable
+        onCourseFilterChange={(value) => applyFilter(setCourseFilter, value)}
+        courseOptions={courseOptions}
+        eventIdFilter={eventIdFilter}
+        onEventIdFilterChange={(value) => applyFilter(setEventIdFilter, value)}
+        eventOptions={eventFilterOptions}
         totalCount={pagination.total}
         filteredCount={pagination.total}
         selectedCount={selectedIds.length}
+        isExporting={isExporting}
         onClearSelection={handleClearSelection}
         onBatchAddToEvent={() => {
           setTargetStudentForEvent(null);
@@ -406,7 +470,9 @@ export default function AttendeesPage() {
           }}
           onEditAttendee={(student) => setAttendeeBeingEdited(student)}
           onRemoveAttendee={(id) =>
-            setAttendeeBeingRemoved(students.find((student) => student.id === id) ?? null)
+            setAttendeesPendingRemoval(
+              students.filter((student) => student.id === id)
+            )
           }
         />
       ) : null}
@@ -436,14 +502,14 @@ export default function AttendeesPage() {
         />
       ) : null}
 
-      {attendeeBeingRemoved ? (
-        <RemoveAttendeeDialog
+      {attendeesPendingRemoval.length > 0 ? (
+        <RemoveAttendeesDialog
           open
           onOpenChange={(next) => {
-            if (!next) setAttendeeBeingRemoved(null);
+            if (!next) setAttendeesPendingRemoval([]);
           }}
-          attendee={attendeeBeingRemoved}
-          onRemoved={handleAttendeeRemoved}
+          attendees={attendeesPendingRemoval}
+          onRemoved={handleAttendeesRemoved}
         />
       ) : null}
 
