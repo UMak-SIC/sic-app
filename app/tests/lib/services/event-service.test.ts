@@ -26,6 +26,8 @@ vi.mock("@/lib/prisma", () => ({
 import {
   createEvent,
   EventLifecycleError,
+  getEvent,
+  listEvents,
   publishEvent,
   updateDraft,
 } from "@/lib/services/event-service";
@@ -142,5 +144,20 @@ test("publishes a complete draft using a conditional transition", async () => {
   expect(eventUpdateMany).toHaveBeenCalledWith({
     where: { id: "event-id", status: "DRAFT" },
     data: { status: "PUBLISHED" },
+  });
+});
+
+test("selects only the banner filename so event responses contain no asset byte size", async () => {
+  await listEvents();
+  await getEvent("event-id");
+
+  const imageAsset = { select: { originalFilename: true } };
+  expect(eventFindMany).toHaveBeenCalledWith({
+    include: { imageAsset },
+    orderBy: { startsAt: "desc" },
+  });
+  expect(eventFindUnique).toHaveBeenCalledWith({
+    where: { id: "event-id" },
+    include: { imageAsset },
   });
 });

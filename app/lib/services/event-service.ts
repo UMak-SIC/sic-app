@@ -117,7 +117,7 @@ export async function publishEvent(eventId: string) {
 
 export async function listEvents() {
   return getPrismaClient().event.findMany({
-    include: { imageAsset: true },
+    include: { imageAsset: { select: { originalFilename: true } } },
     orderBy: { startsAt: "desc" },
   });
 }
@@ -125,6 +125,6 @@ export async function listEvents() {
 export async function getEvent(eventId: string) {
   return getPrismaClient().event.findUnique({
     where: { id: eventId },
-    include: { imageAsset: true },
+    include: { imageAsset: { select: { originalFilename: true } } },
   });
 }
