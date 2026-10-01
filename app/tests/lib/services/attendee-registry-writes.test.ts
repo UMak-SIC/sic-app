@@ -24,7 +24,7 @@ const {
     update,
     updateMany,
     $transaction: vi.fn(async (handler: (tx: unknown) => Promise<unknown>) =>
-      handler({ attendee: { findMany, create, update } })
+      handler({ attendee: { findMany, create, update, updateMany } })
     ),
   };
 });
@@ -40,6 +40,8 @@ import {
   AttendeeWriteError,
   applyAttendeeImport,
   createAttendee,
+  MAX_REMOVE_BATCH,
+  removeAttendees,
   softDeleteAttendee,
   updateAttendee,
 } from "@/lib/services/attendee-service";
@@ -53,6 +55,8 @@ import {
  */
 
 const ID = "11111111-1111-4111-8111-111111111111";
+const SECOND = "22222222-2222-4222-8222-222222222222";
+const THIRD = "33333333-3333-4333-8333-333333333333";
 
 const details = {
   name: "Andrea Santos",
@@ -66,7 +70,7 @@ const details = {
 beforeEach(() => {
   vi.clearAllMocks();
   $transaction.mockImplementation(async (handler: (tx: unknown) => Promise<unknown>) =>
-    handler({ attendee: { findMany, create, update } })
+    handler({ attendee: { findMany, create, update, updateMany } })
   );
 });
 
@@ -263,6 +267,73 @@ test("reports a student who is not in the directory at all", async () => {
   findUnique.mockResolvedValue(null);
 
   await expect(softDeleteAttendee({ id: ID })).rejects.toMatchObject({ kind: "not_found" });
+});
+
+test("removing several students marks them all in one statement", async () => {
+  findMany.mockResolvedValue([
+    { id: ID, deletedAt: null },
+    { id: SECOND, deletedAt: null },
+  ]);
+  updateMany.mockResolvedValue({ count: 2 });
+
+  const result = await removeAttendees({ ids: [ID, SECOND] });
+
+  expect(result).toEqual({ removed: 2, alreadyRemoved: 0, unknownCount: 0, unknownIds: [] });
+  // One statement, not a loop: fifty separate updates means fifty chances to stop part
+  // way, and a bulk removal that did half of what was asked is worse than one that
+  // did none.
+  expect(updateMany).toHaveBeenCalledOnce();
+  expect(updateMany).toHaveBeenCalledWith({
+    where: { id: { in: [ID, SECOND] }, deletedAt: null },
+    data: { deletedAt: expect.any(Date) },
+  });
+});
+
+test("reports which of a batch were already removed or unknown", async () => {
+  findMany.mockResolvedValue([
+    { id: ID, deletedAt: null },
+    { id: SECOND, deletedAt: new Date() },
+  ]);
+  updateMany.mockResolvedValue({ count: 1 });
+
+  const result = await removeAttendees({ ids: [ID, SECOND, THIRD] });
+
+  // Re-running a partly applied selection has to be safe and honest about what it did.
+  expect(result).toEqual({
+    removed: 1,
+    alreadyRemoved: 1,
+    unknownCount: 1,
+    unknownIds: [THIRD],
+  });
+  // Only the one that was actually there gets written.
+  expect(updateMany.mock.calls[0][0].where).toMatchObject({ id: { in: [ID] } });
+});
+
+test("writes nothing when every student in the batch is already gone", async () => {
+  findMany.mockResolvedValue([{ id: ID, deletedAt: new Date() }]);
+
+  const result = await removeAttendees({ ids: [ID] });
+
+  expect(updateMany).not.toHaveBeenCalled();
+  expect(result).toMatchObject({ removed: 0, alreadyRemoved: 1 });
+});
+
+test("de-duplicates a batch before touching the database", async () => {
+  findMany.mockResolvedValue([{ id: ID, deletedAt: null }]);
+  updateMany.mockResolvedValue({ count: 1 });
+
+  await removeAttendees({ ids: [ID, ID, ID] });
+
+  expect(findMany).toHaveBeenCalledWith(
+    expect.objectContaining({ where: { id: { in: [ID] } } })
+  );
+});
+
+test("rejects an empty or oversized batch", async () => {
+  await expect(removeAttendees({ ids: [] })).rejects.toThrow("at least one student");
+
+  const tooMany = Array.from({ length: MAX_REMOVE_BATCH + 1 }, (_, index) => `${index}`);
+  await expect(removeAttendees({ ids: tooMany })).rejects.toThrow("at most");
 });
 
 test("importing a removed student brings them back", async () => {
