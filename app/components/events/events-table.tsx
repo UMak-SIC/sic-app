@@ -27,12 +27,14 @@ import {
   QrCode,
   Eye,
   DownloadSimple,
-  PencilSimple,
   Copy,
   Trash,
   CalendarBlank,
   Clock,
   MapPin,
+  PaperPlaneTilt,
+  PencilSimple,
+  UsersThree,
   ArrowUp,
   ArrowDown,
 } from "@phosphor-icons/react";
@@ -48,7 +50,7 @@ export interface EventItem {
   time: string;
   status: EventStatus;
   registeredCount: number;
-  capacity: number;
+  capacity?: number;
   attendedCount?: number;
   /** Cover image URL; falls back to `grad` when absent. */
   image?: string;
@@ -64,6 +66,9 @@ interface EventsTableProps {
   onCheckInClick?: (event: EventItem) => void;
   onViewClick?: (event: EventItem) => void;
   onExportClick?: (event: EventItem) => void;
+  onPeopleClick?: (event: EventItem) => void;
+  onComposeClick?: (event: EventItem) => void;
+  onEditClick?: (event: EventItem) => void;
 }
 
 // Status accent configuration matching DESIGN.md color palette
@@ -97,6 +102,9 @@ export function EventsTable({
   onCheckInClick,
   onViewClick,
   onExportClick,
+  onPeopleClick,
+  onComposeClick,
+  onEditClick,
 }: EventsTableProps) {
   const reduced = useReducedMotion();
   const wrap = React.useRef<HTMLDivElement>(null);
@@ -126,10 +134,9 @@ export function EventsTable({
   const [dragOverIndex, setDragOverIndex] = React.useState<number | null>(null);
   const [dropPosition, setDropPosition] = React.useState<"top" | "bottom" | null>(null);
 
-  const isAllSelected =
-    items.length > 0 && selectedIds.length === items.length;
-  const isSomeSelected =
-    selectedIds.length > 0 && selectedIds.length < items.length;
+  const selectedItemCount = items.filter((item) => selectedIds.includes(item.id)).length;
+  const isAllSelected = items.length > 0 && selectedItemCount === items.length;
+  const isSomeSelected = selectedItemCount > 0 && !isAllSelected;
 
   const handleReorder = (newItems: EventItem[]) => {
     setItems(newItems);
@@ -256,7 +263,7 @@ export function EventsTable({
               Event
             </TableHead>
             <TableHead className="w-[22%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
-              Attendance
+              People
             </TableHead>
             <TableHead className="w-[20%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Date & Time
@@ -364,21 +371,12 @@ export function EventsTable({
                       <span className="font-display font-bold text-sm text-ink">
                         {count}
                       </span>
-                      <span className="font-sans text-xs text-muted">
-                        / {evt.capacity}
-                      </span>
+                      {evt.capacity ? <span className="font-sans text-xs text-muted">/ {evt.capacity}</span> : <span className="font-sans text-xs text-muted">selected</span>}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <EventAttendanceMeter
-                        current={count}
-                        capacity={evt.capacity}
-                        status={evt.status}
-                        totalTicks={16}
-                      />
-                      <span className="font-sans text-xs font-medium text-muted tabular-nums shrink-0">
-                        {Math.round((count / evt.capacity) * 100)}%
-                      </span>
-                    </div>
+                    {evt.capacity ? <div className="flex items-center gap-2">
+                      <EventAttendanceMeter current={count} capacity={evt.capacity} status={evt.status} totalTicks={16} />
+                      <span className="font-sans text-xs font-medium text-muted tabular-nums shrink-0">{Math.round((count / evt.capacity) * 100)}%</span>
+                    </div> : <span className="font-sans text-xs text-muted">Manage the event roster</span>}
                   </div>
                 </TableCell>
 
@@ -412,37 +410,8 @@ export function EventsTable({
                   className="text-right pr-4 py-3.5"
                   onPointerEnter={() => setHoverIndex(null)}
                 >
-                  <div className="flex items-center justify-end gap-1.5">
-                    {evt.status === "published" ? (
-                      <Button
-                        size="sm"
-                        onClick={() => onCheckInClick?.(evt)}
-                        className="h-8 gap-1.5 rounded-full bg-green hover:bg-green-hover px-3.5 text-xs font-sans font-semibold text-white shadow-xs cursor-pointer"
-                      >
-                        <QrCode size={15} weight="bold" />
-                        <span>Check In</span>
-                      </Button>
-                    ) : evt.status === "closed" ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onExportClick?.(evt)}
-                        className="h-8 gap-1 rounded-full border-line px-3 text-xs font-sans font-semibold text-ink hover:bg-canvas cursor-pointer"
-                      >
-                        <DownloadSimple size={14} weight="bold" />
-                        <span>Export</span>
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onViewClick?.(evt)}
-                        className="h-8 gap-1 rounded-full border-line px-3 text-xs font-sans font-semibold text-ink hover:bg-canvas cursor-pointer"
-                      >
-                        <PencilSimple size={14} weight="bold" />
-                        <span>Edit</span>
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-end gap-1.5">
+                     <Button variant="outline" size="sm" onClick={() => onViewClick?.(evt)} className="h-8 gap-1 rounded-[6px] border-line px-3 text-xs font-sans font-semibold text-ink hover:bg-canvas cursor-pointer"><Eye size={14} weight="bold" /><span>View</span></Button>
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -451,6 +420,7 @@ export function EventsTable({
                           size="icon"
                           className="h-8 w-8 rounded-[6px] text-muted hover:text-ink hover:bg-canvas cursor-pointer"
                           aria-label="Event options"
+                          title="Event options"
                         >
                           <DotsThreeVertical size={18} weight="bold" />
                         </Button>
@@ -477,6 +447,20 @@ export function EventsTable({
                           <Eye size={15} className="mr-2 text-muted" />
                           View
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onPeopleClick?.(evt)} className="text-xs">
+                          <UsersThree size={15} className="mr-2 text-muted" />
+                          People
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onComposeClick?.(evt)} className="text-xs">
+                          <PaperPlaneTilt size={15} className="mr-2 text-muted" />
+                          Compose email
+                        </DropdownMenuItem>
+                        {evt.status === "draft" && (
+                          <DropdownMenuItem onClick={() => onEditClick?.(evt)} className="text-xs">
+                            <PencilSimple size={15} className="mr-2 text-muted" />
+                            Edit event
+                          </DropdownMenuItem>
+                        )}
                         {evt.status === "published" && (
                           <DropdownMenuItem onClick={() => onCheckInClick?.(evt)} className="text-xs">
                             <QrCode size={15} className="mr-2 text-muted" />

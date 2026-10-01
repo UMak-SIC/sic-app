@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { getOrganizationTimezone } from "@/lib/events/organization-timezone";
-import { EventLifecycleError, getEvent, updateDraft } from "@/lib/services/event-service";
+import { EventLifecycleError, getEvent, publicImageUrl, updateDraft } from "@/lib/services/event-service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -11,7 +11,10 @@ export async function GET(_: Request, { params }: RouteContext) {
   const event = await getEvent((await params).id);
   if (!event) return Response.json({ error: "Event not found." }, { status: 404 });
 
-  return Response.json({ event, timezone: getOrganizationTimezone() });
+  return Response.json({
+    event: { ...event, bannerUrl: publicImageUrl(event.imageAsset) },
+    timezone: getOrganizationTimezone(),
+  });
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {

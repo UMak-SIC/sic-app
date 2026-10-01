@@ -47,18 +47,18 @@ export async function setEventOrganizers(eventId: string, attendeeIds: string[])
   });
 }
 
-type Person = { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null };
+type Person = { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null };
 
 export async function getEventPeople(eventId: string): Promise<{ attendees: Person[]; organizers: Person[] } | null> {
   const event = await getPrismaClient().event.findUnique({
     where: { id: eventId },
     select: {
-      rosterEntries: { orderBy: { attendee: { name: "asc" } }, select: { attendee: { select: { id: true, name: true, studentId: true, displayEmail: true, course: true, program: true } } } },
-      organizers: { orderBy: { attendee: { name: "asc" } }, select: { attendee: { select: { id: true, name: true, studentId: true, displayEmail: true, course: true, program: true } } } },
+      rosterEntries: { orderBy: { attendee: { name: "asc" } }, select: { attendee: { select: { id: true, name: true, studentId: true, displayEmail: true, course: true, program: true, section: true } } } },
+      organizers: { orderBy: { attendee: { name: "asc" } }, select: { attendee: { select: { id: true, name: true, studentId: true, displayEmail: true, course: true, program: true, section: true } } } },
     },
   });
   if (!event) return null;
-  const person = (attendee: { id: string; name: string; studentId: string; displayEmail: string; course: string | null; program: string | null }): Person => ({ ...attendee, email: attendee.displayEmail });
+  const person = (attendee: { id: string; name: string; studentId: string; displayEmail: string; course: string | null; program: string | null; section: string | null }): Person => ({ ...attendee, email: attendee.displayEmail });
   return { attendees: event.rosterEntries.map((entry) => person(entry.attendee)), organizers: event.organizers.map((entry) => person(entry.attendee)) };
 }
 
