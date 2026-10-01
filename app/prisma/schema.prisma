@@ -90,6 +90,7 @@ model Attendee {
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   rosterEntries EventRosterEntry[]
+  organizedEvents EventOrganizer[]
 
   @@map("attendees")
 }
@@ -114,6 +115,7 @@ model Event {
   imageAsset    Asset?             @relation("EventImage", fields: [imageAssetId], references: [id], onDelete: Restrict)
   createdBy     Admin              @relation("EventCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
   rosterEntries EventRosterEntry[]
+  organizers    EventOrganizer[]
   campaigns     Campaign[]
 
   @@index([status, startsAt])
@@ -139,6 +141,19 @@ model EventRosterEntry {
   @@unique([eventId, id])
   @@index([eventId, status])
   @@map("event_roster_entries")
+}
+
+model EventOrganizer {
+  eventId    String   @map("event_id") @db.Uuid
+  attendeeId String   @map("attendee_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  attendee Attendee @relation(fields: [attendeeId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, attendeeId])
+  @@index([attendeeId])
+  @@map("event_organizers")
 }
 
 model Campaign {

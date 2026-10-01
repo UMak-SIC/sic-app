@@ -72,6 +72,7 @@ export async function POST(request: Request) {
     {
       created: result.createdIds.length,
       updated: result.updatedIds.length,
+      attendeeIds: [...result.createdIds, ...result.updatedIds],
       skipped: result.unapplied.length,
       unapplied: result.unapplied,
       withheld,

@@ -23,6 +23,7 @@ interface CampaignComposerStepProps {
   subject: string;
   messageContent: string;
   includeOfficers: boolean;
+  organizerCount?: number;
   studentCount?: number;
   onSubjectChange: (subject: string) => void;
   onMessageContentChange: (content: string) => void;
@@ -57,6 +58,7 @@ export function CampaignComposerStep({
   subject,
   messageContent,
   includeOfficers,
+  organizerCount = 0,
   studentCount = 118,
   onSubjectChange,
   onMessageContentChange,
@@ -360,16 +362,16 @@ export function CampaignComposerStep({
                   htmlFor="officers-check"
                   className="text-xs font-bold text-ink cursor-pointer select-none font-sans"
                 >
-                  Also send a copy to event officers and organizers
+                  Also send a copy to event organizers
                 </label>
                 <p className="text-[11px] text-muted font-sans mt-0.5">
-                  Dispatches BCC copy to 3 executive council coordinators for audit trail.
+                  Sends a copy to the selected event organizers.
                 </p>
               </div>
             </div>
 
             <span className="shrink-0 bg-canvas text-muted border border-line rounded-full px-2.5 py-0.5 text-[10px] sm:text-[11px] font-semibold font-sans">
-              3 Recipients
+               {organizerCount} {organizerCount === 1 ? "organizer" : "organizers"}
             </span>
           </div>
         </div>
