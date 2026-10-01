@@ -64,5 +64,26 @@ describe("POST /api/checkin/scan", () => {
     const json = await res.json();
     expect(json.status).toBe("success");
     expect(json.attendee.name).toBe("Andrea Santos");
+    expect(recordCheckIn).toHaveBeenCalledWith({
+      eventId: "11111111-1111-1111-1111-111111111111",
+      ticketTokenOrCode: "SIC-9F2K-7QRM",
+      adminId: "admin-1",
+    });
+  });
+
+  it("returns a bad request response for unreadable JSON", async () => {
+    requireAdmin.mockResolvedValue({ adminId: "admin-1" });
+
+    const req = new NextRequest("http://localhost/api/checkin/scan", {
+      method: "POST",
+      body: "not JSON",
+    });
+
+    const res = await POST(req);
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "We could not read that check-in. Please scan the ticket again.",
+    });
   });
 });

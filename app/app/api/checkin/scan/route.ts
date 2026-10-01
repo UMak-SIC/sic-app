@@ -8,10 +8,26 @@ export async function POST(request: NextRequest) {
     return authResult;
   }
 
+  let body: unknown;
   try {
-    const body = await request.json();
-    const { eventId, ticketTokenOrCode } = body;
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: "We could not read that check-in. Please scan the ticket again." },
+      { status: 400 }
+    );
+  }
 
+  if (!body || typeof body !== "object") {
+    return NextResponse.json(
+      { error: "We could not read that check-in. Please scan the ticket again." },
+      { status: 400 }
+    );
+  }
+
+  const { eventId, ticketTokenOrCode } = body as Record<string, unknown>;
+
+  try {
     if (!eventId || typeof eventId !== "string") {
       return NextResponse.json(
         { error: "Event ID is required." },
