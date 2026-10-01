@@ -44,11 +44,25 @@ export async function searchGlobalAttendees({
   page: number;
   pageSize: number;
 }): Promise<ListAttendeesResult> {
+  /*
+   * Every argument is cast, because the function is overloaded on its parameter list
+   * and Postgres will not guess which one is meant without them.
+   *
+   * The course and event filters are passed rather than left null. They were null
+   * when the signature was realigned because nothing called for them yet; the
+   * directory's toolbar does now, and leaving them null would silently ignore the
+   * filter the operator just picked.
+   */
   const rows = await getPrismaClient().$queryRaw<SearchRow[]>(Prisma.sql`
     SELECT *
     FROM public.search_global_attendees(
-      ${adminId}, ${search ?? null}, ${attendedOnly}, ${course ?? null},
-      ${eventId ?? null}::uuid, ${page}, ${pageSize}
+      ${adminId}::text,
+      ${search ?? null}::text,
+      ${attendedOnly}::boolean,
+      ${course ?? null}::text,
+      ${eventId ?? null}::uuid,
+      ${page}::integer,
+      ${pageSize}::integer
     )
   `);
 

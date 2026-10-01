@@ -1,20 +1,8 @@
--- Teaches the directory search to filter by course and by event.
---
--- The filtering happens inside this function rather than in Prisma: it is
--- SECURITY DEFINER and does its own administrator check, so adding a filter in the
--- application layer would mean fetching a page and discarding most of it, which is
--- the reason this function exists.
---
--- The previous signature is dropped rather than left in place. CREATE OR REPLACE
--- with a different argument list adds an overload instead of replacing anything, and
--- two functions that both have defaults make every call ambiguous.
---
--- p_course is matched exactly, because it is one of the values the API hands back in
--- its facets and the filter lists those. A prefix match would make "BS" select BSIT
--- and BSCS at once, which is not a choice anybody made.
+-- The course and event filters precede pagination in the production RPC. Pass
+-- null from the directory so it remains an unfiltered global search.
 DROP FUNCTION IF EXISTS public.search_global_attendees(TEXT, TEXT, BOOLEAN, INTEGER, INTEGER);
 
-CREATE FUNCTION public.search_global_attendees(
+CREATE OR REPLACE FUNCTION public.search_global_attendees(
   p_admin_id TEXT,
   p_search TEXT DEFAULT NULL,
   p_attended_only BOOLEAN DEFAULT false,
@@ -61,10 +49,7 @@ BEGIN
         OR attendee.display_email ILIKE '%' || p_search || '%'
         OR attendee.student_id ILIKE '%' || p_search || '%'
       )
-      AND (
-        p_course IS NULL
-        OR attendee.course = p_course
-      )
+      AND (p_course IS NULL OR attendee.course = p_course)
       AND (
         NOT p_attended_only
         OR EXISTS (
@@ -74,9 +59,6 @@ BEGIN
             AND roster_entry.status = 'attended'
         )
       )
-      -- Selecting by event means "on this roster", not "attended this one". The
-      -- roster entry's own status is not consulted here, so somebody who was on the
-      -- list and did not arrive is still found.
       AND (
         p_event_id IS NULL
         OR EXISTS (

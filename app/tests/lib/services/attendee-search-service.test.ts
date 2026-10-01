@@ -41,6 +41,10 @@ test("maps the guarded search result into the directory shape", async () => {
   });
 
   expect(queryRaw).toHaveBeenCalledOnce();
+  expect(queryRaw.mock.calls[0][0].strings.join("?")).toContain(
+    "?::text,\n      ?::text,\n      ?::boolean,\n      ?::text,\n      ?::uuid,\n      ?::integer,\n      ?::integer"
+  );
+  expect(queryRaw.mock.calls[0][0].values).toEqual(["admin-1", "andrea", false, null, null, 2, 25]);
   expect(result).toMatchObject({
     attendees: [{ email: "andrea.santos@umak.edu.ph", attendanceRate: 100, totalEventsJoined: 1 }],
     pagination: { page: 2, pageSize: 25, total: 4, totalPages: 1 },
