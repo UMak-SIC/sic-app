@@ -3,7 +3,7 @@ import "server-only";
 import { RosterEntryStatus } from "@prisma/client";
 
 import { getPrismaClient } from "@/lib/prisma";
-import { verifyQrTicket } from "@/lib/security/qr-signer";
+import { type QrTicketRejection, verifyQrTicket } from "@/lib/security/qr-signer";
 
 export type CheckInResult =
   | { status: "checked_in"; arrivedAt: Date }
@@ -13,7 +13,8 @@ export type CheckInResult =
 export interface CheckInResponse {
   status: "success" | "duplicate" | "invalid" | "unavailable";
   message: string;
-  arrivedAt?: Date;
+  reason?: QrTicketRejection;
+  arrivedAt?: Date | string;
   attendee?: {
     id?: string;
     name: string;
@@ -76,9 +77,15 @@ export async function recordCheckIn({
 }): Promise<CheckInResponse> {
   let targetRosterEntryId: string | null = null;
 
-  const verified = verifyQrTicket(ticketTokenOrCode);
+  const verified = verifyQrTicket(ticketTokenOrCode, { expectedEventId: eventId });
   if (verified.valid && verified.eventId === eventId && verified.rosterEntryId) {
     targetRosterEntryId = verified.rosterEntryId;
+  } else if (!verified.valid && verified.reason !== "malformed") {
+    return {
+      status: "invalid",
+      reason: verified.reason,
+      message: verified.message,
+    };
   }
 
   const prisma = getPrismaClient();
@@ -100,14 +107,13 @@ export async function recordCheckIn({
     });
     if (found) {
       targetRosterEntryId = found.id;
+    } else {
+      return {
+        status: "invalid",
+        reason: verified.valid ? "malformed" : verified.reason,
+        message: verified.valid ? "This is not a valid QR ticket." : verified.message,
+      };
     }
-  }
-
-  if (!targetRosterEntryId) {
-    return {
-      status: "invalid",
-      message: "Invalid ticket token or unrecognized student ticket code.",
-    };
   }
 
   const checkInResult = await checkInRosterEntry({

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { BrowserQRCodeReader } from "@zxing/browser";
 import {
   ArrowsClockwise,
   Lightning,
@@ -23,6 +24,7 @@ export function ScannerViewport({
   className,
 }: ScannerViewportProps) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const scanControlsRef = React.useRef<{ stop: () => void } | null>(null);
   const [stream, setStream] = React.useState<MediaStream | null>(null);
   const [hasCamera, setHasCamera] = React.useState<boolean>(true);
   const [permissionDenied, setPermissionDenied] = React.useState<boolean>(false);
@@ -30,6 +32,10 @@ export function ScannerViewport({
   const [facingMode, setFacingMode] = React.useState<"user" | "environment">("environment");
   const [retryKey, setRetryKey] = React.useState(0);
   const prefersReducedMotion = useReducedMotion();
+  const onScanEvent = React.useEffectEvent(onScan);
+  const onErrorEvent = React.useEffectEvent((errorType: "permission" | "unsupported" | "unreadable") => {
+    onError?.(errorType);
+  });
 
   React.useEffect(() => {
     if (!active) {
@@ -37,7 +43,7 @@ export function ScannerViewport({
     }
 
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      onError?.("unsupported");
+      onErrorEvent("unsupported");
       return;
     }
 
@@ -71,7 +77,7 @@ export function ScannerViewport({
         if (!isMounted) return;
         console.warn("Camera access failed:", err);
         setPermissionDenied(true);
-        onError?.("permission");
+        onErrorEvent("permission");
       });
 
     return () => {
@@ -80,7 +86,42 @@ export function ScannerViewport({
         localStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [active, facingMode, onError, retryKey]);
+  }, [active, facingMode, retryKey]);
+
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!active || !stream || !video) {
+      return;
+    }
+
+    let cancelled = false;
+    const reader = new BrowserQRCodeReader();
+
+    reader
+      .decodeFromVideoElement(video, (result) => {
+        const ticket = result?.getText().trim();
+        if (!ticket) {
+          return;
+        }
+
+        scanControlsRef.current?.stop();
+        onScanEvent(ticket);
+      })
+      .then((controls) => {
+        if (cancelled) {
+          controls.stop();
+          return;
+        }
+        scanControlsRef.current = controls;
+      })
+      .catch(() => onErrorEvent("unreadable"));
+
+    return () => {
+      cancelled = true;
+      scanControlsRef.current?.stop();
+      scanControlsRef.current = null;
+    };
+  }, [active, stream]);
 
   // Toggle camera switch
   const toggleFacingMode = () => {
@@ -149,15 +190,15 @@ export function ScannerViewport({
       {/* Target Reticle Overlay */}
       <div className="pointer-events-none relative flex h-48 w-48 items-center justify-center sm:h-56 sm:w-56">
         {/* Corner Reticles */}
-        <div className="absolute top-0 left-0 h-7 w-7 rounded-tl-[8px] border-t-4 border-l-4 border-[#70d6d2]" />
-        <div className="absolute top-0 right-0 h-7 w-7 rounded-tr-[8px] border-t-4 border-r-4 border-[#70d6d2]" />
-        <div className="absolute bottom-0 left-0 h-7 w-7 rounded-bl-[8px] border-b-4 border-l-4 border-[#70d6d2]" />
-        <div className="absolute bottom-0 right-0 h-7 w-7 rounded-br-[8px] border-b-4 border-r-4 border-[#70d6d2]" />
+        <div className="absolute top-0 left-0 h-7 w-7 rounded-tl-[8px] border-t-4 border-l-4 border-cyan" />
+        <div className="absolute top-0 right-0 h-7 w-7 rounded-tr-[8px] border-t-4 border-r-4 border-cyan" />
+        <div className="absolute bottom-0 left-0 h-7 w-7 rounded-bl-[8px] border-b-4 border-l-4 border-cyan" />
+        <div className="absolute bottom-0 right-0 h-7 w-7 rounded-br-[8px] border-b-4 border-r-4 border-cyan" />
 
         {/* Animated Laser / Scan Line */}
         {!prefersReducedMotion && active && (
           <motion.div
-            className="absolute left-2 right-2 h-0.5 bg-[#70d6d2] shadow-[0_0_8px_#70d6d2]"
+            className="absolute left-2 right-2 h-0.5 bg-cyan shadow-[0_0_8px_var(--cyan)]"
             animate={{
               top: ["10%", "90%", "10%"],
             }}
@@ -196,7 +237,7 @@ export function ScannerViewport({
       {/* Bottom Status Caption */}
       <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between rounded-[6px] bg-ink/80 px-3 py-1.5 backdrop-blur-xs">
         <span className="flex items-center gap-2 font-sans text-[11px] text-paper/90">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#70d6d2]" />
+          <span className="h-2 w-2 animate-pulse rounded-full bg-cyan" />
           Point camera at attendee QR ticket
         </span>
         <span className="font-sans text-[10px] text-paper/60">Live feed</span>
