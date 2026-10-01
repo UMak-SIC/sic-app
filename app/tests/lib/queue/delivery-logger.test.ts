@@ -8,7 +8,7 @@ import { EmailProvider } from "@prisma/client";
 
 import { recordDeliveryAttempt } from "@/lib/queue/delivery-logger";
 
-const deliveryAttempt = { create: vi.fn() };
+const deliveryAttempt = { aggregate: vi.fn(), create: vi.fn() };
 const emailDelivery = { update: vi.fn() };
 const queueJob = { findFirst: vi.fn(), update: vi.fn() };
 const transaction = { deliveryAttempt, emailDelivery, queueJob };
@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   getPrismaClient.mockReturnValue(database);
   database.$transaction.mockImplementation(async (operation) => operation(transaction));
+  deliveryAttempt.aggregate.mockResolvedValue({ _max: { attemptNumber: null } });
 });
 
 afterEach(() => {
@@ -31,9 +32,9 @@ test("records a successful attempt and marks the email delivery sent", async () 
     recordDeliveryAttempt({
       queueJobId: "queue-job-id",
       workerId: "worker-a",
-      provider: EmailProvider.MAILGUN,
+       provider: EmailProvider.BREVO,
       succeeded: true,
-      providerMessageId: "mailgun-message-id",
+       providerMessageId: "brevo-message-id",
       httpStatus: 200,
     }),
   ).resolves.toEqual({ deadLettered: false });
@@ -52,8 +53,8 @@ test("records a successful attempt and marks the email delivery sent", async () 
     data: {
       deliveryId: "delivery-id",
       attemptNumber: 1,
-      provider: EmailProvider.MAILGUN,
-      providerMessageId: "mailgun-message-id",
+       provider: EmailProvider.BREVO,
+       providerMessageId: "brevo-message-id",
       httpStatus: 200,
       requestPayload: undefined,
       responsePayload: undefined,
@@ -64,8 +65,8 @@ test("records a successful attempt and marks the email delivery sent", async () 
     where: { id: "delivery-id" },
     data: {
       status: "SENT",
-      provider: EmailProvider.MAILGUN,
-      providerMessageId: "mailgun-message-id",
+       provider: EmailProvider.BREVO,
+       providerMessageId: "brevo-message-id",
       failureCode: null,
       failureMessage: null,
       sentAt: expect.any(Date),
@@ -117,6 +118,25 @@ test("returns a failed delivery to the queue while retries remain", async () => 
       lastError: "Provider unavailable",
     },
   });
+});
+
+test("continues delivery attempt numbering after a manual requeue", async () => {
+  queueJob.findFirst.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 0, maxRetries: 3 });
+  deliveryAttempt.aggregate.mockResolvedValue({ _max: { attemptNumber: 1 } });
+
+  await recordDeliveryAttempt({
+    queueJobId: "queue-job-id",
+    workerId: "worker-a",
+    provider: EmailProvider.BREVO,
+    succeeded: true,
+    httpStatus: 201,
+  });
+
+  expect(deliveryAttempt.create).toHaveBeenCalledWith(
+    expect.objectContaining({
+      data: expect.objectContaining({ attemptNumber: 2 }),
+    }),
+  );
 });
 
 test("moves a delivery to the dead-letter queue after more than three retries", async () => {

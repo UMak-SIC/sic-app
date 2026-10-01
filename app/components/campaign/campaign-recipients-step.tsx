@@ -119,6 +119,19 @@ export const AVAILABLE_EVENTS: EventOption[] = [
   },
 ];
 
+const EMPTY_EVENT: EventOption = {
+  id: "",
+  title: "No event selected",
+  venue: "",
+  date: "",
+  time: "",
+  status: "draft",
+  registeredCount: 0,
+  willReceiveCount: 0,
+  alreadyReceivedCount: 0,
+  capacity: 0,
+};
+
 const COURSE_BADGES: Record<string, { bg: string; text: string; border: string }> = {
   BSIT: { bg: "bg-cyan-soft/60", text: "text-cyan", border: "border-cyan-border/80" },
   BSCS: { bg: "bg-green-soft/60", text: "text-green", border: "border-green-border/80" },
@@ -412,7 +425,7 @@ interface CampaignRecipientsStepProps {
   eventOptions?: EventOption[];
   recipients?: StudentRecipient[];
   onEventChange?: (eventId: string, eventName: string) => void;
-  onContinue: () => void;
+  onContinue: (recipientIds: string[]) => void;
   onSaveDraft?: () => void;
 }
 
@@ -433,7 +446,7 @@ export function CampaignRecipientsStep({
 
   // Find active event details
   const currentEvent =
-    eventOptions.find((e) => e.id === selectedEventId) || eventOptions[0];
+    eventOptions.find((e) => e.id === selectedEventId) || eventOptions[0] || EMPTY_EVENT;
 
   const handleSelectEvent = (newId: string) => {
     setSelectedEventId(newId);
@@ -500,6 +513,10 @@ export function CampaignRecipientsStep({
     setSelectedStudentIds([]);
   };
 
+  const handleContinue = () => {
+    onContinue(recipients.filter((recipient) => !excludedIds.includes(recipient.id)).map((recipient) => recipient.id));
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full font-sans">
       {/* 1. Header Card (Clean - 'Step 1 // Target Audience' badge removed) */}
@@ -527,7 +544,7 @@ export function CampaignRecipientsStep({
           )}
           <Button
             type="button"
-            onClick={onContinue}
+            onClick={handleContinue}
             className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer"
           >
             <span>Next: Write message</span>

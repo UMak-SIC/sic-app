@@ -56,7 +56,17 @@ export async function processQueueJobs({
   };
 
   for (const job of jobs) {
-    const provider = await selectProvider(job);
+    let provider: EmailProvider | null;
+
+    try {
+      provider = await selectProvider(job);
+    } catch (error) {
+      // A selector failure happens before an attempt can be attributed to a
+      // provider. Release the lease immediately so a configuration fix does not
+      // strand the delivery in Sending until its five-minute timeout.
+      await releaseClaimedJob({ queueJobId: job.id, workerId });
+      throw error;
+    }
 
     if (provider === null) {
       // Nothing was attempted, so nothing is recorded. Releasing the claim keeps

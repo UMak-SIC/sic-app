@@ -186,11 +186,11 @@ describe("POST /api/internal/queue-worker", () => {
     it("keeps the slot and counts the send when it succeeded", async () => {
       await POST(post());
 
-      await wrappedDispatch()({ id: "job-1" }, EmailProvider.MAILGUN);
+       await wrappedDispatch()({ id: "job-1" }, EmailProvider.BREVO);
 
       // The provider really did use the slot, so it is not given back — doing so
       // would hand out the same daily allowance repeatedly.
-      expect(confirmProviderSend).toHaveBeenCalledWith({ provider: EmailProvider.MAILGUN });
+       expect(confirmProviderSend).toHaveBeenCalledWith({ provider: EmailProvider.BREVO });
       expect(releaseProviderReservation).not.toHaveBeenCalled();
     });
 
@@ -198,20 +198,20 @@ describe("POST /api/internal/queue-worker", () => {
       await POST(post());
       adapterDispatch.mockResolvedValue({ succeeded: false, httpStatus: 503 });
 
-      const attempt = await wrappedDispatch()({ id: "job-1" }, EmailProvider.MAILGUN);
+       const attempt = await wrappedDispatch()({ id: "job-1" }, EmailProvider.BREVO);
 
       expect(attempt).toMatchObject({ succeeded: false, httpStatus: 503 });
-      expect(releaseProviderReservation).toHaveBeenCalledWith({ provider: EmailProvider.MAILGUN });
+       expect(releaseProviderReservation).toHaveBeenCalledWith({ provider: EmailProvider.BREVO });
       expect(confirmProviderSend).not.toHaveBeenCalled();
     });
 
     it("returns the slot and re-throws when dispatch throws", async () => {
       await POST(post());
-      adapterDispatch.mockRejectedValue(new Error("Mailgun request failed"));
+       adapterDispatch.mockRejectedValue(new Error("Brevo request failed"));
 
       await expect(
         wrappedDispatch()({ id: "job-1" }, EmailProvider.BREVO)
-      ).rejects.toThrow("Mailgun request failed");
+       ).rejects.toThrow("Brevo request failed");
 
       // Otherwise a provider outage would permanently consume the day's quota.
       expect(releaseProviderReservation).toHaveBeenCalledWith({ provider: EmailProvider.BREVO });
@@ -225,7 +225,7 @@ describe("POST /api/internal/queue-worker", () => {
         providerMessageId: "abc",
       });
 
-      await expect(wrappedDispatch()({ id: "job-1" }, EmailProvider.MAILGUN)).resolves.toEqual({
+       await expect(wrappedDispatch()({ id: "job-1" }, EmailProvider.BREVO)).resolves.toEqual({
         succeeded: true,
         httpStatus: 200,
         providerMessageId: "abc",

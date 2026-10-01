@@ -34,7 +34,7 @@ interface CampaignSendConfirmationDialogProps {
   eventName: string;
   subject: string;
   studentCount: number;
-  onConfirmSend: () => void;
+  onConfirmSend: () => Promise<void> | void;
 }
 
 export function CampaignSendConfirmationDialog({
@@ -74,13 +74,14 @@ export function CampaignSendConfirmationDialog({
 
   const progressShare = done.size / Math.max(1, steps.length);
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await onConfirmSend();
       onOpenChange(false);
-      onConfirmSend();
-    }, 900);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

@@ -7,7 +7,6 @@ import {
   Check,
   Plus,
   X,
-  QrCode,
   TextB,
   TextItalic,
   ListBullets,
@@ -16,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { renderEmailMarkdownPreview, splitPreviewAtQrTicketPass } from "./email-markdown-preview";
 
 interface CampaignComposerStepProps {
   eventId: string;
@@ -38,18 +38,17 @@ interface CampaignComposerStepProps {
  *
  * Kept in step with the delivery resolver's supported set: a token offered here
  * but absent there is stripped from the real send, so the author would preview
- * one thing and send another. `{{qr_ticket_pass}}` is the known exception — it
- * stays visible because the composer is where the wording gets written, and it
- * is marked `pending` so the gap is stated rather than hidden.
+ * one thing and send another. The QR pass uses a static visual in the composer
+ * because a signed ticket only exists for an individual delivery.
  */
-const EASY_INSERTS: { label: string; token: string; pending?: boolean }[] = [
+const EASY_INSERTS: { label: string; token: string }[] = [
   { label: "Student Name", token: "{{student_name}}" },
   { label: "Student Number", token: "{{student_id}}" },
   { label: "Section", token: "{{section}}" },
   { label: "Event Name", token: "{{event_name}}" },
   { label: "Date & Time", token: "{{event_time}}" },
   { label: "Venue", token: "{{venue}}" },
-  { label: "QR Pass Card", token: "{{qr_ticket_pass}}", pending: true },
+  { label: "QR Pass Card", token: "{{qr_ticket_pass}}" },
 ];
 
 export function CampaignComposerStep({
@@ -108,18 +107,29 @@ export function CampaignComposerStep({
     }, 0);
   };
 
-  // Dynamic preview text interpolation with bold highlights for replaced variables
-  const previewFormatted = React.useMemo(() => {
-    const raw = messageContent || "";
-    const formatted = raw
+  const handleHeading = (prefix: "# " | "## " | "### ") => {
+    if (!textareaRef.current) {
+      onMessageContentChange(`${messageContent}${messageContent ? "\n" : ""}${prefix}`);
+      return;
+    }
+
+    const start = textareaRef.current.selectionStart ?? messageContent.length;
+    const lineStart = messageContent.lastIndexOf("\n", start - 1) + 1;
+    onMessageContentChange(`${messageContent.slice(0, lineStart)}${prefix}${messageContent.slice(lineStart)}`);
+  };
+
+  const [previewBeforeTicket, previewAfterTicket] = React.useMemo(() => {
+    const [beforeTicket, afterTicket] = splitPreviewAtQrTicketPass(messageContent || "");
+    const format = (raw: string) => raw
       .replace(/{{student_name}}/g, "Andrea Santos")
       .replace(/{{student_id}}/g, "2023-00182-MK")
       .replace(/{{event_name}}/g, eventName || "UMak SIC General Assembly")
       .replace(/{{event_time}}/g, "Saturday, 17 Oct 2026 at 2:00 PM")
-      .replace(/{{venue}}/g, "Audio Visual Room")
-      .replace(/{{qr_ticket_pass}}/g, "");
-    return formatted;
+      .replace(/{{venue}}/g, "Audio Visual Room");
+
+    return [format(beforeTicket), format(afterTicket)];
   }, [messageContent, eventName]);
+  const hasQrTicketPass = splitPreviewAtQrTicketPass(messageContent).at(2);
 
   const charCount = messageContent.length;
 
@@ -261,25 +271,12 @@ export function CampaignComposerStep({
                   key={item.token}
                   type="button"
                   onClick={() => handleInsertToken(item.token)}
-                  // Muted rather than disabled: the wording is written now and the
-                  // pass is filled in later, so the author needs to be able to
-                  // place the token where it belongs.
-                  aria-describedby={item.pending ? `${item.token}-pending` : undefined}
-                  className={
-                    item.pending
-                      ? "inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-card border border-dashed border-line text-[11px] font-semibold text-muted transition-colors cursor-pointer hover:border-cyan-border hover:text-ink"
-                      : "inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-card hover:bg-cyan-soft border border-line hover:border-cyan-border text-[11px] font-semibold text-ink transition-colors cursor-pointer"
-                  }
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[6px] bg-card hover:bg-cyan-soft border border-line hover:border-cyan-border text-[11px] font-semibold text-ink transition-colors cursor-pointer"
                 >
                   <Plus size={11} className="text-cyan" weight="bold" />
                   <span>{item.label}</span>
-                  {item.pending ? <span className="font-normal text-muted">soon</span> : null}
                 </button>
               ))}
-              <span id="{{qr_ticket_pass}}-pending" className="sr-only">
-                The QR pass is not available yet. It will be replaced with the pass image
-                when campaign delivery is connected.
-              </span>
             </div>
 
             {/* Message Body Textarea & Embedded QR Pass Indicator */}
@@ -292,13 +289,6 @@ export function CampaignComposerStep({
                 className="w-full min-h-[170px] text-xs font-mono bg-paper/50 rounded-[8px] border border-line p-3.5 text-ink leading-relaxed resize-y focus:outline-none focus:border-cyan focus:ring-1 focus:ring-cyan/20"
               />
 
-              {/* Automatic QR Pass Component Callout Box */}
-              <div className="p-3 bg-cyan-soft/40 border border-cyan-border/80 rounded-[8px] flex items-center gap-2.5 text-xs text-ink font-medium">
-                <QrCode size={18} className="text-cyan shrink-0" weight="bold" />
-                <span className="font-semibold text-[11px] sm:text-xs">
-                  [Embedded Student QR Ticket Pass Component Included Automatically]
-                </span>
-              </div>
             </div>
 
             {/* Bottom Gmail-Style Toolbar */}
@@ -315,7 +305,7 @@ export function CampaignComposerStep({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleFormatText("_", "_")}
+                  onClick={() => handleFormatText("__", "__")}
                   title="Italic"
                   aria-label="Italic text"
                   className="p-1.5 rounded-[4px] hover:bg-canvas hover:text-ink text-xs italic cursor-pointer"
@@ -340,6 +330,10 @@ export function CampaignComposerStep({
                 >
                   <LinkIcon size={15} weight="bold" />
                 </button>
+                <button type="button" onClick={() => handleHeading("# ")} title="Heading 1" aria-label="Heading 1" className="px-1.5 py-1 rounded-[4px] hover:bg-canvas hover:text-ink text-[11px] font-bold cursor-pointer">H1</button>
+                <button type="button" onClick={() => handleHeading("## ")} title="Heading 2" aria-label="Heading 2" className="px-1.5 py-1 rounded-[4px] hover:bg-canvas hover:text-ink text-[11px] font-bold cursor-pointer">H2</button>
+                <button type="button" onClick={() => handleHeading("### ")} title="Heading 3" aria-label="Heading 3" className="px-1.5 py-1 rounded-[4px] hover:bg-canvas hover:text-ink text-[11px] font-bold cursor-pointer">H3</button>
+                <button type="button" onClick={() => handleFormatText("<center>", "</center>")} title="Center text" aria-label="Center text" className="px-1.5 py-1 rounded-[4px] hover:bg-canvas hover:text-ink text-[11px] font-bold cursor-pointer">Center</button>
               </div>
 
               <div className="text-[11px] font-sans text-muted tabular-nums">
@@ -430,11 +424,11 @@ export function CampaignComposerStep({
 
               {/* Dynamic Email Body Text */}
               <div className="text-xs text-ink/90 whitespace-pre-line leading-relaxed font-sans pt-1 min-h-[110px]">
-                {previewFormatted || "Type your message on the left to see live preview..."}
+                {previewBeforeTicket ? renderEmailMarkdownPreview(previewBeforeTicket) : "Type your message on the left to see live preview..."}
               </div>
 
-              {/* High-Fidelity UMak CCIS Pass Card */}
-              <div className="rounded-[12px] border border-line bg-card p-4 shadow-xs flex flex-col gap-3.5">
+              {hasQrTicketPass && (
+                <div className="rounded-[12px] border border-line bg-card p-4 shadow-xs flex flex-col gap-3.5">
                 {/* Top Pass Brand Strip */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -496,7 +490,7 @@ export function CampaignComposerStep({
                       viewBox="0 0 100 100"
                       className="w-20 h-20 text-ink"
                       fill="currentColor"
-                      aria-label="Student check-in QR pass"
+                      aria-label="Preview QR ticket pass"
                     >
                       {/* Top-Left Finder */}
                       <rect x="5" y="5" width="30" height="30" rx="3" fill="none" stroke="currentColor" strokeWidth="6" />
@@ -526,7 +520,7 @@ export function CampaignComposerStep({
                       <rect x="80" y="75" width="10" height="10" rx="1" />
                     </svg>
                     <span className="text-[9px] uppercase tracking-wider font-bold text-muted font-display mt-1 text-center">
-                      SCAN ON-SITE
+                      PREVIEW QR PASS
                     </span>
                   </div>
                 </div>
@@ -540,7 +534,14 @@ export function CampaignComposerStep({
                     University of Makati CCIS
                   </span>
                 </div>
-              </div>
+                </div>
+              )}
+
+              {hasQrTicketPass && previewAfterTicket && (
+                <div className="text-xs text-ink/90 whitespace-pre-line leading-relaxed font-sans pt-1">
+                  {renderEmailMarkdownPreview(previewAfterTicket)}
+                </div>
+              )}
             </div>
           </div>
 

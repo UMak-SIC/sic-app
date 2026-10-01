@@ -38,6 +38,7 @@ const ALLOWED_TAGS = [
   "code",
   "pre",
   "blockquote",
+  "center",
   "ul",
   "ol",
   "li",
@@ -65,6 +66,17 @@ const ALLOWED_ATTRIBUTES = {
 
 // Links may only point somewhere a recipient can safely follow.
 const ALLOWED_SCHEMES = ["http", "https", "mailto"];
+
+// Markdown syntax is not parsed inside raw HTML blocks, so `<center># Title</center>`
+// otherwise reaches the recipient as a literal hash. Convert this composer pattern
+// to safe, semantic HTML before Marked processes the rest of the message.
+function normalizeCenteredHeadings(markdown: string): string {
+  return markdown.replace(
+    /<center>\s*(#{1,6})\s+([^<\n]+?)\s*<\/center>/gi,
+    (_match, hashes: string, title: string) =>
+      `<center><h${hashes.length}>${title.trim()}</h${hashes.length}></center>`,
+  );
+}
 
 function storageImageHost(): string {
   const endpoint = process.env.AWS_ENDPOINT_URL_S3?.trim();
@@ -120,7 +132,12 @@ export function compileMarkdown(
   options: MarkdownCompileOptions = {},
 ): string {
   const allowedImageHost = options.allowedImageHost ?? storageImageHost();
-  const html = marked.parse(markdown, { async: false });
+  // The composer reserves double underscores for italic text, matching its
+  // toolbar rather than Markdown's usual alternate bold syntax.
+  const html = marked.parse(
+    normalizeCenteredHeadings(markdown).replace(/__([^_\n]+)__/g, "*$1*"),
+    { async: false },
+  );
 
   return sanitizeHtml(html, {
     allowedTags: ALLOWED_TAGS,

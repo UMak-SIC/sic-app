@@ -8,46 +8,18 @@ import { CampaignWizardStepper, WizardStep } from "@/components/campaign/campaig
 import { CampaignRecipientsStep, type EventOption } from "@/components/campaign/campaign-recipients-step";
 import { CampaignComposerStep } from "@/components/campaign/campaign-composer-step";
 import { CampaignAssetsStep } from "@/components/campaign/campaign-assets-step";
-import { CampaignPreviewDialog } from "@/components/campaign/campaign-preview-dialog";
 import { CampaignSendConfirmationDialog } from "@/components/campaign/campaign-send-confirmation-dialog";
 import { CampaignDraftState, type StudentRecipient } from "@/components/campaign/campaign-types";
 
-const EVENT_STUDENT_COUNTS: Record<string, number> = {
-  evt_1: 114,
-  evt_2: 48,
-  evt_3: 70,
-  evt_4: 0,
-};
-
 const INITIAL_DRAFT: CampaignDraftState = {
-  eventId: "evt_1",
-  eventName: "UMak SIC General Assembly",
+  eventId: "",
+  eventName: "",
   includeOfficers: true,
-  subject: "Reminder: UMak SIC General Assembly this Saturday!",
-  messageContent: `Hello {{student_name}},
-
-We look forward to welcoming you to {{event_name}} on {{event_time}} in the {{venue}}!
-
-Please have your official QR check-in pass ready on your phone or printed out upon entering the room. Check-in opens 2 hours before the session starts.
-
-See you there!`,
-  bannerImage: {
-    id: "ast_1",
-    fileName: "general-assembly-banner.jpg",
-    fileSize: "1.8 MB",
-    fileType: "image",
-    role: "banner",
-  },
-  attachments: [
-    {
-      id: "ast_2",
-      fileName: "event-program-and-guidelines.pdf",
-      fileSize: "420 KB",
-      fileType: "document",
-      role: "attachment",
-    },
-  ],
-  testEmailAddress: "admin@umak.edu.ph",
+  subject: "",
+  messageContent: "Hello {{student_name}},\n\nWe look forward to welcoming you to {{event_name}} on {{event_time}}.\n\nSee you there!",
+  bannerImage: null,
+  attachments: [],
+  testEmailAddress: "",
 };
 
 function NewCampaignContent() {
@@ -55,15 +27,50 @@ function NewCampaignContent() {
   const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = React.useState<WizardStep>(1);
   const [maxAccessibleStep, setMaxAccessibleStep] = React.useState<number>(1);
-  const [isTestModalOpen, setIsTestModalOpen] = React.useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<CampaignDraftState>(INITIAL_DRAFT);
-  const [linkedEvent, setLinkedEvent] = React.useState<EventOption | null>(null);
+  const [eventOptions, setEventOptions] = React.useState<EventOption[]>([]);
+  const [eventsLoaded, setEventsLoaded] = React.useState(false);
   const [organizerCount, setOrganizerCount] = React.useState(0);
   const [rosterRecipients, setRosterRecipients] = React.useState<StudentRecipient[]>([]);
+  const [organizerRecipients, setOrganizerRecipients] = React.useState<StudentRecipient[]>([]);
+  const [selectedRosterRecipientIds, setSelectedRosterRecipientIds] = React.useState<string[]>([]);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const requestedEventId = searchParams.get("eventId");
 
   React.useEffect(() => {
-    const eventId = searchParams.get("eventId");
+    let active = true;
+    fetch("/api/events")
+      .then(async (response) => {
+        const payload = await response.json() as { events?: Array<{ id: string; name: string; venue: string | null; startsAt: string; endsAt: string; status: "DRAFT" | "PUBLISHED" | "CLOSED" }>; error?: string };
+        if (!response.ok) throw new Error(payload.error);
+        return payload.events ?? [];
+      })
+      .then((events) => {
+        if (!active) return;
+        const options = events.filter((event) => event.status === "PUBLISHED").map((event) => ({
+          id: event.id,
+          title: event.name,
+          venue: event.venue ?? "Venue to be confirmed",
+          date: new Intl.DateTimeFormat("en-US", { dateStyle: "full" }).format(new Date(event.startsAt)),
+          time: new Intl.DateTimeFormat("en-US", { timeStyle: "short" }).format(new Date(event.startsAt)),
+          status: event.status.toLowerCase() as EventOption["status"],
+          registeredCount: 0,
+          willReceiveCount: 0,
+          alreadyReceivedCount: 0,
+          capacity: 0,
+        }));
+        setEventOptions(options);
+        const selectedId = requestedEventId ?? options.find((event) => event.status === "published")?.id;
+        if (selectedId) setDraft((current) => current.eventId ? current : { ...current, eventId: selectedId });
+      })
+      .catch(() => active && setSubmitError("We could not load events. Refresh the page and try again."))
+      .finally(() => active && setEventsLoaded(true));
+    return () => { active = false; };
+  }, [requestedEventId]);
+
+  React.useEffect(() => {
+    const eventId = requestedEventId ?? draft.eventId;
     if (!eventId) return;
 
     Promise.all([
@@ -76,19 +83,17 @@ function NewCampaignContent() {
       })
       .then(([data, people]) => {
         const event = data.event as { id: string; name: string; venue: string | null; startsAt: string; endsAt: string };
-        const date = new Intl.DateTimeFormat("en-US", { dateStyle: "full" }).format(new Date(event.startsAt));
-        const time = new Intl.DateTimeFormat("en-US", { timeStyle: "short" }).format(new Date(event.startsAt));
-        const recipients = people.attendees.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null }) => ({ ...person, deliveryStatus: "delivered" as const }));
-        const option: EventOption = { id: event.id, title: event.name, venue: event.venue ?? "Venue to be confirmed", date, time, status: "published", registeredCount: recipients.length, willReceiveCount: recipients.length, alreadyReceivedCount: 0, capacity: recipients.length };
-        setLinkedEvent(option);
+        const recipients = people.attendees.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => ({ ...person, section: person.section ?? undefined, deliveryStatus: "sending" as const }));
+        const organizers = people.organizers.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => ({ ...person, section: person.section ?? undefined, deliveryStatus: "sending" as const }));
         setRosterRecipients(recipients);
+        setOrganizerRecipients(organizers);
         setOrganizerCount(people.organizers.length);
         setDraft((current) => ({ ...current, eventId: event.id, eventName: event.name, subject: `Reminder: ${event.name}` }));
       })
-      .catch(() => setLinkedEvent(null));
-  }, [searchParams]);
+      .catch(() => setSubmitError("We could not load the selected event. Choose another event and try again."));
+  }, [draft.eventId, requestedEventId]);
 
-  const rosterCount = linkedEvent ? rosterRecipients.length : EVENT_STUDENT_COUNTS[draft.eventId] ?? 114;
+  const rosterCount = selectedRosterRecipientIds.length;
   const recipientCount = rosterCount + (draft.includeOfficers ? organizerCount : 0);
 
   const goToStep = (step: WizardStep) => {
@@ -98,12 +103,32 @@ function NewCampaignContent() {
     }
   };
 
-  const handleSaveDraft = () => {
-    router.push("/campaign");
-  };
-
-  const handleBroadcastConfirmed = () => {
-    router.push("/campaign");
+  const handleBroadcastConfirmed = async () => {
+    setSubmitError(null);
+    const recipients = [
+      ...rosterRecipients.filter((recipient) => selectedRosterRecipientIds.includes(recipient.id)),
+      ...(draft.includeOfficers ? organizerRecipients : []),
+    ];
+    const response = await fetch("/api/campaigns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventId: draft.eventId,
+        attendeeIds: [...new Set(recipients.map((recipient) => recipient.id))],
+        subject: draft.subject,
+        markdown: draft.messageContent,
+        assets: [
+          ...(draft.bannerImage ? [{ assetId: draft.bannerImage.id, role: "INLINE" }] : []),
+          ...draft.attachments.map((asset) => ({ assetId: asset.id, role: "ATTACHMENT" })),
+        ],
+      }),
+    });
+    const result = await response.json() as { campaignId?: string; error?: string };
+    if (!response.ok || !result.campaignId) {
+      setSubmitError(result.error ?? "We could not send this email. Please try again.");
+      throw new Error(result.error);
+    }
+    router.push(`/campaign/${result.campaignId}`);
   };
 
   return (
@@ -131,23 +156,31 @@ function NewCampaignContent() {
       />
 
       {/* Step 1: Choose Event & Students */}
-      {currentStep === 1 && (
+      {currentStep === 1 && !eventsLoaded && (
+        <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted font-sans">Loading published events...</div>
+      )}
+      {currentStep === 1 && eventsLoaded && eventOptions.length === 0 && (
+        <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted font-sans">No published events are ready for an email campaign.</div>
+      )}
+      {currentStep === 1 && eventsLoaded && eventOptions.length > 0 && (
         <CampaignRecipientsStep
           key={draft.eventId}
           eventId={draft.eventId}
           eventName={draft.eventName}
-          eventOptions={linkedEvent ? [linkedEvent] : undefined}
-          recipients={linkedEvent ? rosterRecipients : undefined}
-          onEventChange={(id, name) =>
-            setDraft((d) => ({
+          eventOptions={eventOptions}
+          recipients={rosterRecipients}
+           onEventChange={(id, name) =>
+             setDraft((d) => ({
               ...d,
               eventId: id,
               eventName: name,
-              subject: `Reminder: ${name} this Saturday!`,
-            }))
-          }
-          onContinue={() => goToStep(2)}
-          onSaveDraft={handleSaveDraft}
+               subject: `Reminder: ${name} this Saturday!`,
+             }))
+           }
+           onContinue={(recipientIds) => {
+             setSelectedRosterRecipientIds(recipientIds);
+             goToStep(2);
+           }}
         />
       )}
 
@@ -166,7 +199,6 @@ function NewCampaignContent() {
           onIncludeOfficersChange={(inc) => setDraft((d) => ({ ...d, includeOfficers: inc }))}
           onBack={() => goToStep(1)}
           onContinue={() => goToStep(3)}
-          onSaveDraft={handleSaveDraft}
         />
       )}
 
@@ -179,29 +211,14 @@ function NewCampaignContent() {
           attachments={draft.attachments}
           testEmailAddress={draft.testEmailAddress}
           studentCount={recipientCount}
+          practiceRecipients={rosterRecipients.filter((recipient) => selectedRosterRecipientIds.includes(recipient.id))}
           onBannerImageChange={(img) => setDraft((d) => ({ ...d, bannerImage: img }))}
           onAttachmentsChange={(atts) => setDraft((d) => ({ ...d, attachments: atts }))}
           onTestEmailAddressChange={(email) => setDraft((d) => ({ ...d, testEmailAddress: email }))}
           onBack={() => goToStep(2)}
-          onOpenTestSend={() => setIsTestModalOpen(true)}
           onSubmitFinal={() => setIsConfirmModalOpen(true)}
-          onSaveDraft={handleSaveDraft}
         />
       )}
-
-      {/* Dedicated Practice Test Send Dialog (Screen 20) */}
-      <CampaignPreviewDialog
-        open={isTestModalOpen}
-        onOpenChange={setIsTestModalOpen}
-        subject={draft.subject}
-        eventName={draft.eventName}
-        messageContent={draft.messageContent}
-        bannerImage={draft.bannerImage}
-        attachments={draft.attachments}
-        studentCount={recipientCount}
-        testEmailAddress={draft.testEmailAddress}
-        onTestEmailAddressChange={(email) => setDraft((d) => ({ ...d, testEmailAddress: email }))}
-      />
 
 
       {/* Pre-Send Confirmation & Checklist Dialog */}
@@ -211,8 +228,9 @@ function NewCampaignContent() {
         eventName={draft.eventName}
         subject={draft.subject}
         studentCount={recipientCount}
-        onConfirmSend={handleBroadcastConfirmed}
-      />
+          onConfirmSend={handleBroadcastConfirmed}
+        />
+        {submitError && <p role="alert" className="text-sm text-red font-sans">{submitError}</p>}
     </div>
   );
 }

@@ -38,7 +38,6 @@ import {
   ArrowDown,
   EnvelopeSimple,
   Check,
-  PaperPlaneTilt,
   Lightning,
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
@@ -52,6 +51,9 @@ export interface CampaignDeliveryTableProps {
   onToggleSelectAll?: () => void;
   onReorder?: (items: StudentRecipient[]) => void;
   onResend?: (studentId: string) => void;
+  onRequeue?: (student: StudentRecipient) => void;
+  /** Only dead-lettered failures can be returned to the send list. */
+  retryableIds?: string[];
   onViewPass?: (student: StudentRecipient) => void;
   eventName?: string;
   venue?: string;
@@ -115,34 +117,12 @@ const COURSE_BADGES: Record<string, { bg: string; text: string; border: string }
 };
 
 function TableProviderBadge({
-  provider = "Mailgun",
+  provider = "Brevo",
   messageId,
 }: {
-  provider?: "Mailgun" | "Brevo" | string;
+  provider?: "Brevo" | string;
   messageId?: string;
 }) {
-  if (provider === "Mailgun") {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="size-6 rounded-[5px] bg-red-soft text-red flex items-center justify-center shrink-0 border border-red-border shadow-2xs">
-          <PaperPlaneTilt size={12} weight="bold" />
-        </div>
-        <div className="flex flex-col min-w-0">
-          <span className="font-display font-bold text-xs text-ink leading-tight">
-            Mailgun
-          </span>
-          {messageId ? (
-            <span className="font-mono text-[10px] text-muted truncate">
-              {messageId}
-            </span>
-          ) : (
-            <span className="text-[10px] text-muted-light">Primary</span>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center gap-2">
       <div className="size-6 rounded-[5px] bg-green-soft text-green flex items-center justify-center shrink-0 border border-green-border shadow-2xs">
@@ -150,10 +130,10 @@ function TableProviderBadge({
       </div>
       <div className="flex flex-col min-w-0">
         <span className="font-display font-bold text-xs text-ink leading-tight">
-          Brevo
+          {provider === "Brevo" ? provider : "Brevo"}
         </span>
         <span className="text-[10px] text-muted truncate">
-          Backup Sender
+          {messageId ?? "Primary sender"}
         </span>
       </div>
     </div>
@@ -167,6 +147,8 @@ export function CampaignDeliveryTable({
   onToggleSelectAll,
   onReorder,
   onResend,
+  onRequeue,
+  retryableIds = [],
   onViewPass,
   eventName = "UMak SIC General Assembly",
   venue = "Audio Visual Room",
@@ -393,11 +375,14 @@ export function CampaignDeliveryTable({
             const StatusIcon = accent.icon;
             const courseStyle = student.course && COURSE_BADGES[student.course] ? COURSE_BADGES[student.course] : COURSE_BADGES.BSIT;
 
-            const datePart = student.deliveredAt
-              ? student.deliveredAt.split(",")[0].trim()
-              : "In queue";
-            const timePart = student.deliveredAt && student.deliveredAt.includes(",")
-              ? student.deliveredAt.split(",")[1].trim()
+            const timestamp = student.deliveredAt ?? student.scheduledAt;
+            const datePart = timestamp
+              ? timestamp.split(",")[0].trim()
+              : student.isSending
+                ? "Sending now"
+                : "Waiting to send";
+            const timePart = timestamp && timestamp.includes(",")
+              ? timestamp.split(",")[1].trim()
               : "";
 
             return (
@@ -505,7 +490,7 @@ export function CampaignDeliveryTable({
                   onPointerEnter={() => setHoverIndex(null)}
                 >
                   <TableProviderBadge
-                    provider={student.provider || "Mailgun"}
+                    provider={student.provider || "Brevo"}
                     messageId={student.messageId}
                   />
                 </TableCell>
@@ -526,7 +511,9 @@ export function CampaignDeliveryTable({
                         <span>{timePart}</span>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-muted-light">Scheduled</span>
+                      <span className="text-[10px] text-muted-light">
+                        {student.isSending ? "In progress" : "Scheduled"}
+                      </span>
                     )}
                   </div>
                 </TableCell>
@@ -577,15 +564,15 @@ export function CampaignDeliveryTable({
                   onPointerEnter={() => setHoverIndex(null)}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    {student.deliveryStatus === "invalid_email" || student.deliveryStatus === "sending" ? (
+                    {retryableIds.includes(student.id) ? (
                       <Button
                         size="sm"
                         onClick={() => onResend?.(student.id)}
                         className="h-8 gap-1 rounded-full bg-cyan hover:bg-cyan-hover px-3 text-xs font-sans font-semibold text-white shadow-xs cursor-pointer"
-                        title="Resend email to student"
+                        title="Retry failed email"
                       >
                         <ArrowClockwise size={13} weight="bold" />
-                        <span>Resend</span>
+                        <span>Retry</span>
                       </Button>
                     ) : (
                       <Button
@@ -636,14 +623,25 @@ export function CampaignDeliveryTable({
                           <Eye size={15} className="mr-2 text-muted" />
                           View Ticket Pass
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => onResend?.(student.id)}
-                          className="text-xs cursor-pointer"
-                        >
-                          <ArrowClockwise size={15} className="mr-2 text-cyan" />
-                          Resend Email
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+                        {student.deliveryStatus === "delivered" && (
+                          <DropdownMenuItem
+                            onClick={() => onRequeue?.(student)}
+                            className="text-xs cursor-pointer"
+                          >
+                            <ArrowClockwise size={15} className="mr-2 text-cyan" />
+                            Requeue Email
+                          </DropdownMenuItem>
+                        )}
+                        {retryableIds.includes(student.id) && <>
+                          <DropdownMenuItem
+                            onClick={() => onResend?.(student.id)}
+                            className="text-xs cursor-pointer"
+                          >
+                            <ArrowClockwise size={15} className="mr-2 text-cyan" />
+                            Retry Failed Email
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>}
                         <DropdownMenuItem
                           onClick={() => handleCopyText(student.email, `email_${student.id}`)}
                           className="text-xs cursor-pointer"

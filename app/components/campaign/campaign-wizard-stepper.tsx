@@ -44,7 +44,7 @@ export function CampaignWizardStepper({
         {STEPS.map((item) => {
           const isCompleted = currentStep > item.step;
           const isActive = currentStep === item.step;
-          const isClickable = item.step <= maxAccessibleStep && onStepClick;
+          const isClickable = item.step <= maxAccessibleStep && onStepClick !== undefined;
           const Icon = item.icon;
 
           return (
@@ -52,7 +52,9 @@ export function CampaignWizardStepper({
               key={item.step}
               type="button"
               disabled={!isClickable}
-              onClick={() => isClickable && onStepClick && onStepClick(item.step)}
+              onClick={() => {
+                if (isClickable) onStepClick(item.step);
+              }}
               className={cn(
                 "flex items-center gap-3 p-2.5 rounded-[9px] text-left transition-all",
                 isActive

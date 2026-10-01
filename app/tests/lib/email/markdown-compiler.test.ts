@@ -33,6 +33,20 @@ describe("structure", () => {
     expect(html).toContain("<em>italic</em>");
   });
 
+  test("renders the composer's italic and centered text syntax", () => {
+    const html = compile("__italic__\n\n<center>Centered message</center>");
+
+    expect(html).toContain("<em>italic</em>");
+    expect(html).toContain("<center>Centered message</center>");
+  });
+
+  test("renders a heading inside the composer's centered heading syntax", () => {
+    const html = compile("<center># Event QR</center>");
+
+    expect(html).toContain("<center><h1>Event QR</h1></center>");
+    expect(html).not.toContain("# Event QR");
+  });
+
   test("renders every heading level", () => {
     const html = compile("# One\n\n## Two\n\n### Three\n\n#### Four\n");
 

@@ -1,9 +1,9 @@
 import "server-only";
 
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 export type StorageClient = {
-  send(command: DeleteObjectCommand | PutObjectCommand): Promise<unknown>;
+  send(command: DeleteObjectCommand | GetObjectCommand | PutObjectCommand): Promise<unknown>;
 };
 
 let neonStorageClient: S3Client | undefined;
