@@ -5,6 +5,8 @@ import {
   listAttendees,
   MAX_PAGE_SIZE,
 } from "@/lib/services/attendee-directory-service";
+import { AttendeeWriteError, createAttendee } from "@/lib/services/attendee-service";
+import { readAttendeeDetails } from "@/lib/validation/attendee-validation";
 
 /**
  * `GET /api/attendees` — the attendee directory and the past-attendee recipient
@@ -104,4 +106,48 @@ export async function GET(request: Request): Promise<Response> {
   const result = await listAttendees({ search, attendedOnly, page, pageSize });
 
   return Response.json({ ...result, timezone: getOrganizationTimezone() });
+}
+
+/**
+ * `POST /api/attendees` — adds one student to the directory.
+ *
+ * Returns 201 for a new student and 200 for one who had been removed and is now
+ * back, with `restored` saying which happened. The two are reported separately
+ * because they are different events: one created a record, the other undid a removal
+ * and kept the attendance the student already had.
+ */
+export async function POST(request: Request): Promise<Response> {
+  const authorization = await requireAdmin();
+  if (authorization instanceof Response) {
+    return authorization;
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "We could not read that request." }, { status: 400 });
+  }
+
+  const input = readAttendeeDetails(body);
+
+  if (!input.valid) {
+    return Response.json({ error: input.error.error, field: input.error.field }, { status: 400 });
+  }
+
+  try {
+    const result = await createAttendee(input.details);
+
+    return Response.json(result, { status: result.restored ? 200 : 201 });
+  } catch (error) {
+    if (error instanceof AttendeeWriteError) {
+      return Response.json(
+        { error: error.message },
+        { status: error.kind === "not_found" ? 404 : 409 }
+      );
+    }
+
+    throw error;
+  }
 }

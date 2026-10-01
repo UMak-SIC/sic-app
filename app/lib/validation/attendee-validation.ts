@@ -193,12 +193,214 @@ function validateFreeText(
   return { valid: true, value: text } as AttendeeCourseValidationResult;
 }
 
-const FIELD_LABELS: Record<"course" | "program" | "section", string> = {
+const FIELD_LABELS: Record<AttendeeField, string> = {
+  name: "Full name",
+  studentId: "Student number",
+  email: "Email address",
   course: "Course",
   program: "Program",
   section: "Section",
 };
 
-function label(field: "course" | "program" | "section"): string {
+function label(field: AttendeeField): string {
   return FIELD_LABELS[field];
+}
+
+/**
+ * Reads a student out of a request body, for the single-record add and edit routes.
+ *
+ * Hand-rolled rather than zod, per the dependency policy. The rules themselves are
+ * the shared validators above, so this only has to do the part a schema library would
+ * otherwise do: decide which keys were sent, and refuse a value of the wrong shape
+ * with a sentence naming the field.
+ *
+ * The distinction that matters is absent versus blank. `course` is nullable, so a
+ * blank course means "no course", not a validation failure. `name` is not nullable,
+ * so a blank name is a mistake worth reporting. Getting that backwards either
+ * refuses to clear a field or silently writes an empty string into a required column.
+ */
+export type AttendeeInputError = { field: AttendeeField; error: string };
+
+export type AttendeeInput = {
+  name: string;
+  studentId: string;
+  email: string;
+  course: string | null;
+  program: string | null;
+  section: string | null;
+};
+
+export type AttendeeInputResult =
+  | { valid: true; details: AttendeeInput }
+  | { valid: false; error: AttendeeInputError };
+
+export type AttendeeChangesInput = Partial<AttendeeInput>;
+
+export type AttendeeChangesResult =
+  | { valid: true; changes: AttendeeChangesInput }
+  | { valid: false; error: AttendeeInputError };
+
+const OPTIONAL_FIELDS = ["course", "program", "section"] as const;
+
+/** A key counts as sent when it is present at all, including as null. */
+function wasSent(source: Record<string, unknown>, field: string): boolean {
+  return Object.prototype.hasOwnProperty.call(source, field);
+}
+
+function readText(
+  source: Record<string, unknown>,
+  field: string,
+  optional: boolean
+): { ok: true; value: string | null } | { ok: false; error: AttendeeInputError } {
+  const raw = source[field];
+
+  if (raw === null || raw === undefined) {
+    // Absent and explicitly null mean the same thing here: an optional field is not
+    // recorded, and a required one is missing. Both are legitimate requests on an
+    // edit, where only the fields that were sent are changed.
+    return optional
+      ? { ok: true, value: null }
+      : {
+          ok: false,
+          error: {
+            field: field as AttendeeField,
+            error: `${label(field as AttendeeField)} is required.`,
+          },
+        };
+  }
+
+  if (typeof raw !== "string") {
+    return {
+      ok: false,
+      error: { field: field as AttendeeField, error: `${label(field as AttendeeField)} must be text.` },
+    };
+  }
+
+  return { ok: true, value: raw };
+}
+
+/** Shared tail: validate the free-text columns, treating blank as unset. */
+function applyFreeText(
+  source: Record<string, unknown>,
+  field: (typeof OPTIONAL_FIELDS)[number]
+): { ok: true; value: string | null } | { ok: false; error: AttendeeInputError } {
+  const read = readText(source, field, true);
+  if (!read.ok) return read;
+
+  if (read.value === null || read.value.trim() === "") {
+    return { ok: true, value: null };
+  }
+
+  const validator =
+    field === "course"
+      ? validateAttendeeCourse
+      : field === "program"
+        ? validateAttendeeProgram
+        : validateAttendeeSection;
+
+  const result = validator(read.value);
+
+  return result.valid
+    ? { ok: true, value: result.value }
+    : { ok: false, error: { field, error: result.error } };
+}
+
+/** Reads every field. Used when adding a student, where all of them are expected. */
+export function readAttendeeDetails(body: unknown): AttendeeInputResult {
+  if (typeof body !== "object" || body === null) {
+    return { valid: false, error: { field: "name", error: "Send the student as a JSON object." } };
+  }
+
+  const source = body as Record<string, unknown>;
+
+  const name = readText(source, "name", false);
+  if (!name.ok) return { valid: false, error: name.error };
+  const validName = validateAttendeeName(name.value as string);
+  if (!validName.valid) return { valid: false, error: validName };
+
+  const studentId = readText(source, "studentId", false);
+  if (!studentId.ok) return { valid: false, error: studentId.error };
+  const validStudentId = validateStudentId(studentId.value as string);
+  if (!validStudentId.valid) return { valid: false, error: validStudentId };
+
+  const email = readText(source, "email", false);
+  if (!email.ok) return { valid: false, error: email.error };
+  const validEmail = validateEmail(email.value as string);
+  if (!validEmail.valid) return { valid: false, error: validEmail };
+
+  const details: AttendeeInput = {
+    name: validName.name,
+    studentId: validStudentId.studentId,
+    email: validEmail.displayEmail,
+    course: null,
+    program: null,
+    section: null,
+  };
+
+  for (const field of OPTIONAL_FIELDS) {
+    const read = applyFreeText(source, field);
+    if (!read.ok) return { valid: false, error: read.error };
+
+    details[field] = read.value;
+  }
+
+  return { valid: true, details };
+}
+
+/**
+ * Reads only the fields that were sent, for editing one student.
+ *
+ * A key that is absent means "leave this alone", which is why this cannot be the
+ * same function as the add: sending every field would overwrite the ones the caller
+ * never meant to touch.
+ */
+export function readAttendeeChanges(body: unknown): AttendeeChangesResult {
+  if (typeof body !== "object" || body === null) {
+    return { valid: false, error: { field: "name", error: "Send the changes as a JSON object." } };
+  }
+
+  const source = body as Record<string, unknown>;
+  const changes: AttendeeChangesInput = {};
+
+  if (wasSent(source, "name")) {
+    const read = readText(source, "name", false);
+    if (!read.ok) return { valid: false, error: read.error };
+    const result = validateAttendeeName(read.value as string);
+    if (!result.valid) return { valid: false, error: result };
+    changes.name = result.name;
+  }
+
+  if (wasSent(source, "studentId")) {
+    const read = readText(source, "studentId", false);
+    if (!read.ok) return { valid: false, error: read.error };
+    const result = validateStudentId(read.value as string);
+    if (!result.valid) return { valid: false, error: result };
+    changes.studentId = result.studentId;
+  }
+
+  if (wasSent(source, "email")) {
+    const read = readText(source, "email", false);
+    if (!read.ok) return { valid: false, error: read.error };
+    const result = validateEmail(read.value as string);
+    if (!result.valid) return { valid: false, error: result };
+    changes.email = result.displayEmail;
+  }
+
+  for (const field of OPTIONAL_FIELDS) {
+    if (!wasSent(source, field)) continue;
+
+    const read = applyFreeText(source, field);
+    if (!read.ok) return { valid: false, error: read.error };
+
+    changes[field] = read.value;
+  }
+
+  if (Object.keys(changes).length === 0) {
+    return {
+      valid: false,
+      error: { field: "name", error: "Send at least one detail to change." },
+    };
+  }
+
+  return { valid: true, changes };
 }

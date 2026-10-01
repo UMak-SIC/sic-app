@@ -99,6 +99,10 @@ export async function listAttendees({
   const term = search?.trim();
 
   const where = {
+    // A removed student is not in the directory. The roster entries below are left
+    // unfiltered on purpose: they are the history of what the student attended, and
+    // it stays true after they are removed.
+    deletedAt: null,
     ...(term ? searchFilter(term) : {}),
     ...(attendedOnly
       ? { rosterEntries: { some: { status: RosterEntryStatus.ATTENDED } } }

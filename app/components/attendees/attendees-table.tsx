@@ -42,12 +42,21 @@ export interface AttendeeItem {
   name: string;
   studentId: string;
   email: string;
-  course: CourseType;
-  program: string;
+  /**
+   * Nullable free text, not one of `CourseType`. The registry stores whatever the
+   * organizer's export said, so a registrar who writes "BS Information
+   * Technology" is recorded faithfully rather than coerced into a fixed set. Null
+   * means it was never supplied.
+   */
+  course: string | null;
+  program: string | null;
+  /** The student's year and block, e.g. "BSIT-2A". Null when never recorded. */
+  section: string | null;
   assignedEvents: EventBadgeItem[];
   totalEventsJoined: number;
   attendedEventsCount: number;
   attendanceRate: number;
+  /** Already formatted for display; the API returns an ISO date plus a timezone. */
   joinedDate: string;
 }
 
@@ -85,6 +94,37 @@ const COURSE_BADGES: Record<CourseType, { bg: string; text: string; border: stri
     title: "Information Systems",
   },
 };
+
+/**
+ * Shown for a course the registry has not colour-coded, and for no course at all.
+ *
+ * Free text means an unrecognised value is expected rather than exceptional, so it
+ * gets a plain badge instead of being forced into one of the three. A missing
+ * course is a real state — the import may not have carried the column.
+ */
+function courseBadge(course: string | null) {
+  if (!course) {
+    return {
+      bg: "bg-paper",
+      text: "text-muted",
+      border: "border-line",
+      title: "No course recorded",
+    };
+  }
+
+  // Tolerates casing and spacing differences ("BSIT", "bs it") without guessing at
+  // free text, which would mean deciding two different strings are one course.
+  const key = course.toUpperCase().replace(/[^A-Z]/g, "") as CourseType;
+
+  // A course we have no colour for is normal now, so it falls back to a plain
+  // badge rather than borrowing another course's colour.
+  return COURSE_BADGES[key] ?? {
+    bg: "bg-paper",
+    text: "text-muted",
+    border: "border-line",
+    title: course,
+  };
+}
 
 export function AttendeesTable({
   attendees,
@@ -282,7 +322,7 @@ export function AttendeesTable({
             const isSelected = selectedIds.includes(student.id);
             const isBeingDragged = draggedIndex === index;
             const isOverTarget = dragOverIndex === index;
-            const badgeStyle = COURSE_BADGES[student.course] || COURSE_BADGES.BSIT;
+            const badgeStyle = courseBadge(student.course);
 
             return (
               <TableRow
@@ -362,11 +402,11 @@ export function AttendeesTable({
                           badgeStyle.border
                         )}
                       >
-                        {student.course}
+                        {student.course ?? "—"}
                       </Badge>
                     </div>
-                    <span className="text-xs text-muted font-sans truncate" title={student.program}>
-                      {student.program}
+                    <span className="text-xs text-muted font-sans truncate" title={student.program ?? undefined}>
+                      {student.program ?? "—"}
                     </span>
                   </div>
                 </TableCell>

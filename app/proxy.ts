@@ -33,6 +33,18 @@ export default proxy;
 // (API routes carry their own requireAdmin() and must keep answering JSON
 // 401/403 rather than an HTML 307), and static assets.
 //
+// `.*[^/]*\.[^/]*$` is what makes "static assets" true. Excluding only
+// _next/static, _next/image and favicon.ico left every file served out of
+// public/ inside the guarded set, so the logo and the sidebar mascot were sent
+// through the auth middleware and came back as an HTML page with a 200.
+// next/image then reported the response as "not a valid image, received null",
+// which reads like a corrupt file and is not one.
+//
+// The dot has to be in the *last* path segment. A plain `.*\..*` would also
+// exclude a dotted directory, leaving every admin page beneath it unguarded, so
+// the segment before the dot cannot span a slash. No page route in this app
+// contains a dot in its final segment, so this does not weaken the default.
+//
 // This started as an allowlist of ["/checkin/:path*", "/events/:path*"], which
 // was correct when those were the only admin pages. The frontend merge added
 // /attendees, /assets, /campaign, /overview, and /settings, and every one of
@@ -44,6 +56,6 @@ export default proxy;
 // away; this app is an internal tool and the whole surface sits behind sign-in.
 export const config = {
   matcher: [
-    "/((?!login|register|api|_next/static|_next/image|favicon.ico).*)",
+    "/((?!login|register|api|_next/static|_next/image|favicon.ico|.*[^/]*\\.[^/]*$).*)",
   ],
 };

@@ -25,7 +25,9 @@ function record({ row, ...rest }: Partial<IngestionRecord> & { row: number }): I
   };
 }
 
-function attendee(overrides: Partial<Record<string, string | null>> = {}) {
+// `deletedAt` is a Date when the student has been removed and null when they have
+// not, so the override type has to allow both alongside the text columns.
+function attendee(overrides: Partial<Record<string, string | Date | null>> = {}) {
   return {
     id: "attendee-1",
     name: "Existing Name",
@@ -34,6 +36,10 @@ function attendee(overrides: Partial<Record<string, string | null>> = {}) {
     displayEmail: "existing@example.com",
     course: null,
     program: null,
+    section: null,
+    // Every student is in the directory unless a test says otherwise, which is what
+    // a row arriving without the column would otherwise be read as.
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -148,6 +154,53 @@ test("does not report a section change when the import carried none", async () =
   expect(updates[0].changes).toEqual([]);
 });
 
+test("carries the existing record on a duplicate within the import", async () => {
+  returns(attendee({ id: "att-1", displayEmail: "ada@example.com" }));
+
+  // The review renders a side-by-side, so the left column has to come from here.
+  const { conflicts } = await previewAttendeeConflicts([
+    record({ row: 1, studentId: "2023-1", displayEmail: "ada@example.com" }),
+    record({ row: 2, studentId: "2023-1", displayEmail: "ada@example.com" }),
+  ]);
+
+  expect(conflicts[0].existing).toMatchObject({
+    id: "att-1",
+    displayEmail: "ada@example.com",
+  });
+  expect(conflicts[0].candidates).toEqual([]);
+});
+
+test("carries no existing record when the collision is inside the import", async () => {
+  returns();
+
+  // Nothing is on file, so there is no left-hand side to show.
+  const { conflicts } = await previewAttendeeConflicts([
+    record({ row: 1, studentId: "2023-1", displayEmail: "a@example.com" }),
+    record({ row: 2, studentId: "2023-1", displayEmail: "b@example.com" }),
+  ]);
+
+  expect(conflicts[0].existing).toBeNull();
+  expect(conflicts[0].candidates).toEqual([]);
+});
+
+test("carries both candidates when a row matches two different people", async () => {
+  // One row: its student ID belongs to Andrea and its email to Ben. Applying it
+  // would rewrite one and collide with the other.
+  returns(
+    attendee({ id: "att-1", studentId: "2023-1", normalizedEmail: "andrea@example.com", displayEmail: "andrea@example.com" }),
+    attendee({ id: "att-2", studentId: "2023-2", normalizedEmail: "ben@example.com", displayEmail: "ben@example.com" }),
+  );
+
+  // Resolving this needs seeing them; the message alone does not say which two.
+  const { conflicts } = await previewAttendeeConflicts([
+    record({ row: 1, studentId: "2023-1", displayEmail: "ben@example.com" }),
+  ]);
+
+  expect(conflicts[0].reason).toBe("matches_multiple_attendees");
+  expect(conflicts[0].existing).toBeNull();
+  expect(conflicts[0].candidates.map((c) => c.id).sort()).toEqual(["att-1", "att-2"]);
+});
+
 test("selects course, program and section from the database", async () => {
   returns();
 
@@ -227,6 +280,7 @@ test("previews an update when a row matches on student ID", async () => {
       record: expect.objectContaining({ row: 1, name: "Corrected Name" }),
       attendeeId: "attendee-1",
       matchedBy: "studentId",
+      isDeleted: false,
       changes: [
         { field: "name", current: "Existing Name", proposed: "Corrected Name" },
         {

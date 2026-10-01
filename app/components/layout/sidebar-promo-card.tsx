@@ -41,8 +41,11 @@ export function SidebarPromoCard() {
               alt="Cute SIC Mascot"
               width={36}
               height={36}
-              style={{ width: "auto", height: "auto" }}
-              className="max-h-9 max-w-9 object-contain"
+              // Both dimensions set to the same value, with object-contain doing
+              // the aspect-ratio work. Sizing one axis on its own is what makes
+              // Next warn, and `width: auto` inline overrode the class rather
+              // than agreeing with it.
+              className="h-full w-full object-contain"
               priority
             />
           </div>

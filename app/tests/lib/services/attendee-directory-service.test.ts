@@ -180,11 +180,22 @@ test("searches name, email and student number case-insensitively", async () => {
 
 test("omits the search filter when no term is given", async () => {
   await listAttendees();
-  expect(findMany.mock.calls[0][0].where).toEqual({});
+  // `deletedAt: null` is the one thing always present: a removed student is not in
+  // the directory, whatever else was asked for.
+  expect(findMany.mock.calls[0][0].where).toEqual({ deletedAt: null });
 
   vi.clearAllMocks();
   await listAttendees({ search: "   " });
-  expect(findMany.mock.calls[0][0].where).toEqual({});
+  expect(findMany.mock.calls[0][0].where).toEqual({ deletedAt: null });
+});
+
+test("never lists a removed student", async () => {
+  await listAttendees({ search: "Andrea" });
+
+  // The filter has to be in the query rather than applied to the page afterwards, or
+  // a removed student would still occupy a slot and push a real one off the end.
+  expect(findMany.mock.calls[0][0].where).toMatchObject({ deletedAt: null });
+  expect(count.mock.calls[0][0].where).toMatchObject({ deletedAt: null });
 });
 
 test("attendedOnly keeps only people marked present at least once", async () => {
@@ -193,6 +204,7 @@ test("attendedOnly keeps only people marked present at least once", async () => 
   // US-08. No date filter: ATTENDED already means past, because nobody is marked
   // present at an event that has not happened.
   expect(findMany.mock.calls[0][0].where).toEqual({
+    deletedAt: null,
     rosterEntries: { some: { status: RosterEntryStatus.ATTENDED } },
   });
   expect(count.mock.calls[0][0].where).toEqual(findMany.mock.calls[0][0].where);

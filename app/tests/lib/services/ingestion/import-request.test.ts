@@ -51,6 +51,7 @@ const update = (row: number) => ({
   attendeeId: `attendee-${row}`,
   matchedBy: "studentId" as const,
   changes: [],
+  isDeleted: false,
 });
 
 afterEach(() => {

@@ -87,6 +87,10 @@ export async function recordCheckIn({
     const found = await prisma.eventRosterEntry.findFirst({
       where: {
         eventId,
+        // A removed student is not arriving, so their roster entry does not resolve
+        // either by ticket or by student number. The entry itself is kept: it is the
+        // record that they were on the list.
+        attendee: { deletedAt: null },
         OR: [
           { id: ticketTokenOrCode },
           { attendee: { studentId: ticketTokenOrCode } },
