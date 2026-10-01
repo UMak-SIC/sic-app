@@ -6,8 +6,7 @@ import { getOrganizationTimezone } from "@/lib/events/organization-timezone";
 import { getPrismaClient } from "@/lib/prisma";
 
 /**
- * Transactional daily quota reservation and Mailgun-to-Brevo failover
- * (TSK-0705, US-21, US-22, DMA-10, NFR-05).
+ * Transactional daily quota reservation for Brevo.
  *
  * ## Why reservation rather than counting after the fact
  *
@@ -36,19 +35,13 @@ import { getPrismaClient } from "@/lib/prisma";
  * win, which a read-then-write would allow.
  */
 
-/** Provider preference. US-21 makes Mailgun primary, US-22 makes Brevo the overflow. */
-export const PROVIDER_PREFERENCE: readonly EmailProvider[] = [
-  EmailProvider.MAILGUN,
-  EmailProvider.BREVO,
-];
+export const PROVIDER_PREFERENCE = [EmailProvider.BREVO] as const;
 
 const DEFAULT_DAILY_LIMITS: Record<EmailProvider, number> = {
-  [EmailProvider.MAILGUN]: 100,
   [EmailProvider.BREVO]: 300,
 };
 
 const LIMIT_ENV: Record<EmailProvider, string> = {
-  [EmailProvider.MAILGUN]: "MAILGUN_DAILY_LIMIT",
   [EmailProvider.BREVO]: "BREVO_DAILY_LIMIT",
 };
 
@@ -66,10 +59,9 @@ const MAX_DAILY_LIMIT = 1_000_000;
 /**
  * The configured daily cap for a provider.
  *
- * NFR-05 requires these to be configurable, with 100 and 300 as the documented
- * defaults from US-21 and US-22. A malformed or implausible value falls back to
- * the default rather than throwing, because a typo in a quota variable should
- * not take delivery down for the day.
+ * A malformed or implausible value falls back to the default rather than
+ * throwing, because a typo in a quota variable should not take delivery down
+ * for the day.
  */
 export function getDailyLimit(
   provider: EmailProvider,
@@ -119,8 +111,7 @@ function key(provider: EmailProvider, usageDate: Date) {
  * exhausted — which is the caller's signal to hold the job rather than send it
  * and let the provider reject it.
  *
- * `order` lets a caller put Brevo first when Mailgun has just rate limited it,
- * without that being a special case in here.
+ * `order` lets callers limit the available providers in tests.
  */
 export async function reserveProviderSlot({
   order = PROVIDER_PREFERENCE,

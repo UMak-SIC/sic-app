@@ -20,11 +20,7 @@ export type OutboundMessage = {
   html: string;
   text?: string;
   replyTo?: string;
-  /**
-   * Provider-side tags for delivery tracing. Mailgun calls these tags; Brevo has
-   * no equivalent, so adapters accept the field and use what their API offers.
-   */
-  tags?: string[];
+  attachments?: { name: string; content: string }[];
 };
 
 /**
@@ -57,7 +53,7 @@ export type ProviderAdapter = (
 
 /**
  * The shape `processQueueJobs` expects for its `dispatch` argument: the provider
- * is supplied by the failover engine, and the dependencies are already bound.
+ * is supplied by the queue, and the dependencies are already bound.
  */
 export type ProviderDispatch = (
   job: ClaimedQueueJob,
