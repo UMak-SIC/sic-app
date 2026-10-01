@@ -1,80 +1,161 @@
 "use client";
 
 import * as React from "react";
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Spinner, Warning } from "@phosphor-icons/react";
-import { fetchCourseInsights, type CourseInsights } from "./attendee-directory";
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
+import { canonicalCourseCode, UNRECORDED_COURSE } from "@/lib/courses";
+import { cn } from "@/lib/utils";
+import { fetchCourseParticipation, type Participation, type ParticipationEvent } from "./attendee-directory";
 
 /**
- * Course participation, read from the registry.
+ * Course participation, per event.
  *
- * This card used to be 91 days of invented numbers with one bar per course and no
- * connection to anything: three hardcoded courses, six-digit colours that ignored the
- * palette entirely, and totals that added up to nothing in the directory above it.
+ * ## The axis is events, not days
  *
- * `attendees.course` is free text, so the courses here are the ones actually stored.
- * A fixed BSIT/BSCS/BSINS list could not have been right even with real data: any
- * other value would have been invisible, and students whose course was never recorded
- * would have been counted under a course nobody wrote.
+ * This chart used to plot one bar per day across three months of invented numbers,
+ * which answered a question nobody had: how much activity was there on each of ninety
+ * consecutive days. Activity does not happen per day here — it happens at events. So
+ * each bar is an event, and each course's tab shows how many of its students were
+ * marked present at each one.
+ *
+ * The card's shape, colours, gradients and chart settings are unchanged. Only the data
+ * behind them is real, and what is on the horizontal axis changed to match the
+ * question.
  */
 
-/** Colours come from the chart tokens, which are redefined for the dark theme. */
-const CHART_TOKENS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
+export const description = "An interactive bar chart of course participation at each event";
+
+/**
+ * The three computing courses keep the colours they already had.
+ *
+ * These are the design tokens' own values: `--cyan`, `--green` and `--amber`. They are
+ * written out because a recharts gradient stop needs a literal colour, and inlining a
+ * token's value keeps the rendered chart identical to how it looked before. Any course
+ * the registry holds that is not one of the three falls back to `--muted`, which is
+ * deliberately dull: it is a data point nobody planned for, not a fourth brand colour.
+ */
+type CourseTheme = {
+  /** The token this value comes from, for anyone reading the source later. */
+  token: string;
+  color: string;
+  active: string;
+};
+
+const KNOWN: CourseTheme[] = [
+  {
+    token: "--cyan",
+    color: "#087f8c",
+    active:
+      "data-[active=true]:bg-linear-to-b data-[active=true]:from-cyan-soft/80 data-[active=true]:to-card data-[active=true]:border-b-2 data-[active=true]:border-b-cyan",
+  },
+  {
+    token: "--green",
+    color: "#176c59",
+    active:
+      "data-[active=true]:bg-linear-to-b data-[active=true]:from-green-soft/80 data-[active=true]:to-card data-[active=true]:border-b-2 data-[active=true]:border-b-green",
+  },
+  {
+    token: "--amber",
+    color: "#9c6016",
+    active:
+      "data-[active=true]:bg-linear-to-b data-[active=true]:from-amber-soft/80 data-[active=true]:to-card data-[active=true]:border-b-2 data-[active=true]:border-b-amber",
+  },
 ];
 
-/**
- * How many courses get a stat tile before the row becomes a wall of numbers.
- * The chart still shows every course; this is only about the summary above it.
- */
-const MAX_TILES = 4;
+const FALLBACK: CourseTheme = {
+  token: "--muted",
+  color: "#607579",
+  active:
+    "data-[active=true]:bg-linear-to-b data-[active=true]:from-canvas data-[active=true]:to-card data-[active=true]:border-b-2 data-[active=true]:border-b-muted",
+};
 
-/** An empty string is "nobody recorded a course", which is a real group of students. */
-function courseLabel(course: string): string {
-  return course.trim() === "" ? "Not recorded" : course;
+/**
+ * The colour for a course, chosen by the code it belongs to rather than by its exact
+ * spelling, so "BS-IT" is drawn as BSIT and not as an unrecognised course.
+ */
+function themeFor(course: string): CourseTheme {
+  if (course === UNRECORDED_COURSE) return FALLBACK;
+
+  const code = canonicalCourseCode(course);
+  if (!code) return FALLBACK;
+
+  return KNOWN[code === "BSIT" ? 0 : code === "BSCS" ? 1 : 2];
 }
 
-function initials(course: string): string {
-  const label = courseLabel(course);
-  return label
-    .split(/\s+/)
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 3)
-    .toUpperCase();
+const chartConfig = {
+  views: {
+    label: "Students marked present",
+  },
+} satisfies ChartConfig;
+
+// Stable identities for the "nothing loaded yet" case. A fresh `[]` on every render
+// would be a new dependency each time and defeat the memo below.
+const NO_EVENTS: ParticipationEvent[] = [];
+const NO_COURSES: string[] = [];
+const NO_TOTALS: Record<string, number> = {};
+
+/** Event names are long; the axis gets a short one and the tooltip the whole thing. */
+function shorten(name: string): string {
+  return name.length <= 18 ? name : `${name.slice(0, 17)}…`;
+}
+
+/**
+ * Pulls the row recharts is pointing at out of the tooltip payload.
+ *
+ * The payload is typed as `unknown[]` by the chart primitive, and the row is nested
+ * under a `payload` key. Narrowing it here rather than with a cast keeps the one
+ * genuinely uncertain shape in the file in one place.
+ */
+function rowFromPayload(payload: unknown[]): Record<string, unknown> | undefined {
+  const first = payload[0];
+
+  if (typeof first !== "object" || first === null || !("payload" in first)) {
+    return undefined;
+  }
+
+  const row = (first as { payload?: unknown }).payload;
+
+  return typeof row === "object" && row !== null ? (row as Record<string, unknown>) : undefined;
 }
 
 export function AttendeesInsightsCard() {
-  const [data, setData] = React.useState<CourseInsights | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [participation, setParticipation] = React.useState<Participation | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [chosenCourse, setChosenCourse] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const controller = new AbortController();
     let active = true;
 
-    fetchCourseInsights(controller.signal)
+    fetchCourseParticipation(controller.signal)
       .then((result) => {
         if (!active) return;
-        setData(result);
+        setParticipation(result);
         setError(null);
       })
       .catch((caught: unknown) => {
-        if (!active) return;
+        // An aborted request is one that was superseded, not a failure to report.
+        if (!active || (caught instanceof DOMException && caught.name === "AbortError")) return;
+
+        setParticipation(null);
         setError(
           caught instanceof Error
             ? caught.message
-            : "These figures could not be loaded. Try again."
+            : "The participation figures could not be loaded. Try again."
         );
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
       });
 
     return () => {
@@ -83,182 +164,196 @@ export function AttendeesInsightsCard() {
     };
   }, []);
 
-  const courses = data?.courses ?? [];
-  const tiles = courses.slice(0, MAX_TILES);
-  const overflow = courses.length - tiles.length;
+  const courses = participation?.courses ?? NO_COURSES;
+  const events = participation?.events ?? NO_EVENTS;
 
-  /**
-   * One bar per course. Each course keeps its own colour across both charts, so the
-   * tile and the bar for a course are recognisably the same thing.
-   */
-  const chartData = courses.map((row, index) => ({
-    course: courseLabel(row.course),
-    students: row.students,
-    attendanceRate: row.attendanceRate,
-    fill: CHART_TOKENS[index % CHART_TOKENS.length],
-  }));
+  // Falls back to the first course when the chosen one is not in this result, so a
+  // reload with different data cannot leave the chart showing nothing.
+  const activeCourse =
+    chosenCourse && courses.includes(chosenCourse) ? chosenCourse : (courses[0] ?? null);
+
+  const activeIndex = activeCourse ? courses.indexOf(activeCourse) : 0;
+
+  const rows = React.useMemo(
+    () =>
+      events.map((event) => {
+        const row: Record<string, string | number> = {
+          event: shorten(event.name),
+          fullName: event.name,
+        };
+
+        for (const course of courses) {
+          row[course] = event.counts[course] ?? 0;
+        }
+
+        return row;
+      }),
+    [events, courses]
+  );
+
+  const totals = participation?.totals ?? NO_TOTALS;
+
+  const card = (body: React.ReactNode) => (
+    <Card className="relative py-0 rounded-[12px] border-line bg-card shadow-2xs font-sans overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-linear-to-r from-cyan via-green to-amber opacity-60 z-20" />
+      {body}
+    </Card>
+  );
+
+  if (error) {
+    return card(
+      <CardContent className="px-4 py-6 sm:px-6 bg-linear-to-b from-card via-card to-canvas/20">
+        <p role="alert" className="text-xs text-ink leading-relaxed">
+          {error}
+        </p>
+      </CardContent>
+    );
+  }
+
+  if (!participation) {
+    // Shaped like the finished card so the page does not jump when the figures land.
+    return card(
+      <div className="flex flex-col gap-4 px-4 py-6 sm:px-6" role="status" aria-live="polite">
+        <div className="h-6 w-56 rounded-[6px] bg-canvas" />
+        <div className="h-3 w-80 max-w-full rounded-[6px] bg-canvas/70" />
+        <div className="h-[250px] w-full rounded-[9px] bg-canvas/50" />
+        <span className="sr-only">Loading course participation…</span>
+      </div>
+    );
+  }
+
+  if (events.length === 0) {
+    return card(
+      <>
+        <CardHeader className="flex flex-col items-stretch border-b border-line p-0 sm:flex-row bg-linear-to-b from-canvas/40 via-card to-card">
+          <div className="flex flex-1 flex-col justify-center gap-1 px-4 sm:px-6 py-4">
+            <CardTitle className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
+              Course Participation Activity
+            </CardTitle>
+            <CardDescription className="text-xs text-muted font-sans mt-0.5">
+              How many students from each course were marked present at each event
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 py-10 sm:px-6 bg-linear-to-b from-card via-card to-canvas/20">
+          <p className="text-xs text-muted text-center leading-relaxed">
+            No event has anybody on its list yet. Add students to an event and their
+            attendance will be counted here.
+          </p>
+        </CardContent>
+      </>
+    );
+  }
 
   return (
     <Card className="relative py-0 rounded-[12px] border-line bg-card shadow-2xs font-sans overflow-hidden">
+      {/* Subtle top gradient accent bar */}
       <div className="absolute inset-x-0 top-0 h-[2px] bg-linear-to-r from-cyan via-green to-amber opacity-60 z-20" />
 
-      <CardHeader className="flex flex-col items-stretch border-b border-line p-0 bg-linear-to-b from-canvas/40 via-card to-card">
-        <div className="flex flex-col gap-1 px-4 sm:px-6 pt-4 pb-3">
+      <CardHeader className="flex flex-col items-stretch border-b border-line p-0 sm:flex-row bg-linear-to-b from-canvas/40 via-card to-card">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-4 sm:px-6 pt-4 pb-3 sm:py-4">
           <CardTitle className="text-lg sm:text-xl font-bold font-display text-ink tracking-tight">
-            Course Participation
+            Course Participation Activity
           </CardTitle>
           <CardDescription className="text-xs text-muted font-sans mt-0.5">
-            {data
-              ? `${data.totals.students} students across ${data.totals.courseCount} ${
-                  data.totals.courseCount === 1 ? "course" : "courses"
-                }, and how often they turned up`
-              : "How many students each course has, and how often they attended"}
+            How many students from each course were marked present at each event
           </CardDescription>
         </div>
+        <div className="flex divide-x divide-line border-t sm:border-t-0 border-line">
+          {courses.map((course) => {
+            const isActive = course === activeCourse;
 
-        {/* One tile per course, from the courses actually on file. */}
-        {isLoading ? (
-          <div className="flex items-center gap-2 border-t border-line px-4 sm:px-6 py-4 text-xs text-muted" role="status">
-            <Spinner size={16} className="animate-spin" aria-hidden />
-            Loading participation…
-          </div>
-        ) : null}
-
-        {!isLoading && tiles.length > 0 ? (
-          <div className="flex flex-wrap gap-px border-t border-line bg-line">
-            {tiles.map((row, index) => (
-              <div key={row.course} className="flex-1 min-w-[120px] bg-card px-4 py-3">
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-muted uppercase tracking-wider">
-                  <span
-                    aria-hidden
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: CHART_TOKENS[index % CHART_TOKENS.length] }}
-                  />
-                  {courseLabel(row.course)}
+            return (
+              <button
+                key={course}
+                type="button"
+                data-active={isActive}
+                aria-pressed={isActive}
+                className={cn(
+                  "relative z-10 flex flex-1 flex-col justify-center gap-1 px-3 sm:px-6 py-2.5 sm:py-4 text-left sm:border-l sm:border-line cursor-pointer transition-all duration-200",
+                  themeFor(course).active
+                )}
+                onClick={() => setChosenCourse(course)}
+              >
+                <span className="text-[10px] sm:text-xs font-semibold text-muted font-sans uppercase tracking-wider">
+                  {course}
                 </span>
-                <span className="block text-xl font-bold font-display text-ink leading-tight">
-                  {row.students.toLocaleString()}
+                <span className="text-sm leading-none font-bold text-ink sm:text-2xl font-display">
+                  {(totals[course] ?? 0).toLocaleString()}
                 </span>
-                <span className="block text-[11px] text-muted">
-                  {row.attendanceRate}% attendance
-                </span>
-              </div>
-            ))}
-
-            {overflow > 0 ? (
-              <div className="flex-1 min-w-[120px] bg-card px-4 py-3">
-                <span className="block text-[10px] font-semibold text-muted uppercase tracking-wider">
-                  More courses
-                </span>
-                <span className="block text-xl font-bold font-display text-ink leading-tight">
-                  {overflow}
-                </span>
-                <span className="block text-[11px] text-muted">shown in the chart</span>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+              </button>
+            );
+          })}
+        </div>
       </CardHeader>
-
       <CardContent className="px-2 pt-4 pb-6 sm:p-6 bg-linear-to-b from-card via-card to-canvas/20">
-        {error ? (
-          <p
-            role="alert"
-            className="m-2 flex items-start gap-2 rounded-[6px] border border-red-border bg-red-soft px-3 py-2.5 text-xs text-ink"
+        <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
+          <BarChart
+            accessibilityLayer
+            data={rows}
+            margin={{
+              left: 12,
+              right: 12,
+            }}
           >
-            <Warning size={15} weight="bold" className="text-red shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </p>
-        ) : null}
-
-        {!error && !isLoading && courses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <p className="text-xs font-semibold text-ink">No students to summarise yet</p>
-            <p className="text-[11px] text-muted mt-0.5">
-              Add students or import a list, and this will fill in.
-            </p>
-          </div>
-        ) : null}
-
-        {courses.length > 0 ? (
-          <ChartContainer
-            className="aspect-auto h-[240px] w-full"
-            config={{ students: { label: "Students" } }}
-          >
-            <BarChart
-              accessibilityLayer
-              data={chartData}
-              margin={{ left: 4, right: 12, top: 8 }}
-            >
-              <CartesianGrid vertical={false} stroke="var(--line-subtle)" strokeDasharray="3 3" />
-              <XAxis
-                dataKey="course"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                interval={0}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                width={32}
-                allowDecimals={false}
-                tickMargin={4}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    className="font-sans text-xs bg-card border-line shadow-md"
-                    // Attendance is not here. It is a percentage of the same students
-                    // and has no place on an axis counting heads, so it is listed
-                    // explicitly below the chart instead of squeezed into a tooltip.
-                    labelFormatter={(value) => String(value)}
-                  />
-                }
-              />
-              <Bar
-                dataKey="students"
-                radius={[4, 4, 0, 0]}
-                // Per-course colour from the chart tokens, so a bar matches its tile.
-                fill="var(--chart-1)"
-              />
-            </BarChart>
-          </ChartContainer>
-        ) : null}
-
-        {/* Attendance rate as its own row, because it is a percentage and does not
-            belong on the same axis as a headcount. */}
-        {courses.length > 0 ? (
-          <div className="mt-4 space-y-2 px-2 sm:px-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
-              Attendance by course
-            </p>
-            <ul className="space-y-1.5">
-              {courses.map((row, index) => (
-                <li key={row.course} className="flex items-center gap-3">
-                  <span className="w-32 sm:w-40 shrink-0 truncate text-[11px] text-ink">
-                    {courseLabel(row.course)}
-                  </span>
-                  <span
-                    aria-hidden
-                    className="h-2 rounded-full shrink-0"
-                    style={{
-                      backgroundColor: CHART_TOKENS[index % CHART_TOKENS.length],
-                      width: `${Math.max(row.attendanceRate, 2)}%`,
-                      opacity: 0.85,
-                    }}
-                  />
-                  <span className="text-[11px] font-semibold text-ink shrink-0">
-                    {row.attendanceRate}%
-                  </span>
-                  <span className="text-[11px] text-muted shrink-0">
-                    {row.attendedCheckIns} of {row.rosterEntries}
-                  </span>
-                </li>
+            <defs>
+              {/* One gradient per course on show, in the same vertical fade as before. */}
+              {courses.map((course, index) => (
+                <linearGradient
+                  key={course}
+                  id={`gradient-participation-${index}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop offset="0%" stopColor={themeFor(course).color} stopOpacity={1} />
+                  <stop offset="100%" stopColor={themeFor(course).color} stopOpacity={0.25} />
+                </linearGradient>
               ))}
-            </ul>
-          </div>
-        ) : null}
+            </defs>
+
+            <CartesianGrid vertical={false} stroke="var(--line-subtle)" strokeDasharray="3 3" />
+            <XAxis
+              dataKey="event"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={28}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  className="w-[170px] font-sans text-xs bg-card border-line shadow-md"
+                  nameKey="views"
+                  // The axis shows a shortened name; the tooltip shows the event in
+                  // full with its date, which is what somebody checking a figure needs.
+                  labelFormatter={(_label, payload) => {
+                    const fullName = rowFromPayload(payload)?.fullName;
+                    if (typeof fullName !== "string") return "";
+
+                    const event = events.find((entry) => entry.name === fullName);
+                    if (!event) return fullName;
+
+                    const date = new Intl.DateTimeFormat("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      timeZone: participation.timezone,
+                    }).format(new Date(event.startsAt));
+
+                    return `${event.name} · ${date}`;
+                  }}
+                />
+              }
+            />
+            <Bar
+              dataKey={activeCourse ?? ""}
+              fill={`url(#gradient-participation-${activeIndex})`}
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ChartContainer>
       </CardContent>
     </Card>
   );
