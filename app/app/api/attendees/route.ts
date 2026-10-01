@@ -1,10 +1,7 @@
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { getOrganizationTimezone } from "@/lib/events/organization-timezone";
-import {
-  DEFAULT_PAGE_SIZE,
-  listAttendees,
-  MAX_PAGE_SIZE,
-} from "@/lib/services/attendee-directory-service";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "@/lib/services/attendee-directory-service";
+import { searchGlobalAttendees } from "@/lib/services/attendee-search-service";
 import { AttendeeWriteError, createAttendee } from "@/lib/services/attendee-service";
 import { readAttendeeDetails } from "@/lib/validation/attendee-validation";
 
@@ -103,7 +100,13 @@ export async function GET(request: Request): Promise<Response> {
     throw error;
   }
 
-  const result = await listAttendees({ search, attendedOnly, page, pageSize });
+  const result = await searchGlobalAttendees({
+    adminId: authorization.adminId,
+    search,
+    attendedOnly,
+    page,
+    pageSize,
+  });
 
   return Response.json({ ...result, timezone: getOrganizationTimezone() });
 }

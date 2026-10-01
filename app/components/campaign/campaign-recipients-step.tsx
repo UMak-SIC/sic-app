@@ -409,6 +409,8 @@ function RecipientKpiCard({
 interface CampaignRecipientsStepProps {
   eventId?: string;
   eventName?: string;
+  eventOptions?: EventOption[];
+  recipients?: StudentRecipient[];
   onEventChange?: (eventId: string, eventName: string) => void;
   onContinue: () => void;
   onSaveDraft?: () => void;
@@ -417,6 +419,8 @@ interface CampaignRecipientsStepProps {
 export function CampaignRecipientsStep({
   eventId = "evt_1",
   eventName = "UMak SIC General Assembly",
+  eventOptions = AVAILABLE_EVENTS,
+  recipients = SAMPLE_RECIPIENTS,
   onEventChange,
   onContinue,
   onSaveDraft,
@@ -429,11 +433,11 @@ export function CampaignRecipientsStep({
 
   // Find active event details
   const currentEvent =
-    AVAILABLE_EVENTS.find((e) => e.id === selectedEventId) || AVAILABLE_EVENTS[0];
+    eventOptions.find((e) => e.id === selectedEventId) || eventOptions[0];
 
   const handleSelectEvent = (newId: string) => {
     setSelectedEventId(newId);
-    const ev = AVAILABLE_EVENTS.find((e) => e.id === newId);
+    const ev = eventOptions.find((e) => e.id === newId);
     if (ev && onEventChange) {
       onEventChange(ev.id, ev.title);
     }
@@ -445,7 +449,7 @@ export function CampaignRecipientsStep({
 
   // Recipient list filtering
   const filteredStudents = React.useMemo(() => {
-    return SAMPLE_RECIPIENTS.filter((student) => {
+    return recipients.filter((student) => {
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         q === "" ||
@@ -464,7 +468,7 @@ export function CampaignRecipientsStep({
 
       return matchesSearch && matchesTab;
     });
-  }, [searchQuery, filterTab, excludedIds]);
+  }, [recipients, searchQuery, filterTab, excludedIds]);
 
   const isAllSelected =
     filteredStudents.length > 0 &&
@@ -548,7 +552,7 @@ export function CampaignRecipientsStep({
                 <SelectValue placeholder="Select event" />
               </SelectTrigger>
               <SelectContent className="bg-card border-line rounded-[9px]">
-                {AVAILABLE_EVENTS.map((ev) => (
+                {eventOptions.map((ev) => (
                   <SelectItem key={ev.id} value={ev.id} className="text-xs py-2">
                     <span className="font-semibold text-ink">{ev.title}</span>
                     <span className="text-muted ml-1.5 font-sans">({ev.date.split(",")[1]?.trim() || ev.date})</span>

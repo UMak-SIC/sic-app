@@ -1,16 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header";
 import { CampaignWizardStepper, WizardStep } from "@/components/campaign/campaign-wizard-stepper";
-import { CampaignRecipientsStep } from "@/components/campaign/campaign-recipients-step";
+import { CampaignRecipientsStep, type EventOption } from "@/components/campaign/campaign-recipients-step";
 import { CampaignComposerStep } from "@/components/campaign/campaign-composer-step";
 import { CampaignAssetsStep } from "@/components/campaign/campaign-assets-step";
 import { CampaignPreviewDialog } from "@/components/campaign/campaign-preview-dialog";
 import { CampaignSendConfirmationDialog } from "@/components/campaign/campaign-send-confirmation-dialog";
-import { CampaignDraftState } from "@/components/campaign/campaign-types";
+import { CampaignDraftState, type StudentRecipient } from "@/components/campaign/campaign-types";
 
 const EVENT_STUDENT_COUNTS: Record<string, number> = {
   evt_1: 114,
@@ -50,15 +50,46 @@ See you there!`,
   testEmailAddress: "admin@umak.edu.ph",
 };
 
-export default function NewCampaignPage() {
+function NewCampaignContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = React.useState<WizardStep>(1);
   const [maxAccessibleStep, setMaxAccessibleStep] = React.useState<number>(1);
   const [isTestModalOpen, setIsTestModalOpen] = React.useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<CampaignDraftState>(INITIAL_DRAFT);
+  const [linkedEvent, setLinkedEvent] = React.useState<EventOption | null>(null);
+  const [organizerCount, setOrganizerCount] = React.useState(0);
+  const [rosterRecipients, setRosterRecipients] = React.useState<StudentRecipient[]>([]);
 
-  const studentCount = EVENT_STUDENT_COUNTS[draft.eventId] ?? 114;
+  React.useEffect(() => {
+    const eventId = searchParams.get("eventId");
+    if (!eventId) return;
+
+    Promise.all([
+      fetch(`/api/events/${eventId}`),
+      fetch(`/api/events/${eventId}/people`),
+    ])
+      .then(async ([eventResponse, organizersResponse]) => {
+        if (!eventResponse.ok || !organizersResponse.ok) throw new Error();
+        return Promise.all([eventResponse.json(), organizersResponse.json()]);
+      })
+      .then(([data, people]) => {
+        const event = data.event as { id: string; name: string; venue: string | null; startsAt: string; endsAt: string };
+        const date = new Intl.DateTimeFormat("en-US", { dateStyle: "full" }).format(new Date(event.startsAt));
+        const time = new Intl.DateTimeFormat("en-US", { timeStyle: "short" }).format(new Date(event.startsAt));
+        const recipients = people.attendees.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null }) => ({ ...person, deliveryStatus: "delivered" as const }));
+        const option: EventOption = { id: event.id, title: event.name, venue: event.venue ?? "Venue to be confirmed", date, time, status: "published", registeredCount: recipients.length, willReceiveCount: recipients.length, alreadyReceivedCount: 0, capacity: recipients.length };
+        setLinkedEvent(option);
+        setRosterRecipients(recipients);
+        setOrganizerCount(people.organizers.length);
+        setDraft((current) => ({ ...current, eventId: event.id, eventName: event.name, subject: `Reminder: ${event.name}` }));
+      })
+      .catch(() => setLinkedEvent(null));
+  }, [searchParams]);
+
+  const rosterCount = linkedEvent ? rosterRecipients.length : EVENT_STUDENT_COUNTS[draft.eventId] ?? 114;
+  const recipientCount = rosterCount + (draft.includeOfficers ? organizerCount : 0);
 
   const goToStep = (step: WizardStep) => {
     setCurrentStep(step);
@@ -102,8 +133,11 @@ export default function NewCampaignPage() {
       {/* Step 1: Choose Event & Students */}
       {currentStep === 1 && (
         <CampaignRecipientsStep
+          key={draft.eventId}
           eventId={draft.eventId}
           eventName={draft.eventName}
+          eventOptions={linkedEvent ? [linkedEvent] : undefined}
+          recipients={linkedEvent ? rosterRecipients : undefined}
           onEventChange={(id, name) =>
             setDraft((d) => ({
               ...d,
@@ -125,7 +159,8 @@ export default function NewCampaignPage() {
           subject={draft.subject}
           messageContent={draft.messageContent}
           includeOfficers={draft.includeOfficers}
-          studentCount={studentCount}
+          organizerCount={organizerCount}
+          studentCount={recipientCount}
           onSubjectChange={(subj) => setDraft((d) => ({ ...d, subject: subj }))}
           onMessageContentChange={(msg) => setDraft((d) => ({ ...d, messageContent: msg }))}
           onIncludeOfficersChange={(inc) => setDraft((d) => ({ ...d, includeOfficers: inc }))}
@@ -143,7 +178,7 @@ export default function NewCampaignPage() {
           bannerImage={draft.bannerImage}
           attachments={draft.attachments}
           testEmailAddress={draft.testEmailAddress}
-          studentCount={studentCount}
+          studentCount={recipientCount}
           onBannerImageChange={(img) => setDraft((d) => ({ ...d, bannerImage: img }))}
           onAttachmentsChange={(atts) => setDraft((d) => ({ ...d, attachments: atts }))}
           onTestEmailAddressChange={(email) => setDraft((d) => ({ ...d, testEmailAddress: email }))}
@@ -163,7 +198,7 @@ export default function NewCampaignPage() {
         messageContent={draft.messageContent}
         bannerImage={draft.bannerImage}
         attachments={draft.attachments}
-        studentCount={studentCount}
+        studentCount={recipientCount}
         testEmailAddress={draft.testEmailAddress}
         onTestEmailAddressChange={(email) => setDraft((d) => ({ ...d, testEmailAddress: email }))}
       />
@@ -175,9 +210,17 @@ export default function NewCampaignPage() {
         onOpenChange={setIsConfirmModalOpen}
         eventName={draft.eventName}
         subject={draft.subject}
-        studentCount={studentCount}
+        studentCount={recipientCount}
         onConfirmSend={handleBroadcastConfirmed}
       />
     </div>
+  );
+}
+
+export default function NewCampaignPage() {
+  return (
+    <React.Suspense fallback={<div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted">Loading email composer...</div>}>
+      <NewCampaignContent />
+    </React.Suspense>
   );
 }

@@ -3,10 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, CalendarBlank, PencilSimple, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ArrowLeft, CalendarBlank, PencilSimple, PaperPlaneTilt, UsersThree } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { EventStatusBadge, type EventStatus } from "@/components/events/event-status-badge";
 import { EventFormDialog, type EditableEvent } from "@/components/events/event-form-dialog";
+import { EventPeopleDialog } from "@/components/events/event-people-dialog";
 
 type Event = EditableEvent & {
   status: "DRAFT" | "PUBLISHED" | "CLOSED";
@@ -20,6 +21,7 @@ export default function EventDetailPage() {
   const [error, setError] = React.useState("");
   const [editing, setEditing] = React.useState(false);
   const [publishing, setPublishing] = React.useState(false);
+  const [managingPeople, setManagingPeople] = React.useState(false);
 
   const loadEvent = React.useEffectEvent(async () => {
     const response = await fetch(`/api/events/${params.id}`);
@@ -55,15 +57,19 @@ export default function EventDetailPage() {
       {error && <p role="alert" className="rounded-[6px] bg-red-soft px-4 py-3 text-sm text-red">{error}</p>}
       <section className="rounded-[16px] border border-line bg-card p-5 sm:p-7">
         <div className="flex flex-col justify-between gap-5 sm:flex-row">
-          <div>
+           <div>
           <div className="flex flex-wrap items-center gap-2"><EventStatusBadge status={status} /><span className="text-sm text-muted">{event.imageAsset ? `Banner: ${event.imageAsset.originalFilename}` : "No banner selected"}</span></div>
             <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink">{event.name}</h1>
             <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm leading-6 text-muted">{event.details}</p>
           </div>
-          {event.status === "DRAFT" && <div className="flex h-fit flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setEditing(true)} className="rounded-[6px]"><PencilSimple size={18} weight="bold" /> Edit</Button>
-            <Button disabled={publishing} onClick={publish} className="rounded-[6px] bg-cyan text-white hover:bg-cyan-hover"><PaperPlaneTilt size={18} weight="bold" /> Publish</Button>
-          </div>}
+           <div className="flex h-fit flex-wrap gap-2">
+             <Button variant="outline" onClick={() => setManagingPeople(true)} className="rounded-[6px]"><UsersThree size={18} weight="bold" /> People</Button>
+             <Button asChild className="rounded-[6px] bg-cyan text-white hover:bg-cyan-hover"><Link href={`/campaign/new?eventId=${event.id}`}><PaperPlaneTilt size={18} weight="bold" /> Compose email</Link></Button>
+           {event.status === "DRAFT" && <>
+             <Button variant="outline" onClick={() => setEditing(true)} className="rounded-[6px]"><PencilSimple size={18} weight="bold" /> Edit</Button>
+             <Button disabled={publishing} onClick={publish} className="rounded-[6px] bg-cyan text-white hover:bg-cyan-hover"><PaperPlaneTilt size={18} weight="bold" /> Publish</Button>
+           </>}
+           </div>
         </div>
         <div className="mt-6 grid gap-3 border-t border-line-subtle pt-5 sm:grid-cols-2">
           <div className="flex gap-3"><CalendarBlank size={20} className="shrink-0 text-cyan" /><div><p className="text-xs font-semibold text-muted">Starts</p><p className="text-sm text-ink">{format(event.startsAt)}</p></div></div>
@@ -72,6 +78,7 @@ export default function EventDetailPage() {
       </section>
       <p className="text-xs text-muted">Times are shown in {timezone}.</p>
       <EventFormDialog open={editing} onOpenChange={setEditing} event={event} timezone={timezone} onSaved={loadEvent} />
+      <EventPeopleDialog eventId={event.id} eventName={event.name} open={managingPeople} onOpenChange={setManagingPeople} />
     </div>
   );
 }
