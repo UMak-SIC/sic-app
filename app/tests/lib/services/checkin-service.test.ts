@@ -125,6 +125,7 @@ test("falls back to a student ID only when the input is not a QR ticket", async 
   expect(findFirst).toHaveBeenCalledWith({
     where: {
       eventId: "event-id",
+      attendee: { deletedAt: null },
       OR: [{ id: "student-id" }, { attendee: { studentId: "student-id" } }],
     },
     select: { id: true },
