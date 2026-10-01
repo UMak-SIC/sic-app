@@ -37,7 +37,15 @@ export async function searchGlobalAttendees({
 }): Promise<ListAttendeesResult> {
   const rows = await getPrismaClient().$queryRaw<SearchRow[]>(Prisma.sql`
     SELECT *
-    FROM public.search_global_attendees(${adminId}, ${search ?? null}, ${attendedOnly}, ${page}, ${pageSize})
+    FROM public.search_global_attendees(
+      ${adminId}::text,
+      ${search ?? null}::text,
+      ${attendedOnly}::boolean,
+      ${null}::text,
+      ${null}::uuid,
+      ${page}::integer,
+      ${pageSize}::integer
+    )
   `);
 
   const attendees: AttendeeDirectoryItem[] = rows.map((row) => {
