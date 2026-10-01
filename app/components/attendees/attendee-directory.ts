@@ -304,6 +304,49 @@ function slug(value: string): string {
     .slice(0, 40);
 }
 
+export type CourseInsights = {
+  courses: {
+    /** The stored value, or "" for students whose course was never recorded. */
+    course: string;
+    students: number;
+    rosterEntries: number;
+    attendedCheckIns: number;
+    attendanceRate: number;
+  }[];
+  totals: {
+    courseCount: number;
+    students: number;
+    rosterEntries: number;
+    attendedCheckIns: number;
+    attendanceRate: number;
+  };
+};
+
+/**
+ * Course participation, for the insights card.
+ *
+ * A separate request from the directory because it is an aggregate over the whole
+ * registry. Computing it from the page on screen would describe one page of results
+ * while sitting directly above a table of them.
+ */
+export async function fetchCourseInsights(signal?: AbortSignal): Promise<CourseInsights> {
+  const response = await fetch("/api/attendees/insights", {
+    signal,
+    headers: { Accept: "application/json" },
+  });
+
+  if (response.status === 401) {
+    throw new Error("Your session has ended. Sign in again to see these figures.");
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? "These figures could not be loaded. Try again.");
+  }
+
+  return (await response.json()) as CourseInsights;
+}
+
 /**
  * Every event, for the "add to event" picker and the event filter.
  *
