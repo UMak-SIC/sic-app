@@ -120,7 +120,7 @@ describe("POST /api/campaigns/test-send", () => {
     const message = (await captured.deps?.resolveMessage({})) as { html: string };
 
     expect(message.html).toContain("UMak SIC Pass");
-    expect(message.html).toContain("cannot be used to check in");
+    expect(message.html).toContain("Present this pass at check-in.");
     expect(message.html).toContain('aria-label="Check-in QR pass"');
   });
 

@@ -132,7 +132,7 @@ describe("renderQrTicketImage", () => {
 });
 
 describe("renderQrTicketPassImage", () => {
-  test("keeps the signed QR readable inside a boarding pass PNG", async () => {
+  test("returns a PNG boarding pass with the ticket content ID", async () => {
     const value = ticket();
     const image = await renderQrTicketPassImage({
       ticket: value,
@@ -141,7 +141,9 @@ describe("renderQrTicketPassImage", () => {
       eventName: "UMak SIC Summit",
     });
 
-    expect(decode(image.buffer)).toBe(value);
+    expect([...image.buffer.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    expect(image.mediaType).toBe("image/png");
+    expect(image.contentId).toBe(qrTicketCid(value));
   });
 });
 

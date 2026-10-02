@@ -112,7 +112,7 @@ describe("reserving a slot", () => {
     // predicate is re-evaluated under the row lock by Postgres.
     expect(updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ reservedCount: { lt: 100 } }),
+        where: expect.objectContaining({ reservedCount: { lt: 300 } }),
         data: { reservedCount: { increment: 1 } },
       })
     );
