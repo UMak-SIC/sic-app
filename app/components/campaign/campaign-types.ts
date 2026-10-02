@@ -7,11 +7,14 @@ export interface StudentRecipient {
   email: string;
   deliveryStatus: "delivered" | "sending" | "invalid_email" | "already_received";
   deliveredAt?: string;
+  scheduledAt?: string;
+  isSending?: boolean;
   statusNote?: string;
   college?: string;
   course?: "BSIT" | "BSCS" | "BSINS" | string;
   program?: string;
-  provider?: "Mailgun" | "Brevo";
+  section?: string;
+  provider?: "Brevo";
   messageId?: string;
   ticketCode?: string;
 }
@@ -33,22 +36,12 @@ export interface DeliveryQueueBreakdown {
   failed: number;
 }
 
-export interface ProviderQuotaInfo {
-  provider: "Mailgun" | "Brevo";
-  role: "primary" | "fallback";
-  used: number;
-  total: number;
-  resetTime: string;
-  timezone: string;
-  notes: string;
-}
-
 export interface DeliveryDiagnosticItem {
   id: string;
   recipientName: string;
   studentId: string;
   email: string;
-  provider: "Mailgun" | "Brevo";
+  provider: "Brevo";
   messageId?: string;
   scheduledRetry?: string;
   status: "sent" | "queued" | "bounced" | "failed";
@@ -74,7 +67,6 @@ export interface CampaignSummary {
   recipients: StudentRecipient[];
   queueBreakdown?: DeliveryQueueBreakdown;
   diagnostics?: DeliveryDiagnosticItem[];
-  providers?: ProviderQuotaInfo[];
 }
 
 export interface CampaignDraftState {
@@ -88,4 +80,3 @@ export interface CampaignDraftState {
   attachments: CampaignAssetItem[];
   testEmailAddress: string;
 }
-

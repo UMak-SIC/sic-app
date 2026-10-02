@@ -286,7 +286,7 @@ All screens and interactions in UMak SIC are built around the Nielsen Norman 10 
 | 18 | Email composer | Campaigns & Email | Step 3: Markdown & Recipient Tags |
 | 19 | Composer assets & test send | Campaigns & Email | Step 4: File Attachments & Test Email |
 | 20 | Email preview & QR ticket | Campaigns & Email | Step 5: Recipient Preview Dialog |
-| 21 | Delivery queue | Campaigns & Email | Step 6: Mailgun / Brevo Capacity Queue |
+| 21 | Delivery queue | Campaigns & Email | Step 6: Brevo Capacity Queue |
 | 22 | Delivery diagnostics | Campaigns & Email | Step 7: Per-recipient Logs & Retries |
 | 23 | Provider limits & quotas | Campaigns & Email | Step 8: Quota Windows & Contracts |
 | 24 | Asset library | Assets | Step 1: File Storage & R2 Browser |

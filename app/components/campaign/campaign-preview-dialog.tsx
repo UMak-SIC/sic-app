@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CampaignAssetItem } from "./campaign-types";
+import { sendTestEmail } from "@/lib/email/send-test-email";
 
 export interface StudentOption {
   id: string;
@@ -149,13 +150,14 @@ export function CampaignPreviewDialog({
 
     body = body.replace(/{{student_name}}/g, student.name);
     body = body.replace(/{{student_id}}/g, student.studentId);
+    body = body.replace(/{{section}}/g, student.section);
     body = body.replace(/{{event_name}}/g, eventName);
     body = body.replace(/{{event_time}}/g, eventDate);
     body = body.replace(/{{venue}}/g, venue);
     return body;
   }, [messageContent, student, eventName, eventDate, venue]);
 
-  const handleSendTest = () => {
+  const handleSendTest = async () => {
     if (!localTestEmail || !localTestEmail.includes("@")) {
       setTestErrorMessage("Please enter a valid university email address.");
       setTestSuccessMessage(null);
@@ -170,10 +172,18 @@ export function CampaignPreviewDialog({
       onTestEmailAddressChange(localTestEmail);
     }
 
-    setTimeout(() => {
+    try {
+      await sendTestEmail({
+        to: localTestEmail,
+        subject,
+        markdown: renderedBody,
+      });
       setIsSendingTest(false);
       setTestSuccessMessage(`Practice test sent to ${localTestEmail}.`);
-    }, 600);
+    } catch (error) {
+      setIsSendingTest(false);
+      setTestErrorMessage(error instanceof Error ? error.message : "We could not send the practice email. Please try again.");
+    }
   };
 
   return (

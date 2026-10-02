@@ -58,7 +58,7 @@ export function EventsToolbar({
             placeholder="Search events..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-10 w-full rounded-[8px] border border-line bg-card pl-10 pr-9 text-sm font-sans text-ink placeholder:text-muted-light focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20 transition-all"
+            className="h-10 w-full rounded-[6px] border border-line bg-card pl-10 pr-9 text-sm font-sans text-ink placeholder:text-muted-light focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20 transition-all"
           />
           {searchQuery && (
             <button
@@ -74,7 +74,7 @@ export function EventsToolbar({
         {/* Status Filter */}
         <div className="w-full sm:w-[150px]">
           <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-            <SelectTrigger className="h-10 text-sm font-sans rounded-[8px] w-full">
+            <SelectTrigger className="h-10 w-full rounded-[6px] text-sm font-sans">
               <div className="flex items-center gap-2 truncate">
                 <Funnel size={15} className="text-muted shrink-0" />
                 <SelectValue placeholder="All Statuses" />
@@ -93,7 +93,7 @@ export function EventsToolbar({
       {/* Right controls: Batch actions or Export */}
       <div className="flex items-center gap-2">
         {selectedCount > 0 ? (
-          <div className="flex items-center gap-2.5 rounded-[8px] border border-cyan-border bg-cyan-soft px-3.5 py-1.5 text-sm font-sans text-ink animate-in fade-in-50">
+          <div className="flex items-center gap-2.5 rounded-[6px] border border-cyan-border bg-cyan-soft px-3.5 py-1.5 text-sm font-sans text-ink animate-in fade-in-50">
             <span className="font-semibold text-cyan">
               {selectedCount} selected
             </span>
@@ -122,7 +122,7 @@ export function EventsToolbar({
             variant="outline"
             size="sm"
             onClick={onExportSelected}
-            className="h-10 rounded-[8px] border-line px-4 text-sm font-sans font-semibold text-ink hover:bg-canvas cursor-pointer"
+            className="h-10 rounded-[6px] border-line px-4 text-sm font-sans font-semibold text-ink hover:bg-canvas cursor-pointer"
           >
             <DownloadSimple size={16} weight="bold" className="mr-2" />
             Export CSV

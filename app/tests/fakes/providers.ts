@@ -7,18 +7,12 @@ export type FakeEmailMessage = {
 class RecordingEmailProviderFake {
   readonly messages: FakeEmailMessage[] = [];
 
-  constructor(private readonly provider: "brevo" | "mailgun") {}
+  constructor(private readonly provider: "brevo") {}
 
   async send(message: FakeEmailMessage): Promise<{ id: string }> {
     this.messages.push(message);
 
     return { id: `${this.provider}-${this.messages.length}` };
-  }
-}
-
-export class RecordingMailgunFake extends RecordingEmailProviderFake {
-  constructor() {
-    super("mailgun");
   }
 }
 

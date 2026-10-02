@@ -2,21 +2,61 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, MagnifyingGlass } from "@phosphor-icons/react";
+import { Plus, MagnifyingGlass, PaperPlaneTilt, HourglassMedium, WarningCircle } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header";
 import { KpiCardRow } from "@/components/campaign/campaign-kpi-row";
 import { CampaignAnnouncementCard } from "@/components/campaign/campaign-announcement-card";
-import { CAMPAIGNS_DATA } from "@/components/campaign/campaign-data";
 import { CampaignSummary } from "@/components/campaign/campaign-types";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 
 export default function CampaignPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "sent" | "draft">("all");
+  const [campaigns, setCampaigns] = React.useState<CampaignSummary[]>([]);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
 
-  const filteredCampaigns = CAMPAIGNS_DATA.filter((c) => {
+  React.useEffect(() => {
+    let active = true;
+    fetch("/api/campaigns")
+      .then(async (response) => {
+        const payload = await response.json() as { campaigns?: Array<{ id: string; subject: string; eventName: string; venue: string | null; startsAt: string; createdAt: string; counts: Record<string, number> }>; error?: string };
+        if (!response.ok) throw new Error(payload.error);
+        return payload.campaigns ?? [];
+      })
+      .then((items) => {
+        if (!active) return;
+        setCampaigns(items.map((campaign) => {
+          const needsAttention = (campaign.counts.BOUNCED ?? 0) + (campaign.counts.FAILED ?? 0);
+          const sending = (campaign.counts.QUEUED ?? 0) + (campaign.counts.SENDING ?? 0);
+          const total = Object.values(campaign.counts).reduce((sum, count) => sum + count, 0);
+          return {
+            id: campaign.id,
+            subject: campaign.subject,
+            eventName: campaign.eventName,
+            venue: campaign.venue ?? undefined,
+            eventDate: new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(campaign.startsAt)),
+            sentDate: new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(campaign.createdAt)),
+            status: sending > 0 ? "sending" : needsAttention > 0 ? "needs_attention" : "sent",
+            totalStudents: total,
+            deliveredCount: campaign.counts.SENT ?? 0,
+            sendingCount: sending,
+            invalidEmailCount: needsAttention,
+            attachedFilesCount: 0,
+            recipients: [],
+          };
+        }));
+      })
+      .catch(() => active && setLoadError("We could not load email campaigns. Refresh the page and try again."));
+    return () => { active = false; };
+  }, []);
+
+  const totals = campaigns.reduce((result, campaign) => ({
+    sent: result.sent + campaign.deliveredCount,
+    sending: result.sending + campaign.sendingCount,
+    failed: result.failed + campaign.invalidEmailCount,
+  }), { sent: 0, sending: 0, failed: 0 });
+
+  const filteredCampaigns = campaigns.filter((c) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch =
       searchQuery === "" ||
@@ -24,17 +64,10 @@ export default function CampaignPage() {
       c.eventName.toLowerCase().includes(q) ||
       (c.venue && c.venue.toLowerCase().includes(q));
 
-    const matchesStatus =
-      statusFilter === "all" || c.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   const handleOpenDetails = (campaign: CampaignSummary) => {
-    if (campaign.status === "draft") {
-      router.push("/campaign/new");
-      return;
-    }
     router.push(`/campaign/${campaign.id}`);
   };
 
@@ -55,7 +88,11 @@ export default function CampaignPage() {
       />
 
       {/* 1. Animated KPI Sparkline Cards Row (Sent, Queued, Failed) */}
-      <KpiCardRow />
+      <KpiCardRow items={[
+        { label: "Delivered Emails", icon: <PaperPlaneTilt size={18} weight="bold" />, color: "var(--green)", data: [0, totals.sent], format: (value) => `${Math.round(value)}` },
+        { label: "Waiting to Send", icon: <HourglassMedium size={18} weight="bold" />, color: "var(--amber)", data: [0, totals.sending], format: (value) => `${Math.round(value)}` },
+        { label: "Needs Attention", icon: <WarningCircle size={18} weight="bold" />, color: "var(--red)", data: [0, totals.failed], format: (value) => `${Math.round(value)}` },
+      ]} />
 
       {/* 2. Filter Bar & Search */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
@@ -72,46 +109,7 @@ export default function CampaignPage() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
-          <div className="inline-flex rounded-[8px] border border-line p-0.5 bg-canvas/60 text-xs shrink-0">
-            <button
-              type="button"
-              onClick={() => setStatusFilter("all")}
-              className={cn(
-                "px-3.5 py-1.5 rounded-[6px] font-medium transition-colors cursor-pointer font-display text-xs shrink-0",
-                statusFilter === "all"
-                  ? "bg-card text-ink font-bold shadow-xs"
-                  : "text-muted hover:text-ink"
-              )}
-            >
-              All Announcements ({CAMPAIGNS_DATA.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("sent")}
-              className={cn(
-                "px-3.5 py-1.5 rounded-[6px] font-medium transition-colors cursor-pointer font-display text-xs",
-                statusFilter === "sent"
-                  ? "bg-card text-green font-bold shadow-xs"
-                  : "text-muted hover:text-ink"
-              )}
-            >
-              Sent
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("draft")}
-              className={cn(
-                "px-3.5 py-1.5 rounded-[6px] font-medium transition-colors cursor-pointer font-display text-xs",
-                statusFilter === "draft"
-                  ? "bg-card text-amber font-bold shadow-xs"
-                  : "text-muted hover:text-ink"
-              )}
-            >
-              Drafts
-            </button>
-          </div>
-        </div>
+        <span className="text-xs font-medium text-muted">{campaigns.length} announcements</span>
       </div>
 
       {/* 3. Visual Announcement Cards Grid (Mockup style with Venue & Date) */}
@@ -126,9 +124,11 @@ export default function CampaignPage() {
         ))}
       </div>
 
-      {filteredCampaigns.length === 0 && (
+      {loadError && <p role="alert" className="text-sm text-red font-sans">{loadError}</p>}
+
+      {!loadError && filteredCampaigns.length === 0 && (
         <div className="p-12 text-center text-sm text-muted bg-card border border-dashed border-line rounded-[16px]">
-          No announcements found matching your search.
+          {campaigns.length === 0 ? "No email campaigns have been sent yet." : "No announcements found matching your search."}
         </div>
       )}
     </div>

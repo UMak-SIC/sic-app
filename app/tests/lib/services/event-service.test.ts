@@ -147,17 +147,17 @@ test("publishes a complete draft using a conditional transition", async () => {
   });
 });
 
-test("selects only the banner filename so event responses contain no asset byte size", async () => {
+test("selects only the banner filename and the roster count for event lists", async () => {
   await listEvents();
   await getEvent("event-id");
 
-  const imageAsset = { select: { originalFilename: true } };
+  const imageAsset = { select: { originalFilename: true, objectKey: true, storageBucket: true } };
   expect(eventFindMany).toHaveBeenCalledWith({
-    include: { imageAsset },
+    include: { imageAsset, _count: { select: { rosterEntries: true } } },
     orderBy: { startsAt: "desc" },
   });
   expect(eventFindUnique).toHaveBeenCalledWith({
     where: { id: "event-id" },
-    include: { imageAsset },
+    include: { imageAsset, _count: { select: { rosterEntries: true } } },
   });
 });

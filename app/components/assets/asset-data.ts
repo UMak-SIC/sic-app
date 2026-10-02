@@ -217,8 +217,8 @@ export const INITIAL_ASSETS: AssetItem[] = [
 export const STORAGE_KPIS_DATA: StorageKpis = {
   totalBytesUsed: 9482865,
   totalBytesFormatted: "9.5 MB",
-  storageQuotaBytes: 10737418240, // 10 GB
-  storageQuotaFormatted: "10 GB",
+  storageQuotaBytes: 5368709120, // 5 GB
+  storageQuotaFormatted: "5 GB",
   totalFilesCount: 8,
   imageCount: 5,
   documentCount: 3,

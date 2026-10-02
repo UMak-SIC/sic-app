@@ -3,24 +3,19 @@
 import * as React from "react";
 import {
   Image as ImageIcon,
-  FilePdf,
   Paperclip,
   PaperPlaneTilt,
   CheckCircle,
   WarningCircle,
   ArrowLeft,
   Trash,
-  QrCode,
   ShieldCheck,
   FloppyDisk,
   CloudArrowUp,
-  UserSwitch,
-  FolderOpen,
+  MagnifyingGlass,
+  X,
 } from "@phosphor-icons/react";
-import { CampaignAssetItem } from "./campaign-types";
-import { TEST_STUDENTS } from "./campaign-preview-dialog";
-import { AssetPickerDialog } from "@/components/assets/asset-picker-dialog";
-import { AssetItem } from "@/components/assets/asset-types";
+import { CampaignAssetItem, StudentRecipient } from "./campaign-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +26,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { renderEmailMarkdownPreview, splitPreviewAtQrTicketPass } from "./email-markdown-preview";
+import { MockQrTicketPass } from "./mock-qr-ticket-pass";
+import { sendTestEmail } from "@/lib/email/send-test-email";
 
 interface CampaignAssetsStepProps {
   subject: string;
@@ -39,13 +37,13 @@ interface CampaignAssetsStepProps {
   attachments: CampaignAssetItem[];
   testEmailAddress: string;
   studentCount?: number;
+  practiceRecipients?: StudentRecipient[];
   /** The event's own venue, substituted for {{venue}}. Null drops the token. */
   eventVenue?: string | null;
   onBannerImageChange: (image: CampaignAssetItem | null) => void;
   onAttachmentsChange: (attachments: CampaignAssetItem[]) => void;
   onTestEmailAddressChange: (email: string) => void;
   onBack: () => void;
-  onOpenTestSend?: () => void;
   onSubmitFinal: () => void;
   onSaveDraft?: () => void;
 }
@@ -66,6 +64,17 @@ const DEFAULT_DOC: CampaignAssetItem = {
   role: "attachment",
 };
 
+const MAX_PDF_ATTACHMENTS = 5;
+
+const DUMMY_PRACTICE_RECIPIENT: StudentRecipient = {
+  id: "dummy-practice-recipient",
+  name: "Practice recipient",
+  studentId: "PRACTICE-ONLY",
+  email: "",
+  section: "Practice section",
+  deliveryStatus: "sending",
+};
+
 export function CampaignAssetsStep({
   subject,
   messageContent,
@@ -73,32 +82,84 @@ export function CampaignAssetsStep({
   attachments = [DEFAULT_DOC],
   testEmailAddress = "admin@umak.edu.ph",
   studentCount = 114,
+  practiceRecipients = [],
   eventVenue = null,
   onBannerImageChange,
   onAttachmentsChange,
   onTestEmailAddressChange,
   onBack,
-  onOpenTestSend,
   onSubmitFinal,
   onSaveDraft,
 }: CampaignAssetsStepProps) {
-  const [selectedStudentId, setSelectedStudentId] = React.useState("stu_1");
+  const [selectedStudentId, setSelectedStudentId] = React.useState(DUMMY_PRACTICE_RECIPIENT.id);
   const [isSendingTest, setIsSendingTest] = React.useState(false);
   const [testSentSuccess, setTestSentSuccess] = React.useState(false);
   const [testError, setTestError] = React.useState<string | null>(null);
   const [isDraggingBanner, setIsDraggingBanner] = React.useState(false);
-
-  // Asset picker dialog states
-  const [isBannerPickerOpen, setIsBannerPickerOpen] = React.useState(false);
-  const [isDocPickerOpen, setIsDocPickerOpen] = React.useState(false);
+  const [assetError, setAssetError] = React.useState<string | null>(null);
+  const [isUploadingBanner, setIsUploadingBanner] = React.useState(false);
+  const [isUploadingDocument, setIsUploadingDocument] = React.useState(false);
+  const [attendeeSearch, setAttendeeSearch] = React.useState("");
+  const [searchResults, setSearchResults] = React.useState<StudentRecipient[]>([]);
+  const [isSearchingAttendees, setIsSearchingAttendees] = React.useState(false);
+  const [attendeeSearchError, setAttendeeSearchError] = React.useState<string | null>(null);
+  const [searchedRecipient, setSearchedRecipient] = React.useState<StudentRecipient | null>(null);
 
   const bannerFileInputRef = React.useRef<HTMLInputElement>(null);
   const docFileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const activeStudent =
-    TEST_STUDENTS.find((s) => s.id === selectedStudentId) || TEST_STUDENTS[0];
+  const recipientOptions = [
+    DUMMY_PRACTICE_RECIPIENT,
+    ...practiceRecipients,
+    ...(searchedRecipient && !practiceRecipients.some((recipient) => recipient.id === searchedRecipient.id)
+      ? [searchedRecipient]
+      : []),
+  ];
+  const activeStudent = recipientOptions.find((recipient) => recipient.id === selectedStudentId) ?? DUMMY_PRACTICE_RECIPIENT;
+  const isAttendeeSearchActive = attendeeSearch.trim().length >= 2;
 
-  const handleSendPracticeTest = () => {
+  React.useEffect(() => {
+    const query = attendeeSearch.trim();
+    if (query.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsSearchingAttendees(true);
+      setAttendeeSearchError(null);
+      try {
+        const response = await fetch(`/api/attendees?q=${encodeURIComponent(query)}&pageSize=8`, {
+          signal: controller.signal,
+        });
+        const payload = await response.json() as {
+          attendees?: Array<{ id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }>;
+          error?: string;
+        };
+        if (!response.ok) throw new Error(payload.error ?? "We could not search attendees.");
+        setSearchResults((payload.attendees ?? []).map((attendee) => ({
+          ...attendee,
+          course: attendee.course ?? undefined,
+          program: attendee.program ?? undefined,
+          section: attendee.section ?? undefined,
+          deliveryStatus: "sending" as const,
+        })));
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setSearchResults([]);
+        setAttendeeSearchError(error instanceof Error ? error.message : "We could not search attendees.");
+      } finally {
+        if (!controller.signal.aborted) setIsSearchingAttendees(false);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [attendeeSearch]);
+
+  const handleSendPracticeTest = async () => {
     if (!testEmailAddress || !testEmailAddress.includes("@")) {
       setTestError("Please enter a valid university email address.");
       setTestSentSuccess(false);
@@ -109,67 +170,99 @@ export function CampaignAssetsStep({
     setTestError(null);
     setTestSentSuccess(false);
 
-    setTimeout(() => {
+    try {
+      await sendTestEmail({
+        to: testEmailAddress,
+        subject,
+        markdown: previewFormattedBody,
+        includeDummyTicket: true,
+      });
       setIsSendingTest(false);
       setTestSentSuccess(true);
-    }, 800);
+    } catch (error) {
+      setIsSendingTest(false);
+      setTestError(error instanceof Error ? error.message : "We could not send the practice email. Please try again.");
+    }
+  };
+
+  const uploadCampaignAsset = async (file: File, isPublic = false) => {
+    const formData = new FormData();
+    formData.set("file", file);
+    const response = await fetch(isPublic ? "/api/assets/public/upload" : "/api/assets/upload", { method: "POST", body: formData });
+    const payload = await response.json() as { assetId?: string; error?: string };
+    if (!response.ok || !payload.assetId) {
+      throw new Error(payload.error ?? "We could not upload that file. Please try again.");
+    }
+    return payload.assetId;
+  };
+
+  const addBanner = async (file: File) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setAssetError("Please choose a PNG, JPG, or WebP banner image.");
+      return;
+    }
+    setIsUploadingBanner(true);
+    setAssetError(null);
+    try {
+      const assetId = await uploadCampaignAsset(file, true);
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      onBannerImageChange({
+        id: assetId,
+        fileName: file.name,
+        fileSize: `${sizeMb} MB`,
+        fileType: "image",
+        role: "banner",
+        url: URL.createObjectURL(file),
+      });
+    } catch (error) {
+      setAssetError(error instanceof Error ? error.message : "We could not upload that file. Please try again.");
+    } finally {
+      setIsUploadingBanner(false);
+    }
   };
 
   const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    void addBanner(file);
+  };
 
-    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-    onBannerImageChange({
-      id: "ast_" + Date.now(),
-      fileName: file.name,
-      fileSize: `${sizeMb} MB`,
-      fileType: "image",
-      role: "banner",
-    });
+  const addDocument = async (file: File) => {
+    if (file.type !== "application/pdf") {
+      setAssetError("Please choose a PDF file.");
+      return;
+    }
+    if (attachments.length >= MAX_PDF_ATTACHMENTS) {
+      setAssetError(`You can attach up to ${MAX_PDF_ATTACHMENTS} PDF files.`);
+      return;
+    }
+    setIsUploadingDocument(true);
+    setAssetError(null);
+    try {
+      const assetId = await uploadCampaignAsset(file);
+      const sizeKb = Math.round(file.size / 1024);
+      const sizeText = sizeKb > 1000 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
+      onAttachmentsChange([
+        ...attachments,
+        {
+          id: assetId,
+          fileName: file.name,
+          fileSize: sizeText,
+          fileType: "document",
+          role: "attachment",
+        },
+      ]);
+    } catch (error) {
+      setAssetError(error instanceof Error ? error.message : "We could not upload that file. Please try again.");
+    } finally {
+      setIsUploadingDocument(false);
+    }
   };
 
   const handleDocFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const sizeKb = Math.round(file.size / 1024);
-    const sizeText = sizeKb > 1000 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
-    onAttachmentsChange([
-      ...attachments,
-      {
-        id: "ast_" + Date.now(),
-        fileName: file.name,
-        fileSize: sizeText,
-        fileType: "document",
-        role: "attachment",
-      },
-    ]);
-  };
-
-  const handleSelectBannerFromLibrary = (asset: AssetItem) => {
-    onBannerImageChange({
-      id: asset.id,
-      fileName: asset.originalFilename,
-      fileSize: asset.fileSizeFormatted,
-      fileType: "image",
-      role: "banner",
-      url: asset.previewUrl || asset.url,
-    });
-  };
-
-  const handleSelectDocFromLibrary = (asset: AssetItem) => {
-    onAttachmentsChange([
-      ...attachments,
-      {
-        id: asset.id,
-        fileName: asset.originalFilename,
-        fileSize: asset.fileSizeFormatted,
-        fileType: "document",
-        role: "attachment",
-        url: asset.url,
-      },
-    ]);
+    void addDocument(file);
   };
 
   const handleBannerDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -178,14 +271,7 @@ export function CampaignAssetsStep({
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
 
-    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-    onBannerImageChange({
-      id: "ast_" + Date.now(),
-      fileName: file.name,
-      fileSize: `${sizeMb} MB`,
-      fileType: "image",
-      role: "banner",
-    });
+    void addBanner(file);
   };
 
   const handleAddSampleDoc = () => {
@@ -195,29 +281,22 @@ export function CampaignAssetsStep({
   };
 
   const handleRemoveAttachment = (id: string) => {
+    setAssetError(null);
     onAttachmentsChange(attachments.filter((a) => a.id !== id));
   };
 
   // Interpolated live email preview body based on currently selected student
-  const previewFormattedBody = React.useMemo(() => {
-    const raw =
-      messageContent ||
-      `Hello {{student_name}},\n\nWe look forward to welcoming you to {{event_name}} on {{event_time}} in the {{venue}}!\n\nPlease have your official QR check-in pass ready on your phone or printed out upon entering the room. Check-in opens 2 hours before the session starts.\n\nSee you there!`;
-
-    return raw
-      .replace(/{{student_name}}/g, activeStudent.name)
-      .replace(/{{student_id}}/g, activeStudent.studentId)
-      .replace(/{{section}}/g, activeStudent.section)
-      .replace(/{{event_name}}/g, "UMak SIC General Assembly")
-      .replace(/{{event_time}}/g, "Saturday, 17 Oct 2026 at 2:00 PM")
-      // Previously a hardcoded room. It now reads the event's own venue, and is
-      // dropped when the event has none — the same substitution the delivery
-      // resolver performs, so the preview cannot promise a venue a send omits.
-      .replace(/{{venue}}/g, eventVenue ?? "")
-      // Still a placeholder: the QR pass is not built, so it renders as nothing
-      // rather than pretending to be a ticket.
-      .replace(/{{qr_ticket_pass}}/g, "");
-  }, [messageContent, activeStudent, eventVenue]);
+  const rawPreviewBody =
+    messageContent ||
+    `Hello {{student_name}},\n\nWe look forward to welcoming you to {{event_name}} on {{event_time}} in the {{venue}}!\n\nPlease have your official QR check-in pass ready on your phone or printed out upon entering the room. Check-in opens 2 hours before the session starts.\n\nSee you there!`;
+  const previewFormattedBody = rawPreviewBody
+    .replace(/{{student_name}}/g, activeStudent.name)
+    .replace(/{{student_id}}/g, activeStudent.studentId)
+    .replace(/{{section}}/g, activeStudent.section ?? "")
+    .replace(/{{event_name}}/g, "UMak SIC General Assembly")
+    .replace(/{{event_time}}/g, "Saturday, 17 Oct 2026 at 2:00 PM")
+    .replace(/{{venue}}/g, eventVenue ?? "");
+  const [previewBeforeTicket, previewAfterTicket, hasQrTicketPass] = splitPreviewAtQrTicketPass(previewFormattedBody);
 
   return (
     <div className="flex flex-col gap-6 w-full font-sans">
@@ -299,11 +378,12 @@ export function CampaignAssetsStep({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setIsBannerPickerOpen(true)}
+                  onClick={() => bannerFileInputRef.current?.click()}
+                  disabled={isUploadingBanner}
                   className="h-7.5 text-xs font-semibold rounded-[6px] gap-1 border-line px-2.5 cursor-pointer hover:bg-canvas text-cyan"
                 >
-                  <FolderOpen size={13} weight="bold" />
-                  <span>Choose from Library</span>
+                  <CloudArrowUp size={13} weight="bold" />
+                  <span>{isUploadingBanner ? "Uploading..." : "Upload banner"}</span>
                 </Button>
                 {bannerImage && (
                   <button
@@ -340,19 +420,11 @@ export function CampaignAssetsStep({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setIsBannerPickerOpen(true)}
-                      className="h-8 text-xs font-semibold rounded-[6px] border-line px-2.5 cursor-pointer text-cyan"
-                    >
-                      Library
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
                       onClick={() => bannerFileInputRef.current?.click()}
+                      disabled={isUploadingBanner}
                       className="h-8 text-xs font-semibold rounded-[6px] border-line px-2.5 cursor-pointer"
                     >
-                      Upload
+                      {isUploadingBanner ? "Uploading..." : "Replace"}
                     </Button>
                   </div>
                 </div>
@@ -381,14 +453,6 @@ export function CampaignAssetsStep({
                       className="text-cyan font-semibold underline cursor-pointer"
                     >
                       browse local
-                    </button>
-                    {" · "}
-                    <button
-                      type="button"
-                      onClick={() => setIsBannerPickerOpen(true)}
-                      className="text-cyan font-semibold underline cursor-pointer"
-                    >
-                      pull from library
                     </button>
                   </div>
                 </div>
@@ -421,23 +485,12 @@ export function CampaignAssetsStep({
                     browse files
                   </button>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsBannerPickerOpen(true)}
-                    className="h-8 text-xs font-semibold rounded-[6px] border-line px-3 cursor-pointer text-cyan"
-                  >
-                    <FolderOpen size={14} className="mr-1" />
-                    Select from Asset Library
-                  </Button>
-                </div>
-                <div className="text-[10px] text-muted font-sans mt-1">
+                  <div className="text-[10px] text-muted font-sans mt-1">
                   Supports PNG, JPG or WebP (Recommended 1200×400px)
                 </div>
               </div>
             )}
+            {assetError && <p role="alert" className="text-xs text-red font-sans">{assetError}</p>}
           </div>
 
           {/* Card 2: PDF Attachments */}
@@ -450,19 +503,11 @@ export function CampaignAssetsStep({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsDocPickerOpen(true)}
-                  className="text-xs text-cyan hover:underline font-semibold cursor-pointer flex items-center gap-1"
-                >
-                  <FolderOpen size={13} weight="bold" />
-                  <span>Library</span>
-                </button>
-                <span className="text-muted-light">·</span>
-                <button
-                  type="button"
                   onClick={handleAddSampleDoc}
+                  disabled={attachments.length >= MAX_PDF_ATTACHMENTS || isUploadingDocument}
                   className="text-xs text-cyan hover:underline font-semibold cursor-pointer"
                 >
-                  + Upload PDF
+                  {isUploadingDocument ? "Uploading..." : "+ Upload PDF"}
                 </button>
               </div>
             </div>
@@ -508,18 +553,10 @@ export function CampaignAssetsStep({
                     No PDF files attached.{" "}
                     <button
                       type="button"
-                      onClick={() => setIsDocPickerOpen(true)}
-                      className="text-cyan font-semibold underline cursor-pointer"
-                    >
-                      Pick from library
-                    </button>{" "}
-                    or{" "}
-                    <button
-                      type="button"
                       onClick={handleAddSampleDoc}
                       className="text-cyan font-semibold underline cursor-pointer"
                     >
-                      upload PDF
+                      upload a PDF
                     </button>
                   </div>
                 </div>
@@ -527,70 +564,136 @@ export function CampaignAssetsStep({
             </div>
           </div>
 
-          {/* Card 3: Send Practice Email with Student Selection */}
+          {/* Card 3: Send Practice Email with roster selection */}
           <div className="bg-card rounded-[12px] border border-line p-5 shadow-xs flex flex-col gap-3.5">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-display font-bold text-ink">
-                  Send Practice Email to Myself
+                  Send Practice Email
                 </h3>
                 <p className="text-xs text-muted font-sans mt-0.5">
-                  Select a student profile to test dynamic QR ticket formatting in your inbox.
+                  Choose one selected roster member, or use a dummy practice pass. Practice passes cannot check anyone in.
                 </p>
               </div>
-
-              {onOpenTestSend && (
-                <button
-                  type="button"
-                  onClick={onOpenTestSend}
-                  className="text-xs font-semibold text-cyan hover:underline inline-flex items-center gap-1 cursor-pointer shrink-0"
-                >
-                  <UserSwitch size={14} weight="bold" />
-                  <span>Test Dialog</span>
-                </button>
-              )}
             </div>
 
-            {/* Student Picker for Test Send */}
+            {/* Roster recipient picker for the practice ticket */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-muted font-sans">
-                Student Perspective:
+                Ticket details:
               </label>
+              <div className="relative">
+                <MagnifyingGlass size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
+                <Input
+                  value={attendeeSearch}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setAttendeeSearch(value);
+                    setSearchResults([]);
+                    setAttendeeSearchError(null);
+                    setIsSearchingAttendees(value.trim().length >= 2);
+                  }}
+                  placeholder="Search attendee name, student ID, or email"
+                  className="h-10 bg-paper pl-9 pr-9 text-xs font-medium text-ink rounded-[6px] border-line"
+                />
+                {attendeeSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAttendeeSearch("");
+                      setSearchResults([]);
+                      setAttendeeSearchError(null);
+                      setIsSearchingAttendees(false);
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[4px] p-1 text-muted hover:bg-canvas hover:text-ink"
+                    aria-label="Clear attendee search"
+                    title="Clear attendee search"
+                  >
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              {isAttendeeSearchActive && isSearchingAttendees && <p className="text-[11px] text-muted">Searching attendees...</p>}
+              {isAttendeeSearchActive && attendeeSearchError && <p role="alert" className="text-[11px] text-red">{attendeeSearchError}</p>}
+              {isAttendeeSearchActive && !isSearchingAttendees && !attendeeSearchError && (
+                <div className="overflow-hidden rounded-[6px] border border-line bg-paper">
+                  {searchResults.map((recipient) => (
+                    <button
+                      key={recipient.id}
+                      type="button"
+                      onClick={() => {
+                        setSearchedRecipient(recipient);
+                        setSelectedStudentId(recipient.id);
+                        onTestEmailAddressChange(recipient.email);
+                        setAttendeeSearch("");
+                        setTestSentSuccess(false);
+                        setTestError(null);
+                      }}
+                      className="flex w-full flex-col gap-0.5 border-b border-line-subtle px-3 py-2 text-left last:border-b-0 hover:bg-cyan-soft/40"
+                    >
+                      <span className="text-xs font-semibold text-ink">{recipient.name}</span>
+                      <span className="text-[11px] text-muted">{recipient.studentId} · {recipient.email}</span>
+                    </button>
+                  ))}
+                  {searchResults.length === 0 && <p className="px-3 py-2 text-[11px] text-muted">No attendees found.</p>}
+                </div>
+              )}
               <Select
                 value={selectedStudentId}
                 onValueChange={(val) => {
                   setSelectedStudentId(val);
+                  const recipient = recipientOptions.find((option) => option.id === val);
+                  if (recipient?.email) onTestEmailAddressChange(recipient.email);
                   setTestSentSuccess(false);
+                  setTestError(null);
                 }}
               >
                 <SelectTrigger className="h-9 text-xs bg-paper border-line rounded-[6px] font-medium text-ink w-full">
-                  <SelectValue placeholder="Select student" />
+                  <SelectValue placeholder="Choose a roster member" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-line rounded-[8px]">
-                  {TEST_STUDENTS.map((s) => (
+                  <SelectItem value={DUMMY_PRACTICE_RECIPIENT.id} className="text-xs">
+                    <span className="font-semibold text-ink">Use a dummy practice pass</span>
+                  </SelectItem>
+                  {searchedRecipient && !practiceRecipients.some((recipient) => recipient.id === searchedRecipient.id) && (
+                    <SelectItem value={searchedRecipient.id} className="text-xs">
+                      <span className="font-semibold text-ink">{searchedRecipient.name}</span>
+                      <span className="text-muted ml-2 font-mono text-[11px]">({searchedRecipient.email})</span>
+                    </SelectItem>
+                  )}
+                  {practiceRecipients.map((s) => (
                     <SelectItem key={s.id} value={s.id} className="text-xs">
                       <span className="font-semibold text-ink">{s.name}</span>
                       <span className="text-muted ml-2 font-mono text-[11px]">
-                        ({s.studentId})
+                        ({s.email})
                       </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {practiceRecipients.length === 0 && (
+                <p className="text-[11px] text-muted">No roster members were selected. Choose the dummy practice pass or return to the roster.</p>
+              )}
             </div>
 
             {/* Input & Send Test Button */}
             <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
-              <Input
-                value={testEmailAddress}
-                onChange={(e) => {
-                  onTestEmailAddressChange(e.target.value);
-                  setTestSentSuccess(false);
-                  setTestError(null);
-                }}
-                placeholder="admin@umak.edu.ph"
-                className="h-10 text-xs bg-paper rounded-[6px] border-line font-medium text-ink flex-1"
-              />
+              <div className="flex flex-1 flex-col gap-1 w-full">
+                <label className="text-[11px] font-semibold text-muted font-sans">
+                  {activeStudent.id === DUMMY_PRACTICE_RECIPIENT.id ? "Send dummy pass to:" : "Send to selected roster email:"}
+                </label>
+                <Input
+                  value={testEmailAddress}
+                  readOnly={activeStudent.id !== DUMMY_PRACTICE_RECIPIENT.id}
+                  onChange={(e) => {
+                    onTestEmailAddressChange(e.target.value);
+                    setTestSentSuccess(false);
+                    setTestError(null);
+                  }}
+                  placeholder="your.name@umak.edu.ph"
+                  className="h-10 text-xs bg-paper rounded-[6px] border-line font-medium text-ink"
+                />
+              </div>
               <Button
                 type="button"
                 onClick={handleSendPracticeTest}
@@ -598,7 +701,7 @@ export function CampaignAssetsStep({
                 className="w-full sm:w-auto bg-ink hover:bg-ink-light text-paper text-xs font-semibold rounded-[6px] h-10 px-4 gap-2 cursor-pointer shadow-xs shrink-0"
               >
                 <PaperPlaneTilt size={15} weight="bold" />
-                <span>{isSendingTest ? "Sending..." : "Send test to my email"}</span>
+                <span>{isSendingTest ? "Sending..." : "Send practice email"}</span>
               </Button>
             </div>
 
@@ -606,8 +709,8 @@ export function CampaignAssetsStep({
               <div className="p-3 bg-green-soft border border-green-border rounded-[8px] text-xs text-green flex items-center gap-2 animate-in fade-in duration-200">
                 <CheckCircle size={16} className="text-green shrink-0" weight="bold" />
                 <span>
-                  Practice email for <strong className="font-bold">{activeStudent.name}</strong> sent to{" "}
-                  <strong className="font-bold">{testEmailAddress}</strong>. Check your inbox!
+                  Practice email with the <strong className="font-bold">{activeStudent.name}</strong> ticket details sent to{" "}
+                  <strong className="font-bold">{testEmailAddress}</strong>. Check your inbox.
                 </span>
               </div>
             )}
@@ -633,7 +736,7 @@ export function CampaignAssetsStep({
                 </span>
               </div>
               <span className="text-[11px] text-muted font-sans">
-                Includes unique QR ticket
+                  Includes dummy QR pass
               </span>
             </div>
 
@@ -642,7 +745,7 @@ export function CampaignAssetsStep({
               {/* Webmail Bar */}
               <div className="px-4 py-2 bg-canvas/60 border-b border-line flex items-center justify-between text-xs">
                 <span className="text-muted font-sans font-medium text-[11px]">
-                  UMak Webmail · Student Perspective ({activeStudent.name})
+                  UMak Webmail · Practice preview ({activeStudent.name})
                 </span>
                 <span className="text-[10px] font-semibold text-muted bg-canvas border border-line px-2 py-0.5 rounded-[4px]">
                   Inbox
@@ -676,22 +779,33 @@ export function CampaignAssetsStep({
 
                 {/* Event Header Banner (if present) */}
                 {bannerImage && (
-                  <div className="rounded-[10px] overflow-hidden bg-ink text-paper p-5 text-center flex flex-col items-center justify-center shadow-xs border border-ink/40 relative">
-                    <div className="text-[10px] uppercase tracking-widest text-cyan-soft font-bold font-display">
-                      UNIVERSITY OF MAKATI · STUDENT INFORMATION CENTER
+                  bannerImage.url ? (
+                    <img src={bannerImage.url} alt={`Banner: ${bannerImage.fileName}`} className="w-full max-h-52 object-cover rounded-[10px] border border-line" />
+                  ) : (
+                    <div className="rounded-[10px] overflow-hidden bg-ink text-paper p-5 text-center flex flex-col items-center justify-center shadow-xs border border-ink/40 relative">
+                      <div className="text-[10px] uppercase tracking-widest text-cyan-soft font-bold font-display">
+                        UNIVERSITY OF MAKATI · STUDENT INFORMATION CENTER
+                      </div>
+                      <div className="text-base sm:text-lg font-display font-bold mt-1 text-white tracking-tight">
+                        {bannerImage.fileName}
+                      </div>
                     </div>
-                    <div className="text-base sm:text-lg font-display font-bold mt-1 text-white tracking-tight">
-                      UMak SIC General Assembly
-                    </div>
-                  </div>
+                  )
                 )}
 
                 {/* Body Copy Text */}
                 <div className="text-xs text-ink/90 whitespace-pre-line leading-relaxed font-sans pt-1">
-                  {previewFormattedBody}
+                  {renderEmailMarkdownPreview(previewBeforeTicket)}
                 </div>
 
-                {/* PDF Attachments Pills */}
+                {/* Non-functional ticket shown only for email layout testing. */}
+                {hasQrTicketPass && (
+                  <MockQrTicketPass
+                    attendeeName={activeStudent.name}
+                    studentId={activeStudent.studentId}
+                  />
+                )}
+
                 {attachments.length > 0 && (
                   <div className="pt-2 flex flex-wrap gap-2">
                     {attachments.map((att) => (
@@ -703,30 +817,17 @@ export function CampaignAssetsStep({
                           PDF
                         </span>
                         <span className="text-xs">{att.fileName}</span>
+                        <span className="text-[10px] text-muted">{att.fileSize}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* Official Check-In QR Ticket Pass Box */}
-                <div className="mt-1 p-3.5 bg-cyan-soft/20 border border-cyan-border rounded-[12px] flex items-center justify-between gap-3 shadow-2xs">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-[8px] bg-cyan-soft flex items-center justify-center shrink-0">
-                      <QrCode size={22} className="text-cyan" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-display font-bold text-ink">
-                        Official Check-In QR Ticket Pass
-                      </div>
-                      <div className="text-[10px] text-muted font-sans truncate">
-                        Generated for {activeStudent.name} ({activeStudent.studentId})
-                      </div>
-                    </div>
+                {hasQrTicketPass && previewAfterTicket && (
+                  <div className="text-xs text-ink/90 leading-relaxed font-sans">
+                    {renderEmailMarkdownPreview(previewAfterTicket)}
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-soft/80 border border-cyan-border text-cyan font-sans shrink-0">
-                    Included
-                  </span>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -742,25 +843,6 @@ export function CampaignAssetsStep({
         </div>
       </div>
 
-      {/* Banner Library Picker Modal */}
-      <AssetPickerDialog
-        open={isBannerPickerOpen}
-        onOpenChange={setIsBannerPickerOpen}
-        categoryFilter="image"
-        onSelectAsset={handleSelectBannerFromLibrary}
-        title="Select Announcement Banner"
-        description="Choose an existing uploaded hero graphic from your media library."
-      />
-
-      {/* PDF Document Library Picker Modal */}
-      <AssetPickerDialog
-        open={isDocPickerOpen}
-        onOpenChange={setIsDocPickerOpen}
-        categoryFilter="document"
-        onSelectAsset={handleSelectDocFromLibrary}
-        title="Attach Document from Library"
-        description="Select an existing program guide or certificate PDF to attach."
-      />
     </div>
   );
 }

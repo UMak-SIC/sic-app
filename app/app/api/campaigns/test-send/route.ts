@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { compileMarkdown } from "@/lib/email/markdown-compiler";
+import { DUMMY_QR_PASS_HTML } from "@/lib/email/dummy-qr-pass";
 import { createProviderDispatch } from "@/lib/queue/providers";
 import type { OutboundMessage } from "@/lib/queue/providers/types";
 import { validateEmail } from "@/lib/validation/attendee-validation";
@@ -17,7 +18,7 @@ import { EmailProvider } from "@prisma/client";
  * daily provider quota, or leave a delivery record that looks like a roster
  * delivery. Nothing in this path writes to the database.
  *
- * Provider selection is fixed to Mailgun, the primary in US-21. The dual-provider
+ * Provider selection is fixed to Brevo, the primary provider. The dual-provider
  * failover decision belongs to the engine in TSK-0705, and a test send is exactly
  * the wrong place to start failing over: an operator testing a draft should see
  * the primary's real answer, including its failures.
@@ -34,7 +35,9 @@ type TestSendBody = {
   to?: unknown;
   subject?: unknown;
   markdown?: unknown;
+  includeDummyTicket?: unknown;
 };
+
 
 function readString(value: unknown, maxLength: number): string | null {
   if (value === undefined) {
@@ -75,6 +78,13 @@ export async function POST(request: Request) {
     );
   }
 
+  if (body.includeDummyTicket !== undefined && typeof body.includeDummyTicket !== "boolean") {
+    return NextResponse.json(
+      { error: "That test email had something we could not read. Check it and try again." },
+      { status: 400 }
+    );
+  }
+
   // Reuses the attendee validator so a test send rejects the same addresses the
   // registry would, rather than accepting something and letting the provider
   // bounce it minutes later.
@@ -88,6 +98,7 @@ export async function POST(request: Request) {
   let compiled: string;
   try {
     compiled = compileMarkdown(markdown.trim() || "_(empty test message)_");
+    if (body.includeDummyTicket) compiled += DUMMY_QR_PASS_HTML;
   } catch {
     // compileMarkdown needs the storage endpoint to pin image hosts to, and
     // throws without it. That is a deployment misconfiguration rather than
@@ -120,16 +131,16 @@ export async function POST(request: Request) {
       scheduledAt: new Date(),
       lockExpiresAt: new Date(),
     },
-    EmailProvider.MAILGUN
+    EmailProvider.BREVO
   );
 
   if (!attempt.succeeded) {
     // The provider's own reason is already operator-facing: the adapters phrase
-    // it as "Mailgun rejected the API key" rather than surfacing a raw body.
+    // it as a provider configuration problem rather than surfacing a raw body.
     return NextResponse.json(
       {
         error: attempt.errorMessage ?? "The email could not be sent.",
-        provider: EmailProvider.MAILGUN,
+        provider: EmailProvider.BREVO,
         httpStatus: attempt.httpStatus,
       },
       { status: 502 }
@@ -139,7 +150,7 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       sent: true,
-      provider: EmailProvider.MAILGUN,
+      provider: EmailProvider.BREVO,
       to: email.displayEmail,
       subject: finalSubject,
       providerMessageId: attempt.providerMessageId,

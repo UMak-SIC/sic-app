@@ -66,9 +66,9 @@ export function AssetDetailSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl w-[calc(100vw-2rem)] sm:w-full bg-card border-line rounded-[14px] p-0 overflow-hidden shadow-2xl font-sans">
+      <DialogContent className="flex h-[min(46rem,calc(100dvh-2rem))] max-w-2xl w-[calc(100vw-2rem)] sm:w-full max-h-[calc(100dvh-2rem)] bg-card border-line rounded-[12px] p-0 overflow-hidden shadow-2xl font-sans">
         {/* Header */}
-        <div className="p-4 sm:p-5 pr-12 border-b border-line bg-paper flex items-center justify-between">
+        <div className="shrink-0 p-4 sm:p-5 pr-12 border-b border-line bg-paper flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
               className={cn(
@@ -100,7 +100,7 @@ export function AssetDetailSheet({
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-6 max-h-[72vh] overflow-y-auto flex flex-col gap-5 bg-canvas/30">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6 flex flex-col gap-5 bg-canvas/30">
           {/* Visual Preview Box */}
           <div className="rounded-[12px] overflow-hidden border border-line bg-paper shadow-2xs">
             {asset.category === "image" && asset.previewUrl ? (
@@ -228,7 +228,7 @@ export function AssetDetailSheet({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-line bg-paper flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="shrink-0 p-4 border-t border-line bg-paper flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Delete Action (Disabled if locked) */}
           {isLocked ? (
             <div className="text-[11px] text-muted flex items-center gap-1 font-sans">

@@ -14,6 +14,24 @@ type EventInput = {
 
 export class EventLifecycleError extends Error {}
 
+type PublicImageAsset = {
+  objectKey: string;
+  storageBucket: string | null;
+};
+
+export function publicImageUrl(asset: PublicImageAsset | null): string | null {
+  const endpoint = process.env.AWS_ENDPOINT_URL_S3?.trim();
+  if (!asset || asset.storageBucket !== "PUBLIC_IMAGES" || !endpoint) return null;
+
+  try {
+    const url = new URL(endpoint);
+    url.pathname = `/public-images/${asset.objectKey.split("/").map(encodeURIComponent).join("/")}`;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Bounds the venue so one pasted paragraph cannot become a single "where" cell.
  * A building plus a room is well inside this.
@@ -117,7 +135,10 @@ export async function publishEvent(eventId: string) {
 
 export async function listEvents() {
   return getPrismaClient().event.findMany({
-    include: { imageAsset: { select: { originalFilename: true } } },
+    include: {
+      imageAsset: { select: { originalFilename: true, objectKey: true, storageBucket: true } },
+      _count: { select: { rosterEntries: true } },
+    },
     orderBy: { startsAt: "desc" },
   });
 }
@@ -125,6 +146,9 @@ export async function listEvents() {
 export async function getEvent(eventId: string) {
   return getPrismaClient().event.findUnique({
     where: { id: eventId },
-    include: { imageAsset: { select: { originalFilename: true } } },
+    include: {
+      imageAsset: { select: { originalFilename: true, objectKey: true, storageBucket: true } },
+      _count: { select: { rosterEntries: true } },
+    },
   });
 }

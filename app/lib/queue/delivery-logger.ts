@@ -45,13 +45,20 @@ export async function recordDeliveryAttempt({
       throw new Error(`Queue job ${queueJobId} is not claimed by worker ${workerId}.`);
     }
 
+    // retryCount tracks failed sends, while attemptNumber is permanent delivery
+    // history. A manually requeued delivery starts a new retry budget but must
+    // never reuse an existing attempt number.
+    const lastAttempt = await transaction.deliveryAttempt.aggregate({
+      where: { deliveryId: queueJob.deliveryId },
+      _max: { attemptNumber: true },
+    });
     const retryCount = succeeded ? queueJob.retryCount : queueJob.retryCount + 1;
     const deadLettered = !succeeded && retryCount > queueJob.maxRetries;
 
     await transaction.deliveryAttempt.create({
       data: {
         deliveryId: queueJob.deliveryId,
-        attemptNumber: queueJob.retryCount + 1,
+        attemptNumber: (lastAttempt._max.attemptNumber ?? 0) + 1,
         provider,
         providerMessageId,
         httpStatus,

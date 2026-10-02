@@ -121,7 +121,7 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  // US-23: when both daily quotas are spent, unsent work stays in the queue. Check
+  // When the daily quota is spent, unsent work stays in the queue. Check
   // before claiming so an exhausted day costs one indexed read rather than a batch
   // of locks. The per-job reservation in the selector is still the authority —
   // capacity can be consumed between this read and the claim.
@@ -133,20 +133,28 @@ export async function POST(request: Request): Promise<Response> {
         retried: 0,
         deadLettered: 0,
         held: 0,
-        reason: "Both providers have used their daily allowance. Work stays queued.",
+         reason: "The daily email allowance has been used. Work stays queued.",
       },
       { status: 200 }
     );
   }
 
-  const result = await processQueueJobs({
-    workerId,
-    limit,
-    selectProvider: selectProviderForJob,
-    dispatch: withQuotaReconciliation(
-      createProviderDispatch({ resolveMessage: createDeliveryMessageResolver() })
-    ),
-  });
+  try {
+    const result = await processQueueJobs({
+      workerId,
+      limit,
+      selectProvider: selectProviderForJob,
+      dispatch: withQuotaReconciliation(
+        createProviderDispatch({ resolveMessage: createDeliveryMessageResolver() })
+      ),
+    });
 
-  return Response.json(result, { status: 200 });
+    return Response.json(result, { status: 200 });
+  } catch (error) {
+    console.error("[queue-worker] Unable to select an email provider.", error);
+    return Response.json(
+      { error: "The email could not be prepared for sending. It has returned to the queue." },
+      { status: 500 },
+    );
+  }
 }

@@ -45,7 +45,7 @@ export function EventsPagination({
           size="sm"
           disabled={currentPage <= 1}
           onClick={() => onPageChange(currentPage - 1)}
-          className="h-8.5 gap-1.5 rounded-[7px] border-line px-3 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-40 cursor-pointer"
+          className="h-8.5 gap-1.5 rounded-[6px] border-line px-3 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-40 cursor-pointer"
         >
           <CaretLeft size={15} weight="bold" />
           <span>Previous</span>
@@ -60,7 +60,7 @@ export function EventsPagination({
                 key={pageNum}
                 onClick={() => onPageChange(pageNum)}
                 className={cn(
-                  "flex size-8.5 items-center justify-center rounded-[7px] text-xs font-sans transition-colors cursor-pointer",
+                  "flex size-8.5 items-center justify-center rounded-[6px] text-xs font-sans transition-colors cursor-pointer",
                   isActive
                     ? "bg-cyan text-white font-bold shadow-xs"
                     : "text-muted hover:bg-canvas hover:text-ink font-medium"
@@ -78,7 +78,7 @@ export function EventsPagination({
           size="sm"
           disabled={currentPage >= totalPages}
           onClick={() => onPageChange(currentPage + 1)}
-          className="h-8.5 gap-1.5 rounded-[7px] border-line px-3 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-40 cursor-pointer"
+          className="h-8.5 gap-1.5 rounded-[6px] border-line px-3 text-xs font-semibold text-ink hover:bg-canvas disabled:opacity-40 cursor-pointer"
         >
           <span>Next</span>
           <CaretRight size={15} weight="bold" />

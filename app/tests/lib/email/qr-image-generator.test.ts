@@ -7,6 +7,7 @@ import {
   qrTicketCid,
   renderQrTicketDataUrl,
   renderQrTicketImage,
+  renderQrTicketPassImage,
 } from "@/lib/email/qr-image-generator";
 import { signQrTicket } from "@/lib/security/qr-signer";
 
@@ -127,6 +128,22 @@ describe("renderQrTicketImage", () => {
     await expect(renderQrTicketImage(ticket(), { margin: -1 })).rejects.toThrow(
       /margin must be an integer/,
     );
+  });
+});
+
+describe("renderQrTicketPassImage", () => {
+  test("returns a PNG boarding pass with the ticket content ID", async () => {
+    const value = ticket();
+    const image = await renderQrTicketPassImage({
+      ticket: value,
+      attendeeName: "Ada Lovelace",
+      studentId: "S-001",
+      eventName: "UMak SIC Summit",
+    });
+
+    expect([...image.buffer.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    expect(image.mediaType).toBe("image/png");
+    expect(image.contentId).toBe(qrTicketCid(value));
   });
 });
 

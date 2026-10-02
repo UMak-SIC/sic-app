@@ -76,13 +76,13 @@ describe("POST /api/campaigns/test-send", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({
       sent: true,
-      provider: EmailProvider.MAILGUN,
+      provider: EmailProvider.BREVO,
       subject: "Check this",
       providerMessageId: "m-1",
     });
 
     const [job, provider] = dispatchEmail.mock.calls[0];
-    expect(provider).toBe(EmailProvider.MAILGUN);
+    expect(provider).toBe(EmailProvider.BREVO);
     expect(job).toMatchObject({ deliveryId: "test-send", retryCount: 0, maxRetries: 0 });
   });
 
@@ -112,6 +112,23 @@ describe("POST /api/campaigns/test-send", () => {
     expect(message.html).toContain("<strong>bold</strong>");
     // The sanitizer drops disallowed tags rather than escaping them.
     expect(message.html).not.toContain("script");
+  });
+
+  it("adds a clearly non-functional practice pass when requested", async () => {
+    await POST(post({ to: "someone@example.com", markdown: "Hi", includeDummyTicket: true }));
+
+    const message = (await captured.deps?.resolveMessage({})) as { html: string };
+
+    expect(message.html).toContain("UMak SIC Pass");
+    expect(message.html).toContain("Present this pass at check-in.");
+    expect(message.html).toContain('aria-label="Check-in QR pass"');
+  });
+
+  it("rejects a malformed practice-pass flag", async () => {
+    const res = await POST(post({ to: "someone@example.com", includeDummyTicket: "yes" }));
+
+    expect(res.status).toBe(400);
+    expect(dispatchEmail).not.toHaveBeenCalled();
   });
 
   it("addresses the message to the display form of the address", async () => {
@@ -174,7 +191,7 @@ describe("POST /api/campaigns/test-send", () => {
     dispatchEmail.mockResolvedValue({
       succeeded: false,
       httpStatus: 401,
-      errorMessage: "Mailgun rejected the API key. Forbidden",
+       errorMessage: "Brevo rejected the API key. Forbidden",
     });
 
     const res = await POST(post({ to: "someone@example.com", markdown: "Hi" }));

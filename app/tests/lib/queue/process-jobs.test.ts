@@ -30,7 +30,7 @@ beforeEach(() => {
 test("dispatches claimed jobs and records successful attempts", async () => {
   claimQueueJobs.mockResolvedValue([claimedJob]);
   recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
-  const selectProvider = vi.fn().mockResolvedValue(EmailProvider.MAILGUN);
+  const selectProvider = vi.fn().mockResolvedValue(EmailProvider.BREVO);
   const dispatch = vi.fn().mockResolvedValue({
     succeeded: true,
     httpStatus: 200,
@@ -46,11 +46,11 @@ test("dispatches claimed jobs and records successful attempts", async () => {
 
   expect(claimQueueJobs).toHaveBeenCalledWith({ workerId: "worker-a", limit: 10 });
   expect(selectProvider).toHaveBeenCalledWith(claimedJob);
-  expect(dispatch).toHaveBeenCalledWith(claimedJob, EmailProvider.MAILGUN);
+  expect(dispatch).toHaveBeenCalledWith(claimedJob, EmailProvider.BREVO);
   expect(recordDeliveryAttempt).toHaveBeenCalledWith({
     queueJobId: "queue-job-id",
     workerId: "worker-a",
-    provider: EmailProvider.MAILGUN,
+    provider: EmailProvider.BREVO,
     succeeded: true,
     httpStatus: 200,
   });
@@ -78,8 +78,8 @@ test("counts retryable and dead-lettered provider failures", async () => {
 test("records a retry when the selected provider throws", async () => {
   claimQueueJobs.mockResolvedValue([claimedJob]);
   recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
-  const selectProvider = vi.fn().mockResolvedValue(EmailProvider.MAILGUN);
-  const dispatch = vi.fn().mockRejectedValue(new Error("Mailgun request failed"));
+  const selectProvider = vi.fn().mockResolvedValue(EmailProvider.BREVO);
+  const dispatch = vi.fn().mockRejectedValue(new Error("Brevo request failed"));
 
   await expect(processQueueJobs({ workerId: "worker-a", selectProvider, dispatch })).resolves.toEqual({
     claimed: 1,
@@ -92,9 +92,9 @@ test("records a retry when the selected provider throws", async () => {
   expect(recordDeliveryAttempt).toHaveBeenCalledWith({
     queueJobId: "queue-job-id",
     workerId: "worker-a",
-    provider: EmailProvider.MAILGUN,
+    provider: EmailProvider.BREVO,
     succeeded: false,
-    errorMessage: "Mailgun request failed",
+    errorMessage: "Brevo request failed",
   });
 });
 
@@ -118,6 +118,20 @@ test("holds a job and records nothing when no provider has capacity", async () =
   // ever waiting for tomorrow's quota.
   expect(recordDeliveryAttempt).not.toHaveBeenCalled();
   expect(releaseClaimedJob).toHaveBeenCalledWith({ queueJobId: "queue-job-id", workerId: "worker-a" });
+});
+
+test("releases a job when provider selection fails", async () => {
+  claimQueueJobs.mockResolvedValue([claimedJob]);
+  const selectProvider = vi.fn().mockRejectedValue(new Error("Quota lookup failed"));
+  const dispatch = vi.fn();
+
+  await expect(processQueueJobs({ workerId: "worker-a", selectProvider, dispatch })).rejects.toThrow(
+    "Quota lookup failed",
+  );
+
+  expect(releaseClaimedJob).toHaveBeenCalledWith({ queueJobId: "queue-job-id", workerId: "worker-a" });
+  expect(dispatch).not.toHaveBeenCalled();
+  expect(recordDeliveryAttempt).not.toHaveBeenCalled();
 });
 
 test("keeps working the batch after one job is held", async () => {
@@ -145,7 +159,7 @@ test("keeps working the batch after one job is held", async () => {
 test("does not release a claim for a job that was dispatched", async () => {
   claimQueueJobs.mockResolvedValue([claimedJob]);
   recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
-  const selectProvider = vi.fn().mockResolvedValue(EmailProvider.MAILGUN);
+  const selectProvider = vi.fn().mockResolvedValue(EmailProvider.BREVO);
   const dispatch = vi.fn().mockResolvedValue({ succeeded: true, httpStatus: 200 });
 
   await processQueueJobs({ workerId: "worker-a", selectProvider, dispatch });

@@ -48,31 +48,27 @@ afterEach(() => {
 });
 
 describe("limits are configurable", () => {
-  test("defaults to the documented US-21 and US-22 allowances", () => {
-    expect(getDailyLimit(EmailProvider.MAILGUN, {})).toBe(100);
+  test("defaults to the documented allowance", () => {
     expect(getDailyLimit(EmailProvider.BREVO, {})).toBe(300);
   });
 
   test("reads the configured value", () => {
-    expect(getDailyLimit(EmailProvider.MAILGUN, { MAILGUN_DAILY_LIMIT: "25" })).toBe(25);
-    expect(getDailyLimit(EmailProvider.BREVO, { BREVO_DAILY_LIMIT: "0" })).toBe(0);
+    expect(getDailyLimit(EmailProvider.BREVO, { BREVO_DAILY_LIMIT: "25" })).toBe(25);
   });
 
   test("falls back to the default rather than failing delivery on a bad value", () => {
     // A typo in a quota variable should not stop the day's email.
     for (const bad of ["", "   ", "abc", "-5", "1.5"]) {
-      expect(getDailyLimit(EmailProvider.MAILGUN, { MAILGUN_DAILY_LIMIT: bad })).toBe(100);
+      expect(getDailyLimit(EmailProvider.BREVO, { BREVO_DAILY_LIMIT: bad })).toBe(300);
     }
   });
 
   test("treats an implausibly large value as a typo, not as unlimited", () => {
     // 1e21 is a valid integer, so without a bound a digit slip would silently
-    // disable the cap that US-21 and US-22 exist to provide.
-    expect(getDailyLimit(EmailProvider.MAILGUN, { MAILGUN_DAILY_LIMIT: "1e21" })).toBe(100);
-    expect(
-      getDailyLimit(EmailProvider.MAILGUN, { MAILGUN_DAILY_LIMIT: "1000000000000000000000" })
-    ).toBe(100);
-    expect(getDailyLimit(EmailProvider.MAILGUN, { MAILGUN_DAILY_LIMIT: "1000001" })).toBe(100);
+    // disable the cap that protects the delivery queue.
+    expect(getDailyLimit(EmailProvider.BREVO, { BREVO_DAILY_LIMIT: "1e21" })).toBe(300);
+    expect(getDailyLimit(EmailProvider.BREVO, { BREVO_DAILY_LIMIT: "1000000000000000000000" })).toBe(300);
+    expect(getDailyLimit(EmailProvider.BREVO, { BREVO_DAILY_LIMIT: "1000001" })).toBe(300);
   });
 
   test("accepts a large but plausible allowance", () => {
@@ -80,7 +76,7 @@ describe("limits are configurable", () => {
   });
 
   test("tolerates surrounding whitespace", () => {
-    expect(getDailyLimit(EmailProvider.MAILGUN, { MAILGUN_DAILY_LIMIT: "  40 " })).toBe(40);
+    expect(getDailyLimit(EmailProvider.BREVO, { BREVO_DAILY_LIMIT: "  40 " })).toBe(40);
   });
 });
 
@@ -102,9 +98,9 @@ describe("the quota day is the organization's calendar day", () => {
 });
 
 describe("reserving a slot", () => {
-  test("takes Mailgun first, per US-21", async () => {
+  test("takes Brevo first", async () => {
     await expect(reserveProviderSlot({ now: new Date("2026-09-30T02:00:00.000Z") })).resolves.toBe(
-      EmailProvider.MAILGUN
+      EmailProvider.BREVO
     );
     expect(updateMany).toHaveBeenCalledTimes(1);
   });
@@ -116,22 +112,13 @@ describe("reserving a slot", () => {
     // predicate is re-evaluated under the row lock by Postgres.
     expect(updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ reservedCount: { lt: 100 } }),
+        where: expect.objectContaining({ reservedCount: { lt: 300 } }),
         data: { reservedCount: { increment: 1 } },
       })
     );
   });
 
-  test("falls back to Brevo once Mailgun is full", async () => {
-    // First update (Mailgun) matches nothing because the cap is reached.
-    updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
-
-    await expect(
-      reserveProviderSlot({ env: {}, now: new Date("2026-09-30T02:00:00.000Z") })
-    ).resolves.toBe(EmailProvider.BREVO);
-  });
-
-  test("returns null when both quotas are exhausted, so the job is held", async () => {
+  test("returns null when the quota is exhausted, so the job is held", async () => {
     updateMany.mockResolvedValue({ count: 0 });
 
     await expect(
@@ -139,15 +126,13 @@ describe("reserving a slot", () => {
     ).resolves.toBeNull();
   });
 
-  test("skips a provider whose limit is zero, so it leaves rotation", async () => {
-    const provider = await reserveProviderSlot({
-      env: { MAILGUN_DAILY_LIMIT: "0" },
+  test("returns null when the provider is disabled", async () => {
+    await expect(reserveProviderSlot({
+      env: { BREVO_DAILY_LIMIT: "0" },
       now: new Date("2026-09-30T02:00:00.000Z"),
-    });
-
-    expect(provider).toBe(EmailProvider.BREVO);
+    })).resolves.toBeNull();
     // The disabled provider is never even upserted into the day's usage.
-    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(upsert).not.toHaveBeenCalled();
   });
 
   test("honours a caller-supplied order", async () => {
@@ -160,18 +145,18 @@ describe("reserving a slot", () => {
     await reserveProviderSlot({ now: new Date("2026-09-30T02:00:00.000Z") });
 
     expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ create: { provider: EmailProvider.MAILGUN, usageDate } })
+      expect.objectContaining({ create: { provider: EmailProvider.BREVO, usageDate } })
     );
   });
 
-  test("preference order is Mailgun then Brevo", () => {
-    expect(PROVIDER_PREFERENCE).toEqual([EmailProvider.MAILGUN, EmailProvider.BREVO]);
+  test("preference order contains only Brevo", () => {
+    expect(PROVIDER_PREFERENCE).toEqual([EmailProvider.BREVO]);
   });
 });
 
 describe("settling a reservation", () => {
   test("confirming counts the send but keeps the slot consumed", async () => {
-    await confirmProviderSend({ provider: EmailProvider.MAILGUN, now: new Date("2026-09-30T02:00:00.000Z") });
+    await confirmProviderSend({ provider: EmailProvider.BREVO, now: new Date("2026-09-30T02:00:00.000Z") });
 
     // Only sentCount moves. Returning the slot here would hand the same daily
     // allowance out repeatedly.
@@ -203,28 +188,26 @@ describe("the pre-flight capacity check", () => {
     await expect(hasProviderCapacity({ now: new Date("2026-09-30T02:00:00.000Z") })).resolves.toBe(true);
   });
 
-  test("is true while Mailgun has room", async () => {
+  test("is true while Brevo has room", async () => {
     findMany.mockResolvedValue([
-      { provider: EmailProvider.MAILGUN, reservedCount: 99 },
       { provider: EmailProvider.BREVO, reservedCount: 0 },
     ]);
 
     await expect(hasProviderCapacity({ now: new Date("2026-09-30T02:00:00.000Z") })).resolves.toBe(true);
   });
 
-  test("is false only when every provider is full", async () => {
+  test("is false when Brevo is full", async () => {
     findMany.mockResolvedValue([
-      { provider: EmailProvider.MAILGUN, reservedCount: 100 },
       { provider: EmailProvider.BREVO, reservedCount: 300 },
     ]);
 
     await expect(hasProviderCapacity({ now: new Date("2026-09-30T02:00:00.000Z") })).resolves.toBe(false);
   });
 
-  test("is false when both limits are zero", async () => {
+  test("is false when the limit is zero", async () => {
     await expect(
       hasProviderCapacity({
-        env: { MAILGUN_DAILY_LIMIT: "0", BREVO_DAILY_LIMIT: "0" },
+        env: { BREVO_DAILY_LIMIT: "0" },
         now: new Date("2026-09-30T02:00:00.000Z"),
       })
     ).resolves.toBe(false);

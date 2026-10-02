@@ -104,30 +104,26 @@ export async function releaseClaimedJob({
     throw new Error("workerId is required.");
   }
 
-  const released = await getPrismaClient().$transaction((transaction) =>
-    transaction.$queryRaw<{ id: string }[]>(Prisma.sql`
-      WITH released_job AS (
-        UPDATE queue_jobs AS job
-        SET
-          status = 'queued'::"QueueJobStatus",
-          locked_at = NULL,
-          lock_expires_at = NULL,
-          locked_by = NULL,
-          updated_at = NOW()
-        WHERE job.id = ${queueJobId}::uuid
-          AND job.status = 'processing'::"QueueJobStatus"
-          AND job.locked_by = ${workerId}
-        RETURNING job.id
-      )
-      UPDATE email_deliveries AS delivery
-      SET
-        status = 'queued'::"DeliveryStatus",
-        updated_at = NOW()
-      FROM released_job
-      WHERE delivery.id = released_job."deliveryId"
-      RETURNING released_job.id
-    `),
-  );
+  return getPrismaClient().$transaction(async (transaction) => {
+    const job = await transaction.queueJob.findFirst({
+      where: { id: queueJobId, status: "PROCESSING", lockedBy: workerId },
+      select: { deliveryId: true },
+    });
 
-  return released.length > 0;
+    if (!job) return false;
+
+    const released = await transaction.queueJob.updateMany({
+      where: { id: queueJobId, status: "PROCESSING", lockedBy: workerId },
+      data: { status: "QUEUED", lockedAt: null, lockExpiresAt: null, lockedBy: null },
+    });
+
+    if (released.count === 0) return false;
+
+    await transaction.emailDelivery.update({
+      where: { id: job.deliveryId },
+      data: { status: "QUEUED" },
+    });
+
+    return true;
+  });
 }

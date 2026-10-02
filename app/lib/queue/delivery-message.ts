@@ -1,10 +1,14 @@
 import "server-only";
 
 import { compileMarkdown } from "@/lib/email/markdown-compiler";
+import { renderQrTicketPassImage } from "@/lib/email/qr-image-generator";
 import { formatOrganizationDate } from "@/lib/events/organization-timezone";
 import { getPrismaClient } from "@/lib/prisma";
 import type { ClaimedQueueJob } from "@/lib/queue/claim-jobs";
 import type { OutboundMessage, ResolveMessage } from "@/lib/queue/providers/types";
+import { signQrTicket } from "@/lib/security/qr-signer";
+import { getNeonStorageClient } from "@/lib/storage/neon-storage-client";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 
 /**
  * Turns a claimed queue job into the message a provider should send.
@@ -29,6 +33,57 @@ export type TemplateResult = {
   /** Tokens with no value, in the order they were first seen. */
   unknownTokens: string[];
 };
+
+type StoredCampaignAsset = {
+  originalFilename: string;
+  objectKey: string;
+  storageBucket: "PRIVATE_IMAGES" | "PUBLIC_IMAGES" | null;
+};
+
+type StoredCampaignAssetBinding = {
+  role: "INLINE" | "ATTACHMENT";
+  asset: StoredCampaignAsset;
+};
+
+async function loadAttachments(assets: StoredCampaignAsset[]): Promise<NonNullable<OutboundMessage["attachments"]>> {
+  return Promise.all(assets.map(async (asset) => {
+    if (!asset.storageBucket) throw new Error(`Uploaded file ${asset.originalFilename} has no storage location.`);
+    const response = await getNeonStorageClient().send(new GetObjectCommand({
+      Bucket: asset.storageBucket === "PUBLIC_IMAGES" ? "public-images" : "private-images",
+      Key: asset.objectKey,
+    })) as { Body?: { transformToByteArray?: () => Promise<Uint8Array> } };
+    const bytes = await response.Body?.transformToByteArray?.();
+    if (!bytes) throw new Error(`Uploaded file ${asset.originalFilename} could not be read.`);
+    return { name: asset.originalFilename, content: Buffer.from(bytes).toString("base64") };
+  }));
+}
+
+function publicAssetUrl(asset: StoredCampaignAsset): string {
+  if (asset.storageBucket !== "PUBLIC_IMAGES") {
+    throw new Error(`Campaign banner ${asset.originalFilename} is not publicly available.`);
+  }
+
+  const endpoint = process.env.AWS_ENDPOINT_URL_S3?.trim();
+  if (!endpoint) throw new Error("AWS_ENDPOINT_URL_S3 is required to render campaign banners.");
+
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    throw new Error("AWS_ENDPOINT_URL_S3 must be a valid URL.");
+  }
+
+  url.pathname = `/public-images/${asset.objectKey.split("/").map(encodeURIComponent).join("/")}`;
+  return url.toString();
+}
+
+function prependInlineBanners(markdown: string, bindings: StoredCampaignAssetBinding[]): string {
+  const banners = bindings
+    .filter((binding) => binding.role === "INLINE")
+    .map((binding) => `<img src="${publicAssetUrl(binding.asset)}" alt="Campaign banner" height="160">`);
+
+  return banners.length > 0 ? `${banners.join("\n\n")}\n\n${markdown}` : markdown;
+}
 
 /**
  * Substitutes `{{ token }}` placeholders.
@@ -60,7 +115,12 @@ export function applyTemplate(
     // rather than treated as unknown, but the lookup is normalised too — matching
     // leniently and then looking up the original casing would strip a token the
     // author clearly meant. Unknown tokens are reported as the author wrote them.
-    const value = values[token.toLowerCase()];
+    const normalizedToken = token.toLowerCase();
+    // The QR is delivered as a PNG attachment. The editor token is retained for
+    // old drafts, but must never leak its implementation marker into the email.
+    if (normalizedToken === "qr_ticket_pass") return "";
+
+    const value = values[normalizedToken];
 
     if (value === undefined || value === "") {
       if (!unknownTokens.includes(token)) {
@@ -121,11 +181,13 @@ export function createDeliveryMessageResolver(): ResolveMessage {
           select: {
             subject: true,
             markdown: true,
-            event: { select: { name: true, startsAt: true, venue: true } },
+            event: { select: { id: true, name: true, startsAt: true, endsAt: true, venue: true } },
+            assets: { select: { role: true, asset: { select: { originalFilename: true, objectKey: true, storageBucket: true } } } },
           },
         },
         rosterEntry: {
           select: {
+            id: true,
             attendee: {
               select: {
                 name: true,
@@ -170,10 +232,37 @@ export function createDeliveryMessageResolver(): ResolveMessage {
       );
     }
 
+    const ticket = signQrTicket({
+      eventId: campaign.event.id,
+      rosterEntryId: rosterEntry.id,
+      startsAt: campaign.event.startsAt,
+      endsAt: campaign.event.endsAt,
+    });
+    const qrImage = await renderQrTicketPassImage({
+      ticket,
+      attendeeName: attendee.name,
+      studentId: attendee.studentId,
+      eventName: campaign.event.name,
+    });
+    const html = compileMarkdown(
+      prependInlineBanners(text.replace(/\bQR_TICKET_PASS\b/g, ""), campaign.assets),
+    );
+
     return {
       to: attendee.displayEmail,
       subject: campaign.subject,
-      html: compileMarkdown(text),
+      html,
+      attachments: [
+        ...(await loadAttachments(
+          campaign.assets
+            .filter((binding) => binding.role === "ATTACHMENT")
+            .map((binding) => binding.asset),
+        )),
+        {
+          name: `${attendee.studentId}-check-in-pass.png`,
+          content: Buffer.from(qrImage.buffer).toString("base64"),
+        },
+      ],
     };
   };
 }

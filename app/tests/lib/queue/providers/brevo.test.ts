@@ -20,7 +20,6 @@ const message: OutboundMessage = {
   html: "<p>Hello</p>",
   text: "Hello",
   replyTo: "events@example.com",
-  tags: ["campaign"],
 };
 
 const env = {

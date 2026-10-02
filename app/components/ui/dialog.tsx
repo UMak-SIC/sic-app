@@ -139,6 +139,24 @@ export const DialogContent = React.forwardRef<
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onOpenChange]);
 
+  React.useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
@@ -149,7 +167,7 @@ export const DialogContent = React.forwardRef<
         role="dialog"
         aria-modal="true"
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-[calc(100vw-2rem)] max-w-lg max-h-[90dvh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border border-line bg-card p-4 sm:p-6 shadow-xl duration-200 animate-in fade-in-0 zoom-in-95 rounded-[14px] sm:rounded-[16px]",
+          "fixed left-[50%] top-[50%] z-50 flex flex-col w-[calc(100vw-2rem)] max-w-lg max-h-[90dvh] overflow-y-auto translate-x-[-50%] translate-y-[-50%] gap-4 border border-line bg-card p-4 sm:p-6 shadow-xl duration-200 animate-in fade-in-0 zoom-in-95 rounded-[14px] sm:rounded-[16px]",
           className
         )}
         {...props}

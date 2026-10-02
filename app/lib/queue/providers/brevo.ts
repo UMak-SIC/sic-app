@@ -11,15 +11,12 @@ import {
 } from "./types";
 
 /**
- * Brevo delivery over its transactional HTTP API (TSK-0704, US-22, NFR-02).
+ * Brevo delivery over its transactional HTTP API.
  *
- * Brevo is the overflow provider: the failover engine selects it when the
- * primary is unavailable or over quota, so this adapter is the one that has to
- * work when something else is already going wrong. It answers 201 with a
- * `messageId`, and 4xx with `{ code, message }`.
+ * Brevo is the primary provider. It answers 201 with a `messageId`, and 4xx
+ * with `{ code, message }`.
  *
- * Like the Mailgun adapter, there is no SMTP. Both providers are reached over
- * HTTPS from the same worker process.
+ * Delivery uses HTTPS from the queue worker; no SMTP relay runs in this app.
  *
  * Endpoints:
  * - https://developers.brevo.com/reference/sendtransacemail
@@ -73,6 +70,7 @@ export async function dispatchViaBrevo(
     htmlContent: message.html,
     ...(message.text ? { textContent: message.text } : {}),
     ...(message.replyTo ? { replyTo: { email: message.replyTo } } : {}),
+    ...(message.attachments?.length ? { attachment: message.attachments } : {}),
   };
 
   let response: Response;

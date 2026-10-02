@@ -3,7 +3,6 @@ import "server-only";
 import { EmailProvider } from "@prisma/client";
 
 import { dispatchViaBrevo } from "./brevo";
-import { dispatchViaMailgun } from "./mailgun";
 import type { ProviderAdapter, ProviderDispatch, ProviderDispatchDeps } from "./types";
 
 export type {
@@ -15,7 +14,6 @@ export type {
 } from "./types";
 
 const adapters: Record<EmailProvider, ProviderAdapter> = {
-  [EmailProvider.MAILGUN]: dispatchViaMailgun,
   [EmailProvider.BREVO]: dispatchViaBrevo,
 };
 
@@ -24,7 +22,7 @@ const adapters: Record<EmailProvider, ProviderAdapter> = {
  * resolver and transport up front.
  *
  * `processQueueJobs` takes `dispatch` by injection and calls it with the job and
- * the provider the failover engine selected, so the returned function takes
+ * the provider the queue reserved, so the returned function takes
  * exactly those two arguments. Nothing wires this up yet; it exists so the worker
  * and the test-send route share one entry point rather than each switching on the
  * provider themselves.

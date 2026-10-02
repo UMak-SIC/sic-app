@@ -36,12 +36,16 @@ function delivery(overrides: Record<string, unknown> = {}) {
       subject: "Your pass",
       markdown: "Hi {{student_name}}",
       event: {
+        id: "event-1",
         name: "UMak SIC Summit",
         startsAt: new Date("2026-10-01T09:00:00.000Z"),
+        endsAt: new Date("2026-10-01T17:00:00.000Z"),
         venue: "Audio Visual Room",
       },
+      assets: [],
     },
     rosterEntry: {
+      id: "roster-entry-1",
       attendee: {
         name: "Ada Lovelace",
         studentId: "S-001",
@@ -56,12 +60,14 @@ function delivery(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.ORGANIZATION_TIMEZONE = "Asia/Manila";
+  process.env.QR_TICKET_SECRET = "test-only-qr-ticket-secret-value-32-chars";
   compileMarkdown.mockImplementation((markdown: string) => `<compiled>${markdown}</compiled>`);
   findUnique.mockResolvedValue(delivery());
 });
 
 afterEach(() => {
   delete process.env.ORGANIZATION_TIMEZONE;
+  delete process.env.QR_TICKET_SECRET;
 });
 
 test("substitutes a known token", () => {
@@ -147,9 +153,10 @@ test("resolves a section and venue into the sent body", async () => {
   findUnique.mockResolvedValue(
     delivery({
       campaign: {
-        subject: "Your pass",
+        ...delivery().campaign,
         markdown: "Hi {{student_name}} of {{section}}, join us at {{venue}}.",
         event: {
+          ...delivery().campaign.event,
           name: "UMak SIC Summit",
           startsAt: new Date("2026-10-01T09:00:00.000Z"),
           venue: "Audio Visual Room",
@@ -170,9 +177,9 @@ test("warns when a placeholder could not be resolved", async () => {
   findUnique.mockResolvedValue(
     delivery({
       campaign: {
-        subject: "Your pass",
+        ...delivery().campaign,
         markdown: "Join us at {{venue}}.",
-        event: { name: "UMak SIC Summit", startsAt: new Date("2026-10-01T09:00:00.000Z"), venue: null },
+        event: { ...delivery().campaign.event, venue: null },
       },
     })
   );
@@ -201,8 +208,43 @@ test("resolves a delivery into an addressed, compiled message", async () => {
   // matching and the display form for what a human sees and what is sent.
   expect(message.to).toBe("Ada@Example.com");
   expect(message.subject).toBe("Your pass");
-  expect(message.html).toBe("<compiled>Hi Ada Lovelace</compiled>");
+  expect(message.html).toContain("<compiled>Hi Ada Lovelace</compiled>");
   expect(compileMarkdown).toHaveBeenCalledWith("Hi Ada Lovelace");
+});
+
+test("renders a public inline banner in the email instead of attaching it", async () => {
+  process.env.AWS_ENDPOINT_URL_S3 = "https://storage.example.com";
+  findUnique.mockResolvedValue(delivery({
+    campaign: {
+      ...delivery().campaign,
+      assets: [{
+        role: "INLINE",
+        asset: {
+          originalFilename: "banner image.png",
+          objectKey: "assets/banner image.png",
+          storageBucket: "PUBLIC_IMAGES",
+        },
+      }],
+    },
+  }));
+
+  const message = await createDeliveryMessageResolver()(job);
+
+  expect(compileMarkdown).toHaveBeenCalledWith(
+    '<img src="https://storage.example.com/public-images/assets/banner%20image.png" alt="Campaign banner" height="160">\n\nHi Ada Lovelace',
+  );
+  expect(message.attachments).toEqual([
+    expect.objectContaining({ name: "S-001-check-in-pass.png" }),
+  ]);
+});
+
+test("attaches a signed QR ticket without leaving its marker in the email body", async () => {
+  const message = await createDeliveryMessageResolver()(job);
+
+  expect(message.html).not.toContain("QR_TICKET_PASS");
+  expect(message.attachments).toEqual([
+    expect.objectContaining({ name: "S-001-check-in-pass.png" }),
+  ]);
 });
 
 test("reads the delivery named by the job", async () => {

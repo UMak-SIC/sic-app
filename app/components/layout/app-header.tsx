@@ -15,8 +15,9 @@ export function AppHeader() {
   // Format the current path to readable title
   const currentSection =
     pathname.split("/").filter(Boolean).pop() || "Overview";
-  const formattedTitle =
-    currentSection.charAt(0).toUpperCase() + currentSection.slice(1);
+  const formattedTitle = /^\/events\/[^/]+$/.test(pathname)
+    ? "Event details"
+    : currentSection.charAt(0).toUpperCase() + currentSection.slice(1);
 
   return (
     <>
@@ -108,4 +109,3 @@ export function AppHeader() {
     </>
   );
 }
-

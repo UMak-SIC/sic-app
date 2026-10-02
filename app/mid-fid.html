@@ -838,7 +838,7 @@ Miguel Dela Cruz, 2023-00491, miguel.delacruz@umak.edu.ph</textarea></label>
         <div class="flow-header">
           <span class="flow-badge">Tab 06 // Campaigns & Email</span>
           <h2 class="flow-title">Campaign Authoring & Multi-Provider Delivery Flow</h2>
-          <p class="flow-desc">Author personalized Markdown campaign emails, attach Cloudflare R2 assets, preview recipient tickets, process through Mailgun / Brevo queues, and monitor quota resets.</p>
+          <p class="flow-desc">Author personalized Markdown campaign emails, attach Cloudflare R2 assets, preview recipient tickets, process through the Brevo queue, and monitor quota resets.</p>
           <div class="flow-pipeline">
             <span class="flow-step"><span class="flow-step-num">1</span> 16. Overview</span>
             <span class="flow-arrow">➔</span>
@@ -1061,7 +1061,7 @@ Bring your QR ticket for check-in.</textarea></label>
                     <button class="btn">Retry failed</button>
                   </header>
                   <div class="metrics">
-                    <div class="metric"><span>Mailgun capacity</span><strong>92/100</strong><small>Primary provider</small></div>
+                    <div class="metric"><span>Brevo capacity</span><strong>92/300</strong><small>Primary provider</small></div>
                     <div class="metric"><span>Brevo capacity</span><strong>0/300</strong><small>Fallback provider</small></div>
                   </div>
                   <div class="rows">
@@ -1071,7 +1071,7 @@ Bring your QR ticket for check-in.</textarea></label>
                     <div class="row"><strong>Bounced</strong><span>Address rejected</span><span class="badge failed">1</span></div>
                     <div class="row"><strong>Failed</strong><span>Retry without duplicates</span><span class="badge failed">2</span></div>
                   </div>
-                  <div class="notice">Mailgun is used first. Excess jobs move to Brevo or remain queued.</div>
+                    <div class="notice">Brevo is used for delivery. Excess jobs remain queued.</div>
                 </section>
               </div>
             </div>
@@ -1096,9 +1096,9 @@ Bring your QR ticket for check-in.</textarea></label>
                     <button class="btn">Retry now</button>
                   </header>
                   <div class="rows">
-                    <div class="row"><strong>Andrea Santos</strong><span>Mailgun · msg_7D31</span><span class="badge sent">Sent</span></div>
+                    <div class="row"><strong>Andrea Santos</strong><span>Brevo · msg_7D31</span><span class="badge sent">Sent</span></div>
                     <div class="row"><strong>Miguel Dela Cruz</strong><span>Brevo · retry 16 Oct 00:05</span><span class="badge queued">Queued</span></div>
-                    <div class="row"><strong>Bianca Flores</strong><span>Mailgun · mailbox unavailable</span><span class="badge failed">Bounced</span></div>
+                    <div class="row"><strong>Bianca Flores</strong><span>Brevo · mailbox unavailable</span><span class="badge failed">Bounced</span></div>
                   </div>
                   <div class="notice">6 jobs are waiting for Brevo's configured quota reset. The queue stores that provider's reset period and timezone. Each retry retains its idempotency key.</div>
                 </section>
@@ -1124,8 +1124,7 @@ Bring your QR ticket for check-in.</textarea></label>
                     <div><h2>Provider limits</h2><p>Configured from each provider's documented quota contract.</p></div>
                   </header>
                   <div class="policy">
-                    <div><strong>Mailgun</strong><br>Daily capacity: 100. Reset period and timezone are stored from the provider configuration, not the organisation timezone.</div>
-                    <div><strong>Brevo</strong><br>Daily capacity: 300. Used only after Mailgun capacity is unavailable. Its reset contract is stored separately.</div>
+                    <div><strong>Brevo</strong><br>Daily capacity: 300. Reset period and timezone are stored from the provider configuration, not the organisation timezone.</div>
                     <div><strong>Queue behavior</strong><br>Provider usage is reserved transactionally. Jobs waiting for a reset display the provider and next configured reset time.</div>
                   </div>
                 </section>
