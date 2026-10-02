@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ArrowClockwise, CheckCircle, HourglassMedium, PaperPlaneTilt, WarningCircle } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowClockwise, CalendarBlank, CheckCircle, DownloadSimple, Eye, HourglassMedium, MagnifyingGlass, MapPin, PaperPlaneTilt, Users, WarningCircle } from "@phosphor-icons/react";
 
 import { KpiCardRow, type KpiItem } from "@/components/campaign/campaign-kpi-row";
 import { CampaignDeliveryTable } from "@/components/campaign/campaign-delivery-table";
 import type { StudentRecipient } from "@/components/campaign/campaign-types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type Delivery = {
   id: string;
@@ -32,6 +34,8 @@ type Campaign = {
   counts: Record<Delivery["status"], number>;
   deliveries: Delivery[];
 };
+
+type CampaignSubTab = "recipients" | "issues";
 
 function recipientStatus(status: Delivery["status"]): StudentRecipient["deliveryStatus"] {
   if (status === "SENT") return "delivered";
@@ -58,6 +62,10 @@ export default function CampaignDetailPage() {
   const [passQrDataUrl, setPassQrDataUrl] = React.useState<string | null>(null);
   const [passError, setPassError] = React.useState<string | null>(null);
   const [selectedRequeue, setSelectedRequeue] = React.useState<StudentRecipient | null>(null);
+  const [activeTab, setActiveTab] = React.useState<CampaignSubTab>("recipients");
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [statusFilter, setStatusFilter] = React.useState<"all" | StudentRecipient["deliveryStatus"]>("all");
+  const [selectedRecipientIds, setSelectedRecipientIds] = React.useState<string[]>([]);
 
   const refresh = React.useCallback(async () => {
     const response = await fetch(`/api/campaigns/${campaignId}`, { cache: "no-store" });
@@ -134,6 +142,28 @@ export default function CampaignDetailPage() {
     }
   };
 
+  const exportCsv = () => {
+    if (!campaign) return;
+    const headers = ["Student Name", "Student ID", "Email Address", "Course", "Delivery Status", "Delivered Timestamp", "Delivery Notes"];
+    const escape = (value: string | null | undefined) => `"${(value ?? "").replaceAll('"', '""')}"`;
+    const rows = campaign.deliveries.map((delivery) => [
+      escape(delivery.attendee.name),
+      escape(delivery.attendee.studentId),
+      escape(delivery.attendee.email),
+      escape(delivery.attendee.course),
+      escape(recipientStatus(delivery.status)),
+      escape(delivery.sentAt ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(delivery.sentAt)) : "Pending"),
+      escape(delivery.failureMessage ?? delivery.lastAttempt?.errorMessage),
+    ]);
+    const blob = new Blob([[headers, ...rows].map((row) => row.join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `email_delivery_report_${campaign.eventName.toLowerCase().replace(/\s+/g, "_")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loadError && !campaign) return <div role="alert" className="rounded-[12px] border border-red-border bg-red-soft p-6 text-sm text-red font-sans">{loadError}</div>;
   if (!campaign) return <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted font-sans">Loading email campaign...</div>;
 
@@ -160,6 +190,37 @@ export default function CampaignDetailPage() {
     { label: "Needs Attention", icon: <WarningCircle size={18} weight="bold" />, color: "var(--red)", data: [0, failed], format: (value) => `${Math.round(value)}` },
   ];
   const failedDeliveries = campaign.deliveries.filter((delivery) => delivery.status === "FAILED");
+  const filteredRecipients = recipients.filter((recipient) => {
+    const query = searchQuery.trim().toLowerCase();
+    const matchesQuery = !query || recipient.name.toLowerCase().includes(query) || recipient.studentId.toLowerCase().includes(query) || recipient.email.toLowerCase().includes(query);
+    return matchesQuery && (statusFilter === "all" || recipient.deliveryStatus === statusFilter);
+  });
+  const selectedRecipients = recipients.filter((recipient) => selectedRecipientIds.includes(recipient.id));
+  const selectedFailedDeliveryIds = selectedRecipients.filter((recipient) => failedDeliveries.some((delivery) => delivery.id === recipient.id)).map((recipient) => recipient.id);
+  const allVisibleSelected = filteredRecipients.length > 0 && filteredRecipients.every((recipient) => selectedRecipientIds.includes(recipient.id));
+
+  const toggleRecipientSelection = (id: string) => {
+    setSelectedRecipientIds((current) => current.includes(id) ? current.filter((currentId) => currentId !== id) : [...current, id]);
+  };
+
+  const toggleAllVisibleRecipients = () => {
+    const visibleIds = new Set(filteredRecipients.map((recipient) => recipient.id));
+    setSelectedRecipientIds((current) => allVisibleSelected ? current.filter((id) => !visibleIds.has(id)) : [...new Set([...current, ...visibleIds])]);
+  };
+
+  const reorderRecipients = (orderedRecipients: StudentRecipient[]) => {
+    const deliveryById = new Map(campaign.deliveries.map((delivery) => [delivery.id, delivery]));
+    const orderedIds = new Set(orderedRecipients.map((recipient) => recipient.id));
+    let nextRecipientIndex = 0;
+    setCampaign({
+      ...campaign,
+      deliveries: campaign.deliveries.map((delivery) => {
+        if (!orderedIds.has(delivery.id)) return delivery;
+        const nextRecipient = orderedRecipients[nextRecipientIndex++];
+        return deliveryById.get(nextRecipient.id) ?? delivery;
+      }),
+    });
+  };
 
   return (
     <div className="flex w-full flex-col gap-6 pb-16 font-sans">
@@ -169,36 +230,39 @@ export default function CampaignDetailPage() {
             <ArrowLeft size={16} weight="bold" aria-hidden="true" /> All Announcements
           </button>
           <h1 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{campaign.subject}</h1>
-          <p className="mt-1 text-xs text-muted">Sent for <strong className="font-semibold text-ink">{campaign.eventName}</strong> on {new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(campaign.createdAt))}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">Sent for <strong className="font-semibold text-ink">{campaign.eventName}</strong> on {new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(campaign.createdAt))}{campaign.venue && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1"><MapPin size={16} className="text-cyan" aria-hidden="true" />{campaign.venue}</span></>}<span aria-hidden="true">·</span><span className="inline-flex items-center gap-1"><CalendarBlank size={16} className="text-cyan" aria-hidden="true" />{new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(campaign.startsAt))}</span></p>
         </div>
-        {failedDeliveries.length > 0 && <Button type="button" onClick={() => setRetryConfirmationOpen(true)} disabled={retrying} className="h-9 rounded-[6px] bg-cyan px-4 text-xs font-semibold text-white hover:bg-cyan-hover">
-          <ArrowClockwise size={16} weight="bold" aria-hidden="true" /> {retrying ? "Retrying..." : `Retry ${failedDeliveries.length} Failed Email${failedDeliveries.length === 1 ? "" : "s"}`}
-        </Button>}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" onClick={() => selectedRecipients.length === 1 && void openPass(selectedRecipients[0])} disabled={selectedRecipients.length !== 1} className="h-9 rounded-[6px] border-line px-3 text-xs font-semibold"><Eye size={16} weight="bold" aria-hidden="true" /> View Selected Pass</Button>
+          <Button type="button" variant="outline" onClick={exportCsv} className="h-9 rounded-[6px] border-line px-3 text-xs font-semibold"><DownloadSimple size={16} weight="bold" aria-hidden="true" /> Export CSV</Button>
+          {failedDeliveries.length > 0 && <Button type="button" onClick={() => setRetryConfirmationOpen(true)} disabled={retrying} className="h-9 rounded-[6px] bg-cyan px-4 text-xs font-semibold text-white hover:bg-cyan-hover"><ArrowClockwise size={16} weight="bold" aria-hidden="true" /> {retrying ? "Retrying..." : `Retry ${failedDeliveries.length} Failed Email${failedDeliveries.length === 1 ? "" : "s"}`}</Button>}
+        </div>
       </div>
 
       {loadError && <p role="alert" className="text-sm text-red">{loadError}</p>}
       {retryMessage && <p className="flex items-center gap-2 rounded-[9px] border border-green-border bg-green-soft p-3 text-sm text-green"><CheckCircle size={16} weight="bold" aria-hidden="true" />{retryMessage}</p>}
       <KpiCardRow items={kpis} />
 
-      <section className="rounded-[12px] border border-line bg-card p-4 shadow-xs sm:p-5">
-        <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-          <div><h2 className="font-display text-xl font-bold text-ink">Recipients</h2><p className="text-xs text-muted">Delivery status refreshes while this page is open.</p></div>
-          <span className="text-xs font-semibold text-muted">{campaign.deliveries.length} recipients</span>
+      <nav aria-label="Campaign view options" className="sticky top-16 z-20 flex flex-col justify-between gap-3 rounded-[12px] border-b border-line-subtle bg-paper/95 px-2 py-1.5 backdrop-blur sm:flex-row sm:items-center">
+        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto py-1">
+          <button type="button" onClick={() => setActiveTab("recipients")} className={cn("inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-4 text-xs font-semibold transition-colors", activeTab === "recipients" ? "bg-ink text-paper shadow-xs" : "text-muted hover:bg-canvas hover:text-ink")}><Users size={16} weight={activeTab === "recipients" ? "bold" : "regular"} aria-hidden="true" />All Recipients ({recipients.length})</button>
+          <button type="button" onClick={() => setActiveTab("issues")} className={cn("inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-4 text-xs font-semibold transition-colors", activeTab === "issues" ? "bg-ink text-paper shadow-xs" : "text-muted hover:bg-canvas hover:text-ink")}><WarningCircle size={16} weight={activeTab === "issues" ? "bold" : "regular"} aria-hidden="true" />Delivery Issues ({failed})</button>
         </div>
-        <CampaignDeliveryTable recipients={recipients} retryableIds={failedDeliveries.map((delivery) => delivery.id)} onResend={(deliveryId) => { const delivery = campaign.deliveries.find((item) => item.id === deliveryId); if (delivery?.status === "FAILED") void retry([delivery.id]); }} onRequeue={setSelectedRequeue} onViewPass={(recipient) => void openPass(recipient)} eventName={campaign.eventName} venue={campaign.venue ?? undefined} eventDate={new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(campaign.startsAt))} />
-      </section>
+        <span className="px-2 text-xs font-medium text-muted">Status refreshes while this page is open.</span>
+      </nav>
 
-      <section className="rounded-[12px] border border-line bg-card p-4 shadow-xs sm:p-5">
-        <h2 className="font-display text-xl font-bold text-ink">Delivery Issues</h2>
-        <p className="mt-1 text-xs text-muted">Review failed emails before returning them to the send list.</p>
-        <div className="mt-4 divide-y divide-line-subtle">
-          {campaign.deliveries.filter((delivery) => delivery.status === "FAILED" || delivery.status === "BOUNCED").map((delivery) => <div key={delivery.id} className="flex items-center justify-between gap-4 py-3">
-            <div><p className="text-sm font-semibold text-ink">{delivery.attendee.name}</p><p className="text-xs text-muted">{delivery.failureMessage ?? delivery.lastAttempt?.errorMessage ?? "This email could not be delivered."}</p></div>
-            <Button type="button" variant="outline" onClick={() => setSelectedFailure(delivery)} className="h-8 rounded-[6px] border-line text-xs font-semibold">Review</Button>
-          </div>)}
-          {failed === 0 && <p className="py-5 text-sm text-muted">No delivery issues need attention.</p>}
+      {activeTab === "recipients" && <section className="flex flex-col gap-4">
+        <div className="flex flex-col justify-between gap-3 pt-1 md:flex-row md:items-center">
+          <div className="relative w-full sm:w-80"><MagnifyingGlass size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" aria-hidden="true" /><Input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search name, student ID, or email" className="h-9 rounded-[6px] border-line bg-card pl-9 text-xs" /></div>
+          <div className="inline-flex w-full overflow-x-auto rounded-[9px] border border-line bg-canvas/60 p-0.5 text-xs sm:w-auto">
+            {(["all", "delivered", "sending", "invalid_email"] as const).map((filter) => <button key={filter} type="button" onClick={() => setStatusFilter(filter)} className={cn("shrink-0 rounded-[6px] px-3 py-1.5 font-medium transition-colors", statusFilter === filter ? "bg-card font-bold text-ink shadow-xs" : "text-muted hover:text-ink")}>{filter === "all" ? `All (${recipients.length})` : filter === "delivered" ? `Delivered (${recipients.filter((recipient) => recipient.deliveryStatus === filter).length})` : filter === "sending" ? `Sending (${recipients.filter((recipient) => recipient.deliveryStatus === filter).length})` : `Needs Help (${recipients.filter((recipient) => recipient.deliveryStatus === filter).length})`}</button>)}
+          </div>
         </div>
-      </section>
+        {selectedRecipientIds.length > 0 && <div className="flex flex-col justify-between gap-3 rounded-[9px] border border-cyan-border bg-cyan-soft/40 p-3 sm:flex-row sm:items-center"><p className="text-xs font-medium text-ink"><span className="font-bold text-cyan">{selectedRecipientIds.length}</span> recipient{selectedRecipientIds.length === 1 ? "" : "s"} selected{selectedFailedDeliveryIds.length !== selectedRecipientIds.length && ". Only failed emails can be retried."}</p><div className="flex items-center gap-2"><Button size="sm" onClick={() => void retry(selectedFailedDeliveryIds)} disabled={retrying || selectedFailedDeliveryIds.length === 0} className="h-8 rounded-[6px] bg-cyan px-3 text-xs font-semibold text-white hover:bg-cyan-hover"><ArrowClockwise size={16} weight="bold" aria-hidden="true" />Retry Failed</Button><Button size="sm" variant="ghost" onClick={() => setSelectedRecipientIds([])} className="h-8 rounded-[6px] px-2 text-xs text-muted hover:text-ink">Clear</Button></div></div>}
+        <CampaignDeliveryTable recipients={filteredRecipients} selectedIds={selectedRecipientIds} onToggleSelect={toggleRecipientSelection} onToggleSelectAll={toggleAllVisibleRecipients} onReorder={reorderRecipients} retryableIds={failedDeliveries.map((delivery) => delivery.id)} onResend={(deliveryId) => void retry([deliveryId])} onRequeue={setSelectedRequeue} onViewPass={(recipient) => void openPass(recipient)} eventName={campaign.eventName} venue={campaign.venue ?? undefined} eventDate={new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(campaign.startsAt))} />
+      </section>}
+
+      {activeTab === "issues" && <section className="rounded-[12px] border border-line bg-card p-4 shadow-xs sm:p-5"><h2 className="font-display text-xl font-bold text-ink">Delivery Issues</h2><p className="mt-1 text-xs text-muted">Review failed emails before returning them to the send list.</p><div className="mt-4 divide-y divide-line-subtle">{campaign.deliveries.filter((delivery) => delivery.status === "FAILED" || delivery.status === "BOUNCED").map((delivery) => <div key={delivery.id} className="flex items-center justify-between gap-4 py-3"><div><p className="text-sm font-semibold text-ink">{delivery.attendee.name}</p><p className="text-xs text-muted">{delivery.failureMessage ?? delivery.lastAttempt?.errorMessage ?? "This email could not be delivered."}</p></div><Button type="button" variant="outline" onClick={() => setSelectedFailure(delivery)} className="h-8 rounded-[6px] border-line text-xs font-semibold">Review</Button></div>)}{failed === 0 && <p className="py-5 text-sm text-muted">No delivery issues need attention.</p>}</div></section>}
 
       <Dialog open={selectedFailure !== null} onOpenChange={(open) => !open && setSelectedFailure(null)}>
         <DialogContent className="max-w-md rounded-[12px] border-line bg-card p-6 font-sans">
