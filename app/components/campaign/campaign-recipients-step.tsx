@@ -19,6 +19,8 @@ import {
   EnvelopeSimple,
   QrCode,
   FloppyDisk,
+  CaretLeft,
+  CaretRight,
 } from "@phosphor-icons/react";
 import { StudentRecipient } from "./campaign-types";
 import { ProfileCircle } from "@/components/attendees/profile-circle";
@@ -560,20 +562,28 @@ export function CampaignRecipientsStep({
   onContinue,
   onSaveDraft,
 }: CampaignRecipientsStepProps) {
+  const PAGE_SIZE = 8;
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filterTab, setFilterTab] = React.useState<"all" | "will_receive" | "already_received">("all");
-  const [selectedStudentIds, setSelectedStudentIds] = React.useState<string[]>(
-    initialSelectedIds ?? recipients.filter((r) => r.deliveryStatus !== "already_received").map((r) => r.id)
-  );
-  const [excludedIds, setExcludedIds] = React.useState<string[]>([]);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const [selectedStudentIds, setSelectedStudentIds] = React.useState<string[]>(() => {
+    if (initialSelectedIds !== undefined) {
+      return initialSelectedIds;
+    }
+    return recipients.filter((r) => r.deliveryStatus !== "already_received").map((r) => r.id);
+  });
   const [isDuplicateNoticeDismissed, setIsDuplicateNoticeDismissed] = React.useState(false);
 
-  // Derive live dynamic counts directly from the actual roster recipients and exclusions
+  // Reset to page 1 whenever search query or filter tab changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterTab]);
+
+  // Derive live dynamic counts directly from the actual selected student IDs
   const totalRegisteredCount = recipients.length;
   const alreadyReceivedCount = recipients.filter((s) => s.deliveryStatus === "already_received").length;
-  const willReceiveCount = recipients.filter(
-    (s) => s.deliveryStatus !== "already_received" && !excludedIds.includes(s.id)
-  ).length;
+  const willReceiveCount = recipients.filter((s) => selectedStudentIds.includes(s.id)).length;
+  const notSendingCount = totalRegisteredCount - willReceiveCount;
 
   const registeredSparkData = React.useMemo(() => {
     if (totalRegisteredCount === 0) return [0, 0, 0, 0, 0];
@@ -617,26 +627,37 @@ export function CampaignRecipientsStep({
         student.email.toLowerCase().includes(q) ||
         (student.course && student.course.toLowerCase().includes(q));
 
-      const isAlreadyReceived = student.deliveryStatus === "already_received";
-      const isExcluded = excludedIds.includes(student.id);
-      const isWillReceive = !isAlreadyReceived && !isExcluded;
+      const isSelected = selectedStudentIds.includes(student.id);
 
       const matchesTab =
         filterTab === "all"
           ? true
           : filterTab === "will_receive"
-          ? isWillReceive
-          : isAlreadyReceived || isExcluded;
+          ? isSelected
+          : !isSelected;
 
       return matchesSearch && matchesTab;
     });
-  }, [recipients, searchQuery, filterTab, excludedIds]);
+  }, [recipients, searchQuery, filterTab, selectedStudentIds]);
 
-  const isAllSelected =
-    filteredStudents.length > 0 &&
-    filteredStudents.every((s) => selectedStudentIds.includes(s.id));
-  const isSomeSelected =
-    selectedStudentIds.length > 0 && !isAllSelected;
+  const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
+
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedStudents = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    return filteredStudents.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredStudents, currentPage, PAGE_SIZE]);
+
+  const isAllPageSelected =
+    paginatedStudents.length > 0 &&
+    paginatedStudents.every((s) => selectedStudentIds.includes(s.id));
+  const isSomePageSelected =
+    paginatedStudents.some((s) => selectedStudentIds.includes(s.id)) && !isAllPageSelected;
 
   const handleToggleSelectStudent = (id: string) => {
     setSelectedStudentIds((prev) =>
@@ -645,29 +666,32 @@ export function CampaignRecipientsStep({
   };
 
   const handleToggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedStudentIds([]);
+    if (isAllPageSelected) {
+      const pageIds = new Set(paginatedStudents.map((s) => s.id));
+      setSelectedStudentIds((prev) => prev.filter((id) => !pageIds.has(id)));
     } else {
-      setSelectedStudentIds(filteredStudents.map((s) => s.id));
+      const pageIds = paginatedStudents.map((s) => s.id);
+      setSelectedStudentIds((prev) => Array.from(new Set([...prev, ...pageIds])));
     }
   };
 
-  const handleExcludeSelected = () => {
-    setExcludedIds((prev) => Array.from(new Set([...prev, ...selectedStudentIds])));
-    setSelectedStudentIds([]);
+  const handleSelectAllNotYetEmailed = () => {
+    const freshIds = recipients
+      .filter((r) => r.deliveryStatus !== "already_received")
+      .map((r) => r.id);
+    setSelectedStudentIds(freshIds);
   };
 
-  const handleIncludeSelected = () => {
-    setExcludedIds((prev) => prev.filter((id) => !selectedStudentIds.includes(id)));
+  const handleSelectAll = () => {
+    setSelectedStudentIds(recipients.map((r) => r.id));
+  };
+
+  const handleClearAll = () => {
     setSelectedStudentIds([]);
   };
 
   const handleContinue = () => {
-    onContinue(
-      recipients
-        .filter((recipient) => !excludedIds.includes(recipient.id) && recipient.deliveryStatus !== "already_received")
-        .map((recipient) => recipient.id)
-    );
+    onContinue(selectedStudentIds);
   };
 
   return (
@@ -682,7 +706,7 @@ export function CampaignRecipientsStep({
             Select Students to Send Email
           </h2>
           <p className="text-xs text-muted mt-1 font-sans">
-            Review registered students for <strong className="font-semibold text-ink">{eventName}</strong>, apply exclusions, and check duplicate prevention.
+            Review registered students for <strong className="font-semibold text-ink">{eventName}</strong>, choose who receives this email, and check duplicate prevention.
           </p>
         </div>
 
@@ -712,9 +736,10 @@ export function CampaignRecipientsStep({
           <Button
             type="button"
             onClick={handleContinue}
-            className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer"
+            disabled={willReceiveCount === 0}
+            className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>Next: Banner & send</span>
+            <span>Next: Banner & send ({willReceiveCount})</span>
             <ArrowRight size={14} weight="bold" />
           </Button>
         </div>
@@ -736,10 +761,10 @@ export function CampaignRecipientsStep({
         />
 
         <RecipientKpiCard
-          label="Not Yet Emailed"
+          label="Will Receive Email"
           value={willReceiveCount}
           subLabel="students"
-          deltaText="Ready to send"
+          deltaText="Selected for this send"
           icon={<PaperPlaneTilt size={18} weight="bold" />}
           color={GREEN}
           sparkData={willReceiveSparkData}
@@ -749,10 +774,10 @@ export function CampaignRecipientsStep({
         />
 
         <RecipientKpiCard
-          label="Already Emailed"
-          value={alreadyReceivedCount}
+          label="Excluded / Already Emailed"
+          value={notSendingCount}
           subLabel="students"
-          deltaText="Received earlier blast"
+          deltaText={alreadyReceivedCount > 0 ? `${alreadyReceivedCount} already emailed` : "Excluded from send"}
           icon={<ShieldCheck size={18} weight="bold" />}
           color={MUTED}
           sparkData={alreadyReceivedSparkData}
@@ -828,7 +853,7 @@ export function CampaignRecipientsStep({
                   : "text-muted hover:text-green hover:bg-green-soft"
               )}
             >
-              Not Yet Emailed ({willReceiveCount})
+              Will Receive ({willReceiveCount})
             </button>
             <button
               type="button"
@@ -840,44 +865,46 @@ export function CampaignRecipientsStep({
                   : "text-muted hover:text-ink hover:bg-canvas"
               )}
             >
-              {excludedIds.length > 0
-                ? `Already Emailed / Excluded (${alreadyReceivedCount + excludedIds.length})`
-                : `Already Emailed (${alreadyReceivedCount})`}
+              Excluded / Already Emailed ({notSendingCount})
             </button>
           </div>
 
-          {/* Batch Action Bar */}
-          {selectedStudentIds.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="font-sans text-xs font-medium text-ink">
-                {selectedStudentIds.length} selected
-              </span>
+          {/* Quick Selection Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-sans text-xs font-medium text-ink">
+              {willReceiveCount} selected
+            </span>
+            {alreadyReceivedCount > 0 && (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={handleExcludeSelected}
-                className="h-7 rounded-full border-line text-xs font-sans text-red hover:bg-red-soft px-3 cursor-pointer"
-              >
-                Exclude from send
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleIncludeSelected}
+                onClick={handleSelectAllNotYetEmailed}
                 className="h-7 rounded-full border-line text-xs font-sans text-green hover:bg-green-soft px-3 cursor-pointer"
               >
-                Include in send
+                Select not yet emailed
               </Button>
+            )}
+            {willReceiveCount < totalRegisteredCount && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSelectAll}
+                className="h-7 rounded-full border-line text-xs font-sans text-cyan hover:bg-cyan-soft px-3 cursor-pointer"
+              >
+                Select all
+              </Button>
+            )}
+            {willReceiveCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedStudentIds([])}
-                className="h-7 rounded-full text-xs font-sans text-muted hover:text-ink px-2 cursor-pointer"
+                onClick={handleClearAll}
+                className="h-7 rounded-full text-xs font-sans text-muted hover:text-red hover:bg-red-soft px-2 cursor-pointer"
               >
-                Clear
+                Clear all
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Table Content */}
@@ -910,14 +937,14 @@ export function CampaignRecipientsStep({
                   <th className="w-12 pl-4 py-3">
                     <Checkbox
                       checked={
-                        isAllSelected
+                        isAllPageSelected
                           ? true
-                          : isSomeSelected
+                          : isSomePageSelected
                           ? "indeterminate"
                           : false
                       }
                       onCheckedChange={handleToggleSelectAll}
-                      aria-label="Select all students in view"
+                      aria-label="Select all students on current page"
                     />
                   </th>
                   <th className="w-[42%] py-3 px-3">Student & Account</th>
@@ -927,11 +954,9 @@ export function CampaignRecipientsStep({
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-subtle font-sans">
-                {filteredStudents.map((student) => {
+                {paginatedStudents.map((student) => {
                   const isSelected = selectedStudentIds.includes(student.id);
-                  const isExcluded = excludedIds.includes(student.id);
                   const isAlreadyReceived = student.deliveryStatus === "already_received";
-                  const willReceiveThisEmail = !isAlreadyReceived && !isExcluded;
 
                   const courseBadge = student.course
                     ? COURSE_BADGES[student.course] || COURSE_BADGES.BSIT
@@ -1000,20 +1025,20 @@ export function CampaignRecipientsStep({
 
                       {/* Delivery Status Badge */}
                       <td className="py-3 px-3">
-                        {willReceiveThisEmail ? (
+                        {isSelected ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-green-border bg-green-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-green">
                             <CheckCircle size={13} weight="bold" />
                             Will receive
                           </span>
-                        ) : isExcluded ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-border bg-amber-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-amber">
-                            <X size={13} weight="bold" />
-                            Manually excluded
-                          </span>
-                        ) : (
+                        ) : isAlreadyReceived ? (
                           <span className="inline-flex items-center gap-1 rounded-full border border-line bg-canvas px-2.5 py-0.5 font-sans text-xs font-semibold text-muted">
                             <Check size={13} weight="bold" />
                             Already received
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-border bg-amber-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-amber">
+                            <X size={13} weight="bold" />
+                            Excluded from send
                           </span>
                         )}
                       </td>
@@ -1021,33 +1046,23 @@ export function CampaignRecipientsStep({
                       {/* Action Menu */}
                       <td className="py-3 px-3 text-right pr-4">
                         <div className="flex items-center justify-end gap-1.5">
-                          {isExcluded ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                setExcludedIds((prev) =>
-                                  prev.filter((id) => id !== student.id)
-                                )
-                              }
-                              className="h-7 rounded-full border-line text-xs font-sans text-green hover:bg-green-soft px-2.5 cursor-pointer"
-                            >
-                              Re-include
-                            </Button>
-                          ) : isAlreadyReceived ? (
-                            <span className="text-[11px] text-muted font-sans pr-2">
-                              Skipped
-                            </span>
-                          ) : (
+                          {isSelected ? (
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() =>
-                                setExcludedIds((prev) => [...prev, student.id])
-                              }
-                              className="h-7 rounded-full text-xs font-sans text-muted hover:text-red hover:bg-red-soft px-2 cursor-pointer"
+                              onClick={() => handleToggleSelectStudent(student.id)}
+                              className="h-7 rounded-full text-xs font-sans text-muted hover:text-red hover:bg-red-soft px-2.5 cursor-pointer"
                             >
                               Exclude
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleToggleSelectStudent(student.id)}
+                              className="h-7 rounded-full border-line text-xs font-sans text-green hover:bg-green-soft px-2.5 cursor-pointer"
+                            >
+                              {isAlreadyReceived ? "Send anyway" : "Include"}
                             </Button>
                           )}
 
@@ -1082,6 +1097,61 @@ export function CampaignRecipientsStep({
             </table>
           </div>
         )}
+
+        {/* Table Footer with Pagination Controls */}
+        {filteredStudents.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-line-subtle px-4 py-3 bg-canvas/30 font-sans">
+            <span className="text-xs text-muted">
+              Showing <span className="font-semibold text-ink">{(currentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
+              <span className="font-semibold text-ink">{Math.min(currentPage * PAGE_SIZE, filteredStudents.length)}</span> of{" "}
+              <span className="font-semibold text-ink">{filteredStudents.length}</span> {filteredStudents.length === 1 ? "student" : "students"}
+            </span>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="h-8 px-2.5 text-xs font-semibold border-line cursor-pointer disabled:opacity-40"
+                >
+                  <CaretLeft size={14} weight="bold" className="mr-1" />
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
+                      className={cn(
+                        "h-8 min-w-[32px] px-2 rounded-[6px] text-xs font-semibold transition-all cursor-pointer",
+                        currentPage === p
+                          ? "bg-cyan text-white shadow-2xs"
+                          : "bg-white border border-line text-ink hover:bg-canvas"
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="h-8 px-2.5 text-xs font-semibold border-line cursor-pointer disabled:opacity-40"
+                >
+                  Next
+                  <CaretRight size={14} weight="bold" className="ml-1" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 4. Plain Language Duplicate Protection Notice (Dismissible) */}
@@ -1094,8 +1164,8 @@ export function CampaignRecipientsStep({
                 Automatic Duplicate Protection Active
               </strong>
               <span>
-                Students who already received this announcement will be safely skipped.
-                No student will ever get duplicate emails or redundant notifications.
+                Students who already received this announcement are deselected by default.
+                No student will get duplicate emails or redundant notifications unless you explicitly re-include them.
               </span>
             </div>
           </div>

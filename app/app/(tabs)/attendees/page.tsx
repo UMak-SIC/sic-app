@@ -49,6 +49,9 @@ export default function AttendeesPage() {
   /** Courses the directory actually holds, from the API's facets. */
   const [courseOptions, setCourseOptions] = React.useState<string[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [selectedAttendeesMap, setSelectedAttendeesMap] = React.useState<Map<string, AttendeeItem>>(
+    () => new Map()
+  );
   const [notice, setNotice] = React.useState<string | null>(null);
   const [isExporting, setIsExporting] = React.useState(false);
 
@@ -130,6 +133,7 @@ export default function AttendeesPage() {
       setSearchQuery(searchInput);
       setCurrentPage(1);
       setSelectedIds([]);
+      setSelectedAttendeesMap(new Map());
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
@@ -137,7 +141,6 @@ export default function AttendeesPage() {
 
   const goToPage = (page: number) => {
     setCurrentPage(page);
-    setSelectedIds([]);
   };
 
   /**
@@ -150,6 +153,7 @@ export default function AttendeesPage() {
     setter(value);
     setCurrentPage(1);
     setSelectedIds([]);
+    setSelectedAttendeesMap(new Map());
   };
 
   // The registry is the source of truth. Every load replaces the table rather than
@@ -197,18 +201,71 @@ export default function AttendeesPage() {
     };
   }, [searchQuery, courseFilter, eventIdFilter, currentPage, wantedKey]);
 
+  // Keep selectedAttendeesMap updated with full data when students page loads
+  React.useEffect(() => {
+    if (students.length > 0 && selectedIds.length > 0) {
+      setSelectedAttendeesMap((prev) => {
+        let changed = false;
+        const next = new Map(prev);
+        for (const s of students) {
+          if (selectedIds.includes(s.id) && !next.has(s.id)) {
+            next.set(s.id, s);
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }
+  }, [students, selectedIds]);
+
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
+    setSelectedAttendeesMap((prev) => {
+      const next = new Map(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        const student = students.find((s) => s.id === id);
+        if (student) {
+          next.set(id, student);
+        }
+      }
+      return next;
+    });
   };
 
   const handleToggleSelectAll = () => {
-    setSelectedIds((prev) => (prev.length === students.length ? [] : students.map((s) => s.id)));
+    const isAllPageSelected =
+      students.length > 0 && students.every((s) => selectedIds.includes(s.id));
+
+    if (isAllPageSelected) {
+      const pageIds = new Set(students.map((s) => s.id));
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.has(id)));
+      setSelectedAttendeesMap((prev) => {
+        const next = new Map(prev);
+        for (const id of pageIds) {
+          next.delete(id);
+        }
+        return next;
+      });
+    } else {
+      const pageIds = students.map((s) => s.id);
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
+      setSelectedAttendeesMap((prev) => {
+        const next = new Map(prev);
+        for (const s of students) {
+          next.set(s.id, s);
+        }
+        return next;
+      });
+    }
   };
 
   const handleClearSelection = () => {
     setSelectedIds([]);
+    setSelectedAttendeesMap(new Map());
   };
 
   /**
@@ -263,6 +320,7 @@ export default function AttendeesPage() {
 
       setNotice(parts.join(""));
       setSelectedIds([]);
+      setSelectedAttendeesMap(new Map());
       // The rates and event badges are derived from the roster, so the directory
       // has to be re-read rather than patched locally.
       setReloadToken((token) => token + 1);
@@ -306,6 +364,7 @@ export default function AttendeesPage() {
     setReloadToken((token) => token + 1);
     setAttendeesPendingRemoval([]);
     setSelectedIds([]);
+    setSelectedAttendeesMap(new Map());
 
     const parts = [`${removed} ${removed === 1 ? "student was" : "students were"} removed.`];
 
@@ -371,8 +430,32 @@ export default function AttendeesPage() {
     }
   };
 
-  const selectedStudents = students.filter((s) => selectedIds.includes(s.id));
-  const selectedStudentNames = selectedStudents.map((s) => s.name);
+  const selectedStudents = React.useMemo(() => {
+    return selectedIds.map((id) => {
+      return (
+        selectedAttendeesMap.get(id) ??
+        students.find((s) => s.id === id) ?? {
+          id,
+          name: "Selected Student",
+          studentId: id,
+          email: "",
+          course: null,
+          program: null,
+          section: null,
+          assignedEvents: [],
+          totalEventsJoined: 0,
+          attendedEventsCount: 0,
+          attendanceRate: 0,
+          joinedDate: "",
+        }
+      );
+    });
+  }, [selectedIds, selectedAttendeesMap, students]);
+
+  const selectedStudentNames = React.useMemo(
+    () => selectedStudents.map((s) => s.name),
+    [selectedStudents]
+  );
 
   return (
     <div className="flex flex-col gap-6 w-full pb-12 font-sans">
