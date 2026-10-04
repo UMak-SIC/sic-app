@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import * as React from "react";
 import {
   AreaChart,
   Area,
@@ -12,31 +12,55 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 
-const chartData = [
-  { date: "Apr 4", primary: 30, secondary: 20 },
-  { date: "Apr 9", primary: 75, secondary: 45 },
-  { date: "Apr 14", primary: 40, secondary: 25 },
-  { date: "Apr 19", primary: 80, secondary: 55 },
-  { date: "Apr 24", primary: 45, secondary: 30 },
-  { date: "Apr 29", primary: 90, secondary: 60 },
-  { date: "May 4", primary: 40, secondary: 20 },
-  { date: "May 9", primary: 95, secondary: 65 },
-  { date: "May 14", primary: 60, secondary: 35 },
-  { date: "May 19", primary: 110, secondary: 80 },
-  { date: "May 24", primary: 70, secondary: 45 },
-  { date: "May 30", primary: 115, secondary: 85 },
-  { date: "Jun 4", primary: 65, secondary: 40 },
-  { date: "Jun 9", primary: 90, secondary: 60 },
-  { date: "Jun 14", primary: 55, secondary: 35 },
-  { date: "Jun 19", primary: 110, secondary: 75 },
-  { date: "Jun 24", primary: 60, secondary: 40 },
-  { date: "Jun 30", primary: 105, secondary: 70 },
-];
-
 const timeRanges = ["Last 3 months", "Last 30 days", "Last 7 days"] as const;
 
+type TrendPoint = { date: string; primary: number; secondary: number };
+type AttendanceEvent = { startsAt: string; attended: number; onRoster: number };
+
+function rangeStart(range: (typeof timeRanges)[number]) {
+  const days = range === "Last 7 days" ? 7 : range === "Last 30 days" ? 30 : 90;
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  return start;
+}
+
 export function AttendanceTrendChart({ className }: { className?: string }) {
-  const [selectedRange, setSelectedRange] = useState<string>("Last 30 days");
+  const [selectedRange, setSelectedRange] = React.useState<(typeof timeRanges)[number]>("Last 30 days");
+  const [chartData, setChartData] = React.useState<TrendPoint[]>([]);
+
+  const loadAttendanceTrend = React.useCallback(async () => {
+    const response = await fetch("/api/attendees/insights");
+    if (!response.ok) return;
+
+    const { events, timezone } = await response.json() as {
+      events: AttendanceEvent[];
+      timezone: string;
+    };
+    const now = Date.now();
+    const start = rangeStart(selectedRange);
+    const dateFormat = new Intl.DateTimeFormat("en-US", {
+      day: "numeric",
+      month: "short",
+      timeZone: timezone,
+    });
+
+    setChartData(
+      events
+        .filter((event) => {
+          const startsAt = new Date(event.startsAt).getTime();
+          return startsAt >= start.getTime() && startsAt <= now;
+        })
+        .map((event) => ({
+          date: dateFormat.format(new Date(event.startsAt)),
+          primary: event.attended,
+          secondary: event.onRoster,
+        })),
+    );
+  }, [selectedRange]);
+
+  React.useEffect(() => {
+    void Promise.resolve().then(loadAttendanceTrend);
+  }, [loadAttendanceTrend]);
 
   return (
     <div
@@ -122,10 +146,14 @@ export function AttendanceTrendChart({ className }: { className?: string }) {
                         {label}
                       </div>
                       <div className="flex items-center gap-2 text-emerald-700 font-medium">
-                        <span>Attendees:</span>
+                        <span>Attended:</span>
                         <span className="font-bold font-mono">
                           {payload[0].value}
                         </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-600 font-medium">
+                        <span>Registered:</span>
+                        <span className="font-bold font-mono">{payload[1]?.value ?? 0}</span>
                       </div>
                     </div>
                   );
