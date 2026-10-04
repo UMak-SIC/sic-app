@@ -201,23 +201,6 @@ export default function AttendeesPage() {
     };
   }, [searchQuery, courseFilter, eventIdFilter, currentPage, wantedKey]);
 
-  // Keep selectedAttendeesMap updated with full data when students page loads
-  React.useEffect(() => {
-    if (students.length > 0 && selectedIds.length > 0) {
-      setSelectedAttendeesMap((prev) => {
-        let changed = false;
-        const next = new Map(prev);
-        for (const s of students) {
-          if (selectedIds.includes(s.id) && !next.has(s.id)) {
-            next.set(s.id, s);
-            changed = true;
-          }
-        }
-        return changed ? next : prev;
-      });
-    }
-  }, [students, selectedIds]);
-
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
@@ -430,32 +413,27 @@ export default function AttendeesPage() {
     }
   };
 
-  const selectedStudents = React.useMemo(() => {
-    return selectedIds.map((id) => {
-      return (
-        selectedAttendeesMap.get(id) ??
-        students.find((s) => s.id === id) ?? {
-          id,
-          name: "Selected Student",
-          studentId: id,
-          email: "",
-          course: null,
-          program: null,
-          section: null,
-          assignedEvents: [],
-          totalEventsJoined: 0,
-          attendedEventsCount: 0,
-          attendanceRate: 0,
-          joinedDate: "",
-        }
-      );
-    });
-  }, [selectedIds, selectedAttendeesMap, students]);
+  const selectedStudents = selectedIds.map((id) => {
+    return (
+      selectedAttendeesMap.get(id) ??
+      students.find((s) => s.id === id) ?? {
+        id,
+        name: "Selected Student",
+        studentId: id,
+        email: "",
+        course: null,
+        program: null,
+        section: null,
+        assignedEvents: [],
+        totalEventsJoined: 0,
+        attendedEventsCount: 0,
+        attendanceRate: 0,
+        joinedDate: "",
+      }
+    );
+  });
 
-  const selectedStudentNames = React.useMemo(
-    () => selectedStudents.map((s) => s.name),
-    [selectedStudents]
-  );
+  const selectedStudentNames = selectedStudents.map((s) => s.name);
 
   return (
     <div className="flex flex-col gap-6 w-full pb-12 font-sans">

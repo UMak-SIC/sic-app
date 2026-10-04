@@ -362,7 +362,6 @@ export interface CampaignEventStepProps {
 
 export function CampaignEventStep({
   eventId = "evt_1",
-  eventName: _eventName = "UMak SIC General Assembly",
   eventOptions = AVAILABLE_EVENTS,
   recipientsCount = 0,
   onEventChange,
@@ -552,13 +551,10 @@ export interface CampaignRecipientsStepProps {
 }
 
 export function CampaignRecipientsStep({
-  eventId: _eventId = "evt_1",
   eventName = "UMak SIC General Assembly",
-  eventOptions: _eventOptions = AVAILABLE_EVENTS,
   recipients = SAMPLE_RECIPIENTS,
   initialSelectedIds,
   onBack,
-  onEventChange: _onEventChange,
   onContinue,
   onSaveDraft,
 }: CampaignRecipientsStepProps) {
@@ -574,10 +570,15 @@ export function CampaignRecipientsStep({
   });
   const [isDuplicateNoticeDismissed, setIsDuplicateNoticeDismissed] = React.useState(false);
 
-  // Reset to page 1 whenever search query or filter tab changes
-  React.useEffect(() => {
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
     setCurrentPage(1);
-  }, [searchQuery, filterTab]);
+  };
+
+  const handleFilterTabChange = (tab: "all" | "will_receive" | "already_received") => {
+    setFilterTab(tab);
+    setCurrentPage(1);
+  };
 
   // Derive live dynamic counts directly from the actual selected student IDs
   const totalRegisteredCount = recipients.length;
@@ -641,17 +642,12 @@ export function CampaignRecipientsStep({
   }, [recipients, searchQuery, filterTab, selectedStudentIds]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
-  }, [currentPage, totalPages]);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const paginatedStudents = React.useMemo(() => {
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
     return filteredStudents.slice(startIndex, startIndex + PAGE_SIZE);
-  }, [filteredStudents, currentPage, PAGE_SIZE]);
+  }, [filteredStudents, safeCurrentPage, PAGE_SIZE]);
 
   const isAllPageSelected =
     paginatedStudents.length > 0 &&
@@ -812,13 +808,13 @@ export function CampaignRecipientsStep({
               aria-label="Search recipients"
               placeholder="Search name, ID, or email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="h-9 w-full rounded-[8px] border border-line bg-card pl-8.5 pr-8 font-sans text-xs text-ink placeholder:text-muted-light focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
             />
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={() => handleSearchChange("")}
                 aria-label="Clear search"
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer"
               >
@@ -833,7 +829,7 @@ export function CampaignRecipientsStep({
           <div className="flex items-center gap-1 overflow-x-auto py-0.5">
             <button
               type="button"
-              onClick={() => setFilterTab("all")}
+              onClick={() => handleFilterTabChange("all")}
               className={cn(
                 "rounded-full px-3 py-1 font-sans text-xs font-semibold transition-colors cursor-pointer",
                 filterTab === "all"
@@ -845,7 +841,7 @@ export function CampaignRecipientsStep({
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("will_receive")}
+              onClick={() => handleFilterTabChange("will_receive")}
               className={cn(
                 "rounded-full px-3 py-1 font-sans text-xs font-semibold transition-colors cursor-pointer",
                 filterTab === "will_receive"
@@ -857,7 +853,7 @@ export function CampaignRecipientsStep({
             </button>
             <button
               type="button"
-              onClick={() => setFilterTab("already_received")}
+              onClick={() => handleFilterTabChange("already_received")}
               className={cn(
                 "rounded-full px-3 py-1 font-sans text-xs font-semibold transition-colors cursor-pointer",
                 filterTab === "already_received"
@@ -922,7 +918,7 @@ export function CampaignRecipientsStep({
             {searchQuery && (
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={() => handleSearchChange("")}
                 className="mt-3 font-sans text-xs font-semibold text-cyan underline-offset-4 hover:underline cursor-pointer"
               >
                 Clear search query
@@ -1102,8 +1098,8 @@ export function CampaignRecipientsStep({
         {filteredStudents.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-line-subtle px-4 py-3 bg-canvas/30 font-sans">
             <span className="text-xs text-muted">
-              Showing <span className="font-semibold text-ink">{(currentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
-              <span className="font-semibold text-ink">{Math.min(currentPage * PAGE_SIZE, filteredStudents.length)}</span> of{" "}
+              Showing <span className="font-semibold text-ink">{(safeCurrentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
+              <span className="font-semibold text-ink">{Math.min(safeCurrentPage * PAGE_SIZE, filteredStudents.length)}</span> of{" "}
               <span className="font-semibold text-ink">{filteredStudents.length}</span> {filteredStudents.length === 1 ? "student" : "students"}
             </span>
 
@@ -1112,7 +1108,7 @@ export function CampaignRecipientsStep({
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={currentPage <= 1}
+                  disabled={safeCurrentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   className="h-8 px-2.5 text-xs font-semibold border-line cursor-pointer disabled:opacity-40"
                 >
@@ -1128,7 +1124,7 @@ export function CampaignRecipientsStep({
                       onClick={() => setCurrentPage(p)}
                       className={cn(
                         "h-8 min-w-[32px] px-2 rounded-[6px] text-xs font-semibold transition-all cursor-pointer",
-                        currentPage === p
+                        safeCurrentPage === p
                           ? "bg-cyan text-white shadow-2xs"
                           : "bg-white border border-line text-ink hover:bg-canvas"
                       )}
@@ -1141,7 +1137,7 @@ export function CampaignRecipientsStep({
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={currentPage >= totalPages}
+                  disabled={safeCurrentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   className="h-8 px-2.5 text-xs font-semibold border-line cursor-pointer disabled:opacity-40"
                 >
