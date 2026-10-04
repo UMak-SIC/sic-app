@@ -41,7 +41,7 @@ export function CampaignSendConfirmationDialog({
   onOpenChange,
   eventName,
   subject,
-  studentCount = 114,
+  studentCount = 0,
   onConfirmSend,
 }: CampaignSendConfirmationDialogProps) {
   const reduced = useReducedMotion();
@@ -54,7 +54,7 @@ export function CampaignSendConfirmationDialog({
 
   const steps: ChecklistStep[] = React.useMemo(
     () => [
-      { id: "roster", label: `${studentCount} students ready` },
+      { id: "roster", label: `${studentCount} selected ${studentCount === 1 ? "student" : "students"} ready` },
       { id: "qr_passes", label: "QR ticket passes included" },
       { id: "event_info", label: "Date & venue confirmed" },
       { id: "test_email", label: "Practice email checked" },
@@ -202,7 +202,7 @@ export function CampaignSendConfirmationDialog({
           {/* Helpful safety notice */}
           <div className="mt-1 p-2.5 bg-paper border border-line-subtle rounded-[6px] text-[11px] text-muted font-sans flex items-start gap-1.5">
             <WarningCircle size={14} className="text-amber shrink-0 mt-0.5" />
-            <span>Emails and live QR passes will be dispatched immediately to all registered students.</span>
+            <span>Emails and live QR passes will be dispatched immediately to the selected recipients.</span>
           </div>
         </div>
 
@@ -224,7 +224,9 @@ export function CampaignSendConfirmationDialog({
           >
             <PaperPlaneTilt size={15} weight="bold" />
             <span>
-              {isSubmitting ? "Sending..." : `Confirm & Send to ${studentCount} Students`}
+              {isSubmitting
+                ? "Sending..."
+                : `Confirm & Send to ${studentCount} ${studentCount === 1 ? "Recipient" : "Recipients"}`}
             </span>
           </Button>
         </div>
