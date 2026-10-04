@@ -18,6 +18,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Testing
+
+```bash
+pnpm test      # Vitest unit and integration tests
+pnpm test:e2e  # Playwright Chromium smoke and browser tests
+```
+
+Unit tests run offline by default. To add a Neon integration test, copy
+`.env.test.example` to `.env.test` and set `TEST_DATABASE_URL` to a dedicated
+test branch. The test setup truncates application tables before and after each
+test, so never use a development, staging, or production database URL.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
@@ -45,8 +57,8 @@ Set production secrets in Vercel's Production environment and staging or PR secr
 
 Staging is viable on the free tiers for internal QA and light traffic, but it must not share production identities, data, or storage:
 
-- **Clerk:** use a separate development instance for staging. Staging users and webhook configuration must be isolated from production.
+- **Neon Managed Better Auth:** use a separate staging database branch or project so staging users and sessions are isolated from production.
 - **Neon:** use a separate staging database branch or project. Never connect staging to the production database.
-- **Filebase:** use a separate staging bucket. If that is not possible, use a dedicated `staging/` prefix and credentials limited to that prefix.
+- **Neon Object Storage:** use a separate staging database branch or project. Its bucket state branches with the database, keeping staging uploads isolated from production.
 
 Configure the staging service credentials as Vercel Preview environment variables and production credentials as Production variables. Free tiers make this setup practical for a small team, but their deployment, database, identity, storage, and request quotas are capacity limits rather than an isolation boundary.
