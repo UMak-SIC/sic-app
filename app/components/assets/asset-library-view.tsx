@@ -7,20 +7,15 @@ import {
   LockKey,
   MagnifyingGlass,
   X,
-  Plus,
   CloudArrowUp,
   Table as TableIcon,
   SquaresFour,
-  Eye,
   Copy,
   Check,
-  Trash,
-  CalendarBlank,
-  EnvelopeSimple,
   ShieldCheck,
   FileText,
 } from "@phosphor-icons/react";
-import { AssetItem, AssetCategory } from "./asset-types";
+import { AssetItem } from "./asset-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -39,10 +34,10 @@ type FilterType = "all" | "images" | "documents" | "locked" | "unused";
 export function AssetLibraryView({
   assets,
   onSelectAsset,
-  onOpenUpload,
+  onOpenUpload: _onOpenUpload,
   onOpenPolicy,
   onDirectUpload,
-  onDeleteAsset,
+  onDeleteAsset: _onDeleteAsset,
 }: AssetLibraryViewProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeFilter, setActiveFilter] = React.useState<FilterType>("all");

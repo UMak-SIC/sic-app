@@ -11,7 +11,6 @@ import {
 import {
   ShieldCheck,
   PaperPlaneTilt,
-  X,
   CalendarBlank,
   Users,
   WarningCircle,

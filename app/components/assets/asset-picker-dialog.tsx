@@ -38,20 +38,22 @@ export function AssetPickerDialog({
     if (!open) return;
 
     let mounted = true;
-    setLoading(true);
-
-    fetch("/api/assets/public")
-      .then((res) => (res.ok ? res.json() : { assets: [] }))
-      .then((data) => {
+    const fetchAssets = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/assets/public");
+        const data = (res.ok ? await res.json() : { assets: [] }) as {
+          assets?: Array<{
+            id: string;
+            originalFilename: string;
+            mediaType: string;
+            byteSize: number;
+            uploadedAt: string;
+            url: string | null;
+          }>;
+        };
         if (!mounted) return;
-        const mapped: AssetItem[] = (data.assets || []).map((a: {
-          id: string;
-          originalFilename: string;
-          mediaType: string;
-          byteSize: number;
-          uploadedAt: string;
-          url: string | null;
-        }) => {
+        const mapped: AssetItem[] = (data.assets || []).map((a) => {
           const isDoc = a.mediaType === "application/pdf" || a.originalFilename.endsWith(".pdf");
           const format = a.originalFilename.endsWith(".png")
             ? "png"
@@ -85,11 +87,14 @@ export function AssetPickerDialog({
           };
         });
         setAssets(mapped);
-        setLoading(false);
-      })
-      .catch(() => {
+      } catch {
+        if (mounted) setAssets([]);
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    };
+
+    void fetchAssets();
 
     return () => {
       mounted = false;

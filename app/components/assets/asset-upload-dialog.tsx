@@ -12,7 +12,6 @@ import {
   CloudArrowUp,
   Image as ImageIcon,
   FilePdf,
-  CheckCircle,
   WarningCircle,
   X,
   File,

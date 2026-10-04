@@ -66,7 +66,7 @@ export function CreateEventDialog({
   open,
   onOpenChange,
   event,
-  timezone,
+  timezone: _timezone,
   onSaved,
   onCreateEvent,
 }: CreateEventDialogProps) {
@@ -74,6 +74,8 @@ export function CreateEventDialog({
   const [step, setStep] = React.useState<1 | 2>(1);
 
   // Form states
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  const [prevEvent, setPrevEvent] = React.useState(event);
   const [eventName, setEventName] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [venue, setVenue] = React.useState("");
@@ -94,44 +96,46 @@ export function CreateEventDialog({
   const [error, setError] = React.useState("");
 
   // Sync state when editing existing event or opening modal
-  React.useEffect(() => {
-    if (!open) return;
+  if (prevOpen !== open || prevEvent !== event) {
+    setPrevOpen(open);
+    setPrevEvent(event);
+    if (open) {
+      if (event) {
+        setEventName(event.name || "");
+        setDescription(event.details || "");
+        setVenue(event.venue || "");
+        setBannerAssetId(event.imageAssetId || null);
+        setBannerAssetUrl(event.bannerUrl || null);
+        setBannerFile(null);
 
-    if (event) {
-      setEventName(event.name || "");
-      setDescription(event.details || "");
-      setVenue(event.venue || "");
-      setBannerAssetId(event.imageAssetId || null);
-      setBannerAssetUrl(event.bannerUrl || null);
-      setBannerFile(null);
-
-      if (event.startsAt) {
-        const sDate = new Date(event.startsAt);
-        setStartDate(sDate);
-        setStartTime(parseTimeToAmPm(sDate));
+        if (event.startsAt) {
+          const sDate = new Date(event.startsAt);
+          setStartDate(sDate);
+          setStartTime(parseTimeToAmPm(sDate));
+        }
+        if (event.endsAt) {
+          const eDate = new Date(event.endsAt);
+          setEndDate(eDate);
+          setEndTime(parseTimeToAmPm(eDate));
+        }
+      } else {
+        const now = new Date();
+        setEventName("");
+        setDescription("");
+        setVenue("");
+        setBannerFile(null);
+        setBannerAssetId(null);
+        setBannerAssetUrl(null);
+        setStartDate(now);
+        setStartTime("9:00 am");
+        setEndDate(now);
+        setEndTime("10:00 am");
+        setIsSameDay(true);
+        setStep(1);
       }
-      if (event.endsAt) {
-        const eDate = new Date(event.endsAt);
-        setEndDate(eDate);
-        setEndTime(parseTimeToAmPm(eDate));
-      }
-    } else {
-      const now = new Date();
-      setEventName("");
-      setDescription("");
-      setVenue("");
-      setBannerFile(null);
-      setBannerAssetId(null);
-      setBannerAssetUrl(null);
-      setStartDate(now);
-      setStartTime("9:00 am");
-      setEndDate(now);
-      setEndTime("10:00 am");
-      setIsSameDay(true);
-      setStep(1);
+      setError("");
     }
-    setError("");
-  }, [open, event]);
+  }
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {

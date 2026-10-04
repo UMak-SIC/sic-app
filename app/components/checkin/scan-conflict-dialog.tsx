@@ -8,12 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   Clock,
-  WarningCircle,
-  X,
   ArrowsClockwise,
-  User,
 } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
 
 export interface ScanConflictDetails {
   title?: string;

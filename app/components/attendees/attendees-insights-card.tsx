@@ -16,7 +16,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { canonicalCourseCode, compareCourses, isUnrecordedCourse } from "@/lib/courses";
+import { canonicalCourseCode, isUnrecordedCourse } from "@/lib/courses";
 import { cn } from "@/lib/utils";
 import { fetchCourseInsights, type CourseInsights } from "./attendee-directory";
 

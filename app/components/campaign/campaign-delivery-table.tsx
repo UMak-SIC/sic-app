@@ -163,15 +163,14 @@ export function CampaignDeliveryTable({
   className,
 }: CampaignDeliveryTableProps) {
   const reduced = useReducedMotion();
-  const wrap = React.useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
   const [pointerPos, setPointerPos] = React.useState({ x: 0, y: 0 });
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Local list state to support immediate responsive reordering
   const [prevRecipients, setPrevRecipients] = React.useState(recipients);

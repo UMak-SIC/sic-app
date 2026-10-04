@@ -52,7 +52,7 @@ const EASY_INSERTS: { label: string; token: string }[] = [
 ];
 
 export function CampaignComposerStep({
-  eventId,
+  eventId: _eventId,
   eventName = "UMak SIC General Assembly",
   subject,
   messageContent,

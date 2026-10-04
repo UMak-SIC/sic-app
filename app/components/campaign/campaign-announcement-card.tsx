@@ -10,7 +10,6 @@ import {
   ArrowRight,
 } from "@phosphor-icons/react";
 import { CampaignSummary } from "./campaign-types";
-import { cn } from "@/lib/utils";
 
 interface CampaignAnnouncementCardProps {
   campaign: CampaignSummary;

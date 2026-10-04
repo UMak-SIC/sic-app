@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Clock, Check, Sun, Moon, ArrowCounterClockwise } from "@phosphor-icons/react";
+import { Check, Sun, Moon, ArrowCounterClockwise } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
@@ -52,15 +52,17 @@ export function ClockPicker({
 }: ClockPickerProps) {
   const parsed = React.useMemo(() => parseTimeString(value), [value]);
   const [activeView, setActiveView] = React.useState<"hours" | "minutes">("hours");
+  const [prevValue, setPrevValue] = React.useState(value);
   const [hour, setHour] = React.useState(parsed.hour);
   const [minute, setMinute] = React.useState(parsed.minute);
   const [period, setPeriod] = React.useState<"am" | "pm">(parsed.period);
 
-  React.useEffect(() => {
+  if (prevValue !== value) {
+    setPrevValue(value);
     setHour(parsed.hour);
     setMinute(parsed.minute);
     setPeriod(parsed.period);
-  }, [parsed]);
+  }
 
   const clockFaceRef = React.useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = React.useState(false);
@@ -94,7 +96,7 @@ export function ClockPicker({
     const dy = clientY - centerY;
 
     // Angle in degrees (0 deg at top 12 o'clock, clockwise)
-    let angleRad = Math.atan2(dy, dx);
+    const angleRad = Math.atan2(dy, dx);
     let deg = (angleRad * 180) / Math.PI + 90;
     if (deg < 0) deg += 360;
 
@@ -103,7 +105,7 @@ export function ClockPicker({
       if (selectedHour === 0) selectedHour = 12;
       commitTime(selectedHour, minute, period);
     } else {
-      let selectedMinute = Math.round(deg / 6) % 60;
+      const selectedMinute = Math.round(deg / 6) % 60;
       commitTime(hour, selectedMinute, period);
     }
   };

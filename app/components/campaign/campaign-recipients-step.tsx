@@ -360,7 +360,7 @@ export interface CampaignEventStepProps {
 
 export function CampaignEventStep({
   eventId = "evt_1",
-  eventName = "UMak SIC General Assembly",
+  eventName: _eventName = "UMak SIC General Assembly",
   eventOptions = AVAILABLE_EVENTS,
   recipientsCount = 0,
   onEventChange,
@@ -550,13 +550,13 @@ export interface CampaignRecipientsStepProps {
 }
 
 export function CampaignRecipientsStep({
-  eventId = "evt_1",
+  eventId: _eventId = "evt_1",
   eventName = "UMak SIC General Assembly",
-  eventOptions = AVAILABLE_EVENTS,
+  eventOptions: _eventOptions = AVAILABLE_EVENTS,
   recipients = SAMPLE_RECIPIENTS,
   initialSelectedIds,
   onBack,
-  onEventChange,
+  onEventChange: _onEventChange,
   onContinue,
   onSaveDraft,
 }: CampaignRecipientsStepProps) {
