@@ -320,7 +320,7 @@ export function CampaignAssetsStep({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-5 rounded-[12px] border border-line shadow-xs">
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-soft text-cyan font-bold text-[10px] uppercase tracking-wider mb-2 font-display">
-            Step 3 // Banner, Files & Send
+            Step 4 // Banner, Files & Send
           </div>
           <h2 className="text-xl font-display font-bold text-ink tracking-tight">
             Add Banner & Finalize Announcement

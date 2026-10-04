@@ -1,8 +1,9 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-const { createEvent, listEvents, requireAdmin } = vi.hoisted(() => ({
+const { createEvent, listEvents, publicImageUrl, requireAdmin } = vi.hoisted(() => ({
   createEvent: vi.fn(),
   listEvents: vi.fn(),
+  publicImageUrl: vi.fn((asset) => (asset ? "https://storage.test/public-images/banner.jpg" : null)),
   requireAdmin: vi.fn(),
 }));
 
@@ -12,6 +13,7 @@ vi.mock("@/lib/services/event-service", () => ({
   createEvent,
   EventLifecycleError: class EventLifecycleError extends Error {},
   listEvents,
+  publicImageUrl,
 }));
 
 import { GET, POST } from "@/app/api/events/route";
@@ -20,12 +22,15 @@ afterEach(() => vi.resetAllMocks());
 
 test("lists persisted events for an administrator with the organization timezone", async () => {
   requireAdmin.mockResolvedValue({ adminId: "admin-id" });
-  listEvents.mockResolvedValue([{ id: "event-id" }]);
+  listEvents.mockResolvedValue([{ id: "event-id", imageAsset: null }]);
 
   const response = await GET();
 
   expect(listEvents).toHaveBeenCalledOnce();
-  await expect(response.json()).resolves.toEqual({ events: [{ id: "event-id" }], timezone: "Asia/Manila" });
+  await expect(response.json()).resolves.toEqual({
+    events: [{ id: "event-id", imageAsset: null, bannerUrl: null }],
+    timezone: "Asia/Manila",
+  });
 });
 
 test("creates an event through the lifecycle service for the signed-in administrator", async () => {

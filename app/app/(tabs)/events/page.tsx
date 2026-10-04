@@ -6,12 +6,14 @@ import { Plus } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header";
 import { EventsPagination } from "@/components/events/events-pagination";
 import { EventsTable, type EventItem } from "@/components/events/events-table";
+import { EventsTableSkeleton } from "@/components/events/events-table-skeleton";
 import { EventsToolbar } from "@/components/events/events-toolbar";
 import { EventFormDialog, type EditableEvent } from "@/components/events/event-form-dialog";
 import { EventPeopleDialog } from "@/components/events/event-people-dialog";
 
 type Event = EditableEvent & {
   status: "DRAFT" | "PUBLISHED" | "CLOSED";
+  bannerUrl?: string | null;
   _count: { rosterEntries: number };
 };
 
@@ -31,6 +33,7 @@ function toTableEvent(event: Event, timezone: string): EventItem {
     time: `${timeFormat.format(start)} - ${timeFormat.format(end)}`,
     status: event.status.toLowerCase() as EventItem["status"],
     registeredCount: event._count.rosterEntries,
+    image: event.bannerUrl ?? undefined,
   };
 }
 
@@ -109,7 +112,7 @@ export default function EventsPage() {
         action={<PageHeaderButton icon={<Plus size={18} weight="bold" />} onClick={() => { setEditing(undefined); setFormOpen(true); }}>Create event</PageHeaderButton>}
       />
       {error && <p role="alert" className="rounded-[6px] bg-red-soft px-4 py-3 text-sm text-red">{error}</p>}
-      {loading ? <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted">Loading events...</div> : (
+      {loading ? <EventsTableSkeleton /> : (
         <div className="flex flex-col gap-3.5">
           <EventsToolbar
             searchQuery={query}

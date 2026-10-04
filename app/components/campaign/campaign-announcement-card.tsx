@@ -36,8 +36,10 @@ export function CampaignAnnouncementCard({
       ? Math.round((campaign.deliveredCount / campaign.totalStudents) * 100)
       : 0;
 
-  const venue = campaign.venue || "Audio Visual Room";
+  const venue = campaign.venue || "Venue to be confirmed";
   const dateStr = campaign.eventDate || campaign.sentDate;
+  const isNoCampaigns = (campaign.campaignsCount ?? 0) === 0 && campaign.deliveredCount === 0 && campaign.sendingCount === 0 && campaign.invalidEmailCount === 0;
+  const pendingCount = campaign.pendingCount ?? Math.max(0, campaign.totalStudents - campaign.deliveredCount - campaign.sendingCount - campaign.invalidEmailCount);
 
   return (
     <div
@@ -53,15 +55,30 @@ export function CampaignAnnouncementCard({
 
         {/* Top Right Floating Status Badge */}
         <div className="relative z-10 flex justify-end">
-          {campaign.status === "sent" ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-green/90 text-white backdrop-blur-xs shadow-xs">
+          {isNoCampaigns ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-black/50 text-paper border border-white/20 backdrop-blur-xs shadow-xs">
+              <HourglassMedium size={13} weight="bold" />
+              No Emails Sent
+            </span>
+          ) : campaign.status === "sending" ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-cyan/90 text-white backdrop-blur-xs shadow-xs">
+              <HourglassMedium size={13} weight="bold" className="animate-spin" />
+              Sending ({campaign.sendingCount})
+            </span>
+          ) : campaign.status === "needs_attention" ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-red/90 text-white backdrop-blur-xs shadow-xs">
+              <HourglassMedium size={13} weight="bold" />
+              Needs Attention ({campaign.invalidEmailCount})
+            </span>
+          ) : pendingCount > 0 ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber/90 text-white backdrop-blur-xs shadow-xs">
               <CheckCircle size={13} weight="bold" />
-              Delivered ({percent}%)
+              {percent}% Delivered · {pendingCount} Not Yet Emailed
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-amber/90 text-white backdrop-blur-xs shadow-xs">
-              <HourglassMedium size={13} weight="bold" />
-              Draft
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-green/90 text-white backdrop-blur-xs shadow-xs">
+              <CheckCircle size={13} weight="bold" />
+              All Delivered (100%)
             </span>
           )}
         </div>
@@ -70,7 +87,9 @@ export function CampaignAnnouncementCard({
         <div className="relative z-10 flex items-center mt-auto">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/45 text-cyan-soft font-semibold text-[11px] backdrop-blur-md border border-white/15 shadow-xs">
             <Users size={13} weight="bold" />
-            {campaign.totalStudents} Recipients
+            {isNoCampaigns
+              ? `${campaign.totalStudents} Registered Students`
+              : `${campaign.deliveredCount}/${campaign.totalStudents} Delivered`}
           </span>
         </div>
       </div>
@@ -82,9 +101,11 @@ export function CampaignAnnouncementCard({
           <h3 className="text-base font-sans font-bold text-ink leading-snug group-hover:text-cyan transition-colors line-clamp-1">
             {campaign.eventName}
           </h3>
-          {/* Subtext Content: Email Subject / Announcement message (font-sans) */}
+          {/* Subtext Content: Subject / Broadcast Summary (font-sans) */}
           <p className="text-xs font-sans font-normal text-muted mt-1.5 leading-relaxed line-clamp-2">
-            {campaign.subject}
+            {isNoCampaigns
+              ? "No email announcements have been sent for this event yet."
+              : campaign.subject}
           </p>
         </div>
 
@@ -108,7 +129,13 @@ export function CampaignAnnouncementCard({
 
           {/* Right: Action Trigger */}
           <div className="flex items-center gap-1 text-[11px] font-semibold text-cyan group-hover:translate-x-0.5 transition-transform shrink-0 pl-2 font-sans">
-            <span>{campaign.status === "sent" ? "View report" : "Edit draft"}</span>
+            <span>
+              {isNoCampaigns
+                ? "Send Announcement"
+                : pendingCount > 0
+                ? `Email remaining (${pendingCount})`
+                : "View report"}
+            </span>
             <ArrowRight size={13} weight="bold" />
           </div>
         </div>

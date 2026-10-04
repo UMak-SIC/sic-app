@@ -3,6 +3,7 @@ import {
   createEvent,
   EventLifecycleError,
   listEvents,
+  publicImageUrl,
 } from "@/lib/services/event-service";
 import { getOrganizationTimezone } from "@/lib/events/organization-timezone";
 
@@ -38,7 +39,13 @@ export async function GET() {
   const authorization = await requireAdmin();
   if (authorization instanceof Response) return authorization;
 
-  return Response.json({ events: await listEvents(), timezone: getOrganizationTimezone() });
+  const events = await listEvents();
+  const serializedEvents = events.map((event) => ({
+    ...event,
+    bannerUrl: publicImageUrl(event.imageAsset),
+  }));
+
+  return Response.json({ events: serializedEvents, timezone: getOrganizationTimezone() });
 }
 
 export async function POST(request: Request) {

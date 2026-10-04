@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, CalendarBlank } from "@phosphor-icons/react";
 import { TimePickerPopover } from "./time-picker-popover";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +44,7 @@ function isSameCalendarDay(d1: Date, d2: Date) {
   );
 }
 
-function formatDateLong(d: Date) {
+function formatDateDisplay(d: Date) {
   return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
@@ -61,7 +61,6 @@ export function EventSchedulePicker({
   onIsSameDayChange,
   className,
 }: EventSchedulePickerProps) {
-  // Calendar viewport (month/year currently viewed)
   const [prevStartDate, setPrevStartDate] = React.useState(startDate);
   const [viewYear, setViewYear] = React.useState(startDate.getFullYear());
   const [viewMonth, setViewMonth] = React.useState(startDate.getMonth());
@@ -96,7 +95,6 @@ export function EventSchedulePicker({
     const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
     const lastDayOfMonth = new Date(viewYear, viewMonth + 1, 0);
 
-    // Monday-based day of week index: 0 = Mon, 6 = Sun
     let startDayOfWeek = firstDayOfMonth.getDay() - 1;
     if (startDayOfWeek === -1) startDayOfWeek = 6;
 
@@ -119,7 +117,7 @@ export function EventSchedulePicker({
       });
     }
 
-    // Trailing days from next month to fill grid to 35 or 42
+    // Trailing days from next month
     const remaining = 35 - days.length > 0 ? 35 - days.length : 42 - days.length;
     for (let day = 1; day <= remaining; day++) {
       days.push({
@@ -165,11 +163,11 @@ export function EventSchedulePicker({
   };
 
   return (
-    <div className={cn("grid grid-cols-1 xl:grid-cols-12 gap-5 font-sans items-start w-full", className)}>
-      {/* Left Sub-Column: Green Mini Calendar */}
-      <div className="xl:col-span-7 flex flex-col p-3.5 rounded-2xl bg-white dark:bg-card border border-line shadow-2xs">
+    <div className={cn("grid grid-cols-1 lg:grid-cols-12 gap-5 font-sans items-start w-full", className)}>
+      {/* Left Sub-Column: Calendar */}
+      <div className="lg:col-span-7 flex flex-col p-3.5 rounded-2xl bg-white dark:bg-card border border-line shadow-2xs">
         {/* Month Selector Header */}
-        <div className="flex items-center justify-between px-1 pb-3 mb-2 border-b border-line-subtle">
+        <div className="flex items-center justify-between px-1 pb-2.5 mb-2 border-b border-line-subtle">
           <button
             type="button"
             aria-label="Previous Month"
@@ -191,7 +189,7 @@ export function EventSchedulePicker({
           </button>
         </div>
 
-        {/* Days of the Week Header */}
+        {/* Weekday Header */}
         <div className="grid grid-cols-7 text-center mb-1">
           {WEEKDAYS.map((day) => (
             <span
@@ -203,7 +201,7 @@ export function EventSchedulePicker({
           ))}
         </div>
 
-        {/* Calendar Matrix Grid */}
+        {/* Days Grid */}
         <div className="grid grid-cols-7 gap-y-1">
           {calendarDays.map(({ date, isCurrentMonth }, idx) => {
             const isStart = isSameCalendarDay(date, startDate);
@@ -229,14 +227,10 @@ export function EventSchedulePicker({
                   onClick={() => handleDayClick(date)}
                   className={cn(
                     "flex size-7 items-center justify-center font-sans text-xs font-medium transition-all duration-150 cursor-pointer select-none",
-                    // Current month vs adjacent
                     isCurrentMonth ? "text-ink" : "text-muted/40",
-                    // Highlight start or end
                     (isStart || isEnd) &&
                       "bg-[#2da482] text-white font-bold rounded-full shadow-xs hover:bg-[#269374] scale-105 z-10",
-                    // In-between dates
                     isBetween && "text-ink font-semibold",
-                    // Hover state when not selected
                     !isStart &&
                       !isEnd &&
                       "hover:bg-[#2da482]/20 hover:text-ink rounded-full"
@@ -250,78 +244,68 @@ export function EventSchedulePicker({
         </div>
       </div>
 
-      {/* Right Sub-Column: Start/End Form & Same Day Switch (Items Align Start) */}
-      <div className="xl:col-span-5 flex flex-col items-start justify-start gap-4 text-left w-full">
-        {/* Start Date & Time Field (Clock below Date) */}
-        <div className="flex flex-col items-start gap-1.5 w-full">
-          <label className="text-xs font-bold text-ink">
+      {/* Right Sub-Column: Start Date, End Date, Clock Picker & Same Day Toggle */}
+      <div className="lg:col-span-5 flex flex-col gap-4 w-full text-left">
+        {/* Start Date & Time Row */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-ink">
             Start date<span className="text-[#2da482] ml-0.5">*</span>
           </label>
-          <div className="flex flex-col gap-1.5 w-full rounded-xl border border-line bg-white dark:bg-card p-2 shadow-2xs">
-            <div className="flex items-center justify-start text-left px-1.5 py-0.5 text-xs font-semibold text-ink truncate">
-              {formatDateLong(startDate)}
+          <div className="flex items-center gap-2">
+            {/* Date Display Pill */}
+            <div className="flex-1 flex items-center gap-1.5 h-9 px-3 rounded-xl border border-line bg-card text-xs font-medium text-ink shadow-2xs truncate">
+              <CalendarBlank size={14} className="text-[#2da482] shrink-0" />
+              <span className="truncate">{formatDateDisplay(startDate)}</span>
             </div>
-            <div className="w-full">
-              <TimePickerPopover
-                value={startTime}
-                onChange={onStartTimeChange}
-              />
-            </div>
+            {/* Clock Picker */}
+            <TimePickerPopover
+              value={startTime}
+              onChange={onStartTimeChange}
+            />
           </div>
         </div>
 
-        {/* End Date & Time Field (Clock below Date) */}
-        <div className="flex flex-col items-start gap-1.5 w-full">
-          <label className="text-xs font-bold text-ink">
+        {/* End Date & Time Row */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-ink">
             End date<span className="text-[#2da482] ml-0.5">*</span>
           </label>
-          <div
-            className={cn(
-              "flex flex-col gap-1.5 w-full rounded-xl border border-line bg-white dark:bg-card p-2 shadow-2xs transition-opacity",
-              isSameDay && "opacity-75 bg-canvas/40"
-            )}
-          >
-            <div className="flex items-center justify-start text-left px-1.5 py-0.5 text-xs font-semibold text-ink truncate">
-              {formatDateLong(endDate)}
+          <div className="flex items-center gap-2">
+            {/* Date Display Pill */}
+            <div className="flex-1 flex items-center gap-1.5 h-9 px-3 rounded-xl border border-line bg-card text-xs font-medium text-ink shadow-2xs truncate">
+              <CalendarBlank size={14} className="text-[#2da482] shrink-0" />
+              <span className="truncate">{formatDateDisplay(isSameDay ? startDate : endDate)}</span>
             </div>
-            <div className="w-full">
-              <TimePickerPopover
-                value={endTime}
-                onChange={onEndTimeChange}
-                disabled={isSameDay}
-              />
-            </div>
+            {/* Clock Picker - Always editable to set the conclusion time */}
+            <TimePickerPopover
+              value={endTime}
+              onChange={onEndTimeChange}
+            />
           </div>
         </div>
 
-        {/* Same Day Toggle + Minimal Instruction */}
-        <div className="flex flex-col gap-1.5 w-full pt-1">
-          <div className="flex items-center justify-between w-full">
-            <span className="text-xs font-semibold text-ink select-none">
-              Same Day
-            </span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={isSameDay}
-              onClick={() => handleSameDayToggle(!isSameDay)}
+        {/* Same Day Toggle Switch */}
+        <div className="pt-2 flex items-center justify-between border-t border-line-subtle">
+          <span className="text-xs font-semibold text-ink select-none">
+            Same Day
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isSameDay}
+            onClick={() => handleSameDayToggle(!isSameDay)}
+            className={cn(
+              "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2da482]",
+              isSameDay ? "bg-[#2da482]" : "bg-line"
+            )}
+          >
+            <span
               className={cn(
-                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2da482]",
-                isSameDay ? "bg-[#2da482]" : "bg-line"
+                "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+                isSameDay ? "translate-x-5" : "translate-x-0"
               )}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
-                  isSameDay ? "translate-x-5" : "translate-x-0"
-                )}
-              />
-            </button>
-          </div>
-          {/* Super Minimal Instruction */}
-          <p className="text-[11px] text-muted font-normal leading-tight">
-            Enable for single-day events, or pick a start and end range on the calendar.
-          </p>
+            />
+          </button>
         </div>
       </div>
     </div>

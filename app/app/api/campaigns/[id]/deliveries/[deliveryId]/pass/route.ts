@@ -17,20 +17,51 @@ export async function GET(_: Request, { params }: RouteContext) {
   }
 
   const delivery = await getPrismaClient().emailDelivery.findFirst({
-    where: { id: deliveryId, campaignId },
+    where: {
+      id: deliveryId,
+      OR: [{ campaignId }, { eventId: campaignId }],
+    },
     select: {
       rosterEntry: { select: { id: true } },
       campaign: { select: { event: { select: { id: true, startsAt: true, endsAt: true } } } },
     },
   });
-  if (!delivery) return Response.json({ error: "That delivery was not found." }, { status: 404 });
+
+  let eventId: string;
+  let rosterEntryId: string;
+  let startsAt: Date;
+  let endsAt: Date;
+
+  if (delivery) {
+    eventId = delivery.campaign.event.id;
+    rosterEntryId = delivery.rosterEntry.id;
+    startsAt = delivery.campaign.event.startsAt;
+    endsAt = delivery.campaign.event.endsAt;
+  } else {
+    const rosterEntry = await getPrismaClient().eventRosterEntry.findFirst({
+      where: {
+        id: deliveryId,
+        OR: [{ eventId: campaignId }, { event: { campaigns: { some: { id: campaignId } } } }],
+      },
+      select: {
+        id: true,
+        eventId: true,
+        event: { select: { id: true, startsAt: true, endsAt: true } },
+      },
+    });
+    if (!rosterEntry) return Response.json({ error: "That delivery was not found." }, { status: 404 });
+    eventId = rosterEntry.event.id;
+    rosterEntryId = rosterEntry.id;
+    startsAt = rosterEntry.event.startsAt;
+    endsAt = rosterEntry.event.endsAt;
+  }
 
   try {
     const ticket = signQrTicket({
-      eventId: delivery.campaign.event.id,
-      rosterEntryId: delivery.rosterEntry.id,
-      startsAt: delivery.campaign.event.startsAt,
-      endsAt: delivery.campaign.event.endsAt,
+      eventId,
+      rosterEntryId,
+      startsAt,
+      endsAt,
     });
     return Response.json({ qrDataUrl: await renderQrTicketDataUrl(ticket) });
   } catch {

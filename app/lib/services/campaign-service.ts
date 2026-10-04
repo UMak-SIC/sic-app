@@ -23,19 +23,35 @@ export type SubmitCampaignInput = {
 
 export type CampaignListItem = {
   id: string;
+  eventId: string;
   subject: string;
   eventName: string;
   venue: string | null;
   startsAt: Date;
   createdAt: Date;
+  campaignsCount: number;
+  totalStudents: number;
+  deliveredCount: number;
+  sendingCount: number;
+  invalidEmailCount: number;
+  pendingCount: number;
+  unsentCount: number;
   counts: Record<DeliveryStatus, number>;
+};
+
+export type CampaignHistoryItem = {
+  id: string;
+  subject: string;
+  createdAt: Date;
+  deliveredCount: number;
 };
 
 export type CampaignDetail = CampaignListItem & {
   markdown: string;
+  campaignsHistory: CampaignHistoryItem[];
   deliveries: {
     id: string;
-    status: DeliveryStatus;
+    status: DeliveryStatus | "NOT_SENT";
     provider: string | null;
     providerMessageId: string | null;
     failureMessage: string | null;
@@ -171,67 +187,247 @@ export async function submitCampaign(input: SubmitCampaignInput) {
 }
 
 export async function listCampaigns(): Promise<CampaignListItem[]> {
-  const campaigns = await getPrismaClient().campaign.findMany({
+  const events = await getPrismaClient().event.findMany({
+    where: { status: { in: [EventStatus.PUBLISHED, EventStatus.DRAFT, EventStatus.CLOSED] } },
     select: {
       id: true,
-      subject: true,
+      name: true,
+      venue: true,
+      startsAt: true,
       createdAt: true,
-      event: { select: { name: true, venue: true, startsAt: true } },
-      emailDeliveries: { select: { status: true }, },
+      rosterEntries: {
+        where: { attendee: { deletedAt: null } },
+        select: {
+          id: true,
+          attendeeId: true,
+          deliveries: {
+            select: {
+              status: true,
+            },
+          },
+        },
+      },
+      campaigns: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          subject: true,
+          createdAt: true,
+        },
+      },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { startsAt: "desc" },
   });
 
-  return campaigns.map((campaign) => ({
-    id: campaign.id,
-    subject: campaign.subject,
-    eventName: campaign.event.name,
-    venue: campaign.event.venue,
-    startsAt: campaign.event.startsAt,
-    createdAt: campaign.createdAt,
-    counts: countsFrom(Object.entries(campaign.emailDeliveries.reduce<Record<string, number>>((result, delivery) => {
-      result[delivery.status] = (result[delivery.status] ?? 0) + 1;
-      return result;
-    }, {})).map(([status, count]) => ({ status: status as DeliveryStatus, _count: { _all: count } }))),
-  }));
+  return events.map((event) => {
+    const totalStudents = event.rosterEntries.length;
+    let deliveredCount = 0;
+    let sendingCount = 0;
+    let invalidEmailCount = 0;
+    let unsentCount = 0;
+
+    for (const rosterEntry of event.rosterEntries) {
+      const statuses = rosterEntry.deliveries.map((d) => d.status);
+      if (statuses.includes(DeliveryStatus.SENT)) {
+        deliveredCount++;
+      } else if (statuses.includes(DeliveryStatus.SENDING) || statuses.includes(DeliveryStatus.QUEUED)) {
+        sendingCount++;
+      } else if (statuses.includes(DeliveryStatus.FAILED) || statuses.includes(DeliveryStatus.BOUNCED)) {
+        invalidEmailCount++;
+      } else {
+        unsentCount++;
+      }
+    }
+
+    const latestCampaign = event.campaigns[0];
+    const subject = latestCampaign ? latestCampaign.subject : "No announcements sent yet";
+    const primaryId = latestCampaign ? latestCampaign.id : event.id;
+
+    return {
+      id: primaryId,
+      eventId: event.id,
+      subject,
+      eventName: event.name,
+      venue: event.venue,
+      startsAt: event.startsAt,
+      createdAt: latestCampaign ? latestCampaign.createdAt : event.createdAt,
+      campaignsCount: event.campaigns.length,
+      totalStudents,
+      deliveredCount,
+      sendingCount,
+      invalidEmailCount,
+      pendingCount: unsentCount,
+      unsentCount,
+      counts: {
+        QUEUED: sendingCount,
+        SENDING: 0,
+        SENT: deliveredCount,
+        BOUNCED: 0,
+        FAILED: invalidEmailCount,
+      },
+    };
+  });
 }
 
-export async function getCampaignDetail(campaignId: string): Promise<CampaignDetail | null> {
-  const campaign = await getPrismaClient().campaign.findUnique({
-    where: { id: campaignId },
+export async function getCampaignDetail(targetId: string): Promise<CampaignDetail | null> {
+  const prisma = getPrismaClient();
+
+  // 1. Try finding by campaign ID first
+  const campaignRecord = await prisma.campaign.findUnique({
+    where: { id: targetId },
     select: {
       id: true,
+      eventId: true,
       subject: true,
       markdown: true,
       createdAt: true,
-      event: { select: { name: true, venue: true, startsAt: true } },
-      emailDeliveries: {
-        orderBy: { createdAt: "asc" },
+    },
+  });
+
+  const eventId = campaignRecord?.eventId ?? targetId;
+
+  // 2. Load the event, its roster entries, all campaigns, and deliveries
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: {
+      id: true,
+      name: true,
+      venue: true,
+      startsAt: true,
+      createdAt: true,
+      campaigns: {
+        orderBy: { createdAt: "desc" },
         select: {
-          id: true, status: true, provider: true, providerMessageId: true, failureMessage: true, sentAt: true,
-          rosterEntry: { select: { attendee: { select: { id: true, name: true, studentId: true, displayEmail: true, course: true, program: true } } } },
-          queueJob: { select: { status: true, retryCount: true, scheduledAt: true } },
-          attempts: { orderBy: { attemptedAt: "desc" }, take: 1, select: { provider: true, providerMessageId: true, errorMessage: true, attemptedAt: true } },
+          id: true,
+          subject: true,
+          markdown: true,
+          createdAt: true,
+          emailDeliveries: { select: { status: true } },
+        },
+      },
+      rosterEntries: {
+        where: { attendee: { deletedAt: null } },
+        orderBy: { attendee: { name: "asc" } },
+        select: {
+          id: true,
+          attendee: {
+            select: { id: true, name: true, studentId: true, displayEmail: true, course: true, program: true },
+          },
+          deliveries: {
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              campaignId: true,
+              status: true,
+              provider: true,
+              providerMessageId: true,
+              failureMessage: true,
+              sentAt: true,
+              queueJob: { select: { status: true, retryCount: true, scheduledAt: true } },
+              attempts: { orderBy: { attemptedAt: "desc" }, take: 1, select: { provider: true, providerMessageId: true, errorMessage: true, attemptedAt: true } },
+            },
+          },
         },
       },
     },
   });
-  if (!campaign) return null;
+
+  if (!event) return null;
+
+  const currentCampaign = campaignRecord ?? event.campaigns[0] ?? null;
+  const primaryId = currentCampaign ? currentCampaign.id : event.id;
+  const subject = currentCampaign ? currentCampaign.subject : "No announcements sent yet";
+  const markdown = currentCampaign ? currentCampaign.markdown : "";
+  const createdAt = currentCampaign ? currentCampaign.createdAt : event.createdAt;
+
+  let deliveredCount = 0;
+  let sendingCount = 0;
+  let invalidEmailCount = 0;
+  let unsentCount = 0;
+
+  const deliveries: CampaignDetail["deliveries"] = event.rosterEntries.map((rosterEntry) => {
+    const matchingDelivery = currentCampaign
+      ? rosterEntry.deliveries.find((d) => d.campaignId === currentCampaign.id) ?? rosterEntry.deliveries[0]
+      : rosterEntry.deliveries[0];
+
+    if (matchingDelivery) {
+      if (matchingDelivery.status === DeliveryStatus.SENT) deliveredCount++;
+      else if (matchingDelivery.status === DeliveryStatus.SENDING || matchingDelivery.status === DeliveryStatus.QUEUED) sendingCount++;
+      else if (matchingDelivery.status === DeliveryStatus.FAILED || matchingDelivery.status === DeliveryStatus.BOUNCED) invalidEmailCount++;
+
+      return {
+        id: matchingDelivery.id,
+        status: matchingDelivery.status,
+        provider: matchingDelivery.provider,
+        providerMessageId: matchingDelivery.providerMessageId,
+        failureMessage: matchingDelivery.failureMessage,
+        sentAt: matchingDelivery.sentAt,
+        attendee: {
+          id: rosterEntry.attendee.id,
+          name: rosterEntry.attendee.name,
+          studentId: rosterEntry.attendee.studentId,
+          email: rosterEntry.attendee.displayEmail,
+          course: rosterEntry.attendee.course,
+          program: rosterEntry.attendee.program,
+        },
+        queueJob: matchingDelivery.queueJob,
+        lastAttempt: matchingDelivery.attempts[0] ?? null,
+      };
+    }
+
+    unsentCount++;
+    return {
+      id: rosterEntry.id,
+      status: "NOT_SENT" as const,
+      provider: null,
+      providerMessageId: null,
+      failureMessage: null,
+      sentAt: null,
+      attendee: {
+        id: rosterEntry.attendee.id,
+        name: rosterEntry.attendee.name,
+        studentId: rosterEntry.attendee.studentId,
+        email: rosterEntry.attendee.displayEmail,
+        course: rosterEntry.attendee.course,
+        program: rosterEntry.attendee.program,
+      },
+      queueJob: null,
+      lastAttempt: null,
+    };
+  });
+
+  const campaignsHistory: CampaignHistoryItem[] = event.campaigns.map((c) => ({
+    id: c.id,
+    subject: c.subject,
+    createdAt: c.createdAt,
+    deliveredCount: c.emailDeliveries.filter((d) => d.status === DeliveryStatus.SENT).length,
+  }));
 
   return {
-    id: campaign.id, subject: campaign.subject, markdown: campaign.markdown, createdAt: campaign.createdAt,
-    eventName: campaign.event.name, venue: campaign.event.venue, startsAt: campaign.event.startsAt,
-    counts: countsFrom(Object.entries(campaign.emailDeliveries.reduce<Record<string, number>>((result, delivery) => {
-      result[delivery.status] = (result[delivery.status] ?? 0) + 1;
-      return result;
-    }, {})).map(([status, count]) => ({ status: status as DeliveryStatus, _count: { _all: count } }))),
-    deliveries: campaign.emailDeliveries.map((delivery) => ({
-      id: delivery.id, status: delivery.status, provider: delivery.provider, providerMessageId: delivery.providerMessageId,
-      failureMessage: delivery.failureMessage, sentAt: delivery.sentAt,
-      attendee: { id: delivery.rosterEntry.attendee.id, name: delivery.rosterEntry.attendee.name, studentId: delivery.rosterEntry.attendee.studentId, email: delivery.rosterEntry.attendee.displayEmail, course: delivery.rosterEntry.attendee.course, program: delivery.rosterEntry.attendee.program },
-      queueJob: delivery.queueJob,
-      lastAttempt: delivery.attempts[0] ?? null,
-    })),
+    id: primaryId,
+    eventId: event.id,
+    subject,
+    markdown,
+    createdAt,
+    eventName: event.name,
+    venue: event.venue,
+    startsAt: event.startsAt,
+    campaignsCount: event.campaigns.length,
+    totalStudents: event.rosterEntries.length,
+    deliveredCount,
+    sendingCount,
+    invalidEmailCount,
+    pendingCount: unsentCount,
+    unsentCount,
+    counts: {
+      QUEUED: sendingCount,
+      SENDING: 0,
+      SENT: deliveredCount,
+      BOUNCED: 0,
+      FAILED: invalidEmailCount,
+    },
+    deliveries,
+    campaignsHistory,
   };
 }
 
@@ -241,7 +437,12 @@ export async function retryFailedDeliveries({ campaignId, deliveryIds }: { campa
 
   return getPrismaClient().$transaction(async (transaction) => {
     const failed = await transaction.emailDelivery.findMany({
-      where: { id: { in: ids }, campaignId, status: DeliveryStatus.FAILED, queueJob: { status: QueueJobStatus.DEAD_LETTER } },
+      where: {
+        id: { in: ids },
+        OR: [{ campaignId }, { eventId: campaignId }],
+        status: DeliveryStatus.FAILED,
+        queueJob: { status: QueueJobStatus.DEAD_LETTER },
+      },
       select: { id: true, queueJob: { select: { id: true, retryCount: true } } },
     });
     const requeuedIds: string[] = [];
@@ -279,7 +480,11 @@ export async function requeueDeliveries({ campaignId, deliveryIds }: { campaignI
 
   return getPrismaClient().$transaction(async (transaction) => {
     const deliveries = await transaction.emailDelivery.findMany({
-      where: { id: { in: ids }, campaignId, status: DeliveryStatus.SENT },
+      where: {
+        id: { in: ids },
+        OR: [{ campaignId }, { eventId: campaignId }],
+        status: DeliveryStatus.SENT,
+      },
       select: { id: true, queueJob: { select: { id: true } } },
     });
     for (const delivery of deliveries) {
