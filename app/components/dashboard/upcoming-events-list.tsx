@@ -7,12 +7,12 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { DashboardEvent, DASHBOARD_EVENTS } from "./events-data";
+import { DashboardEvent } from "./events-data";
 
 interface UpcomingEventsListProps {
-  events?: DashboardEvent[];
-  selectedDay?: number;
-  selectedEventId?: number;
+  events: DashboardEvent[];
+  selectedDate?: string;
+  selectedEventId?: string | null;
   onSelectEvent?: (event: DashboardEvent) => void;
   onCheckIn?: (event: DashboardEvent) => void;
   onView?: (event: DashboardEvent) => void;
@@ -22,9 +22,9 @@ interface UpcomingEventsListProps {
 }
 
 export function UpcomingEventsList({
-  events = DASHBOARD_EVENTS,
-  selectedDay,
-  selectedEventId = 1,
+  events,
+  selectedDate,
+  selectedEventId = null,
   onSelectEvent,
   onCheckIn,
   onView,
@@ -34,8 +34,8 @@ export function UpcomingEventsList({
 }: UpcomingEventsListProps) {
   // Filter events if day filter is active
   const displayedEvents =
-    filterMode === "day" && selectedDay
-      ? events.filter((e) => e.day === selectedDay)
+    filterMode === "day" && selectedDate
+      ? events.filter((event) => event.dateKey === selectedDate)
       : events;
 
   return (
@@ -58,7 +58,7 @@ export function UpcomingEventsList({
           <div className="text-center py-6 px-3 bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
             <CalendarBlank size={24} className="mx-auto text-slate-400 mb-1.5" />
             <p className="text-xs font-semibold text-slate-700 font-sans">
-              No events on Day {selectedDay}
+              No events on {selectedDate}
             </p>
             {onToggleFilter && (
               <button

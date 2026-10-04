@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 
 export type AttendanceEntry = {
@@ -54,6 +55,23 @@ export async function getEventAttendance(eventId: string, search?: string) {
     attendedCount,
     totalRosterEntries: event._count.rosterEntries,
   };
+}
+
+export async function getEventRegistrationBreakdown(eventId: string) {
+  const event = await getPrismaClient().event.findUnique({
+    where: { id: eventId },
+    select: { id: true },
+  });
+  if (!event) return null;
+
+  return getPrismaClient().$queryRaw<{ course: string; students: number }[]>(Prisma.sql`
+    SELECT COALESCE(attendee.course, '') AS course, COUNT(*)::int AS students
+    FROM public.event_roster_entries AS roster_entry
+    JOIN public.attendees AS attendee ON attendee.id = roster_entry.attendee_id
+    WHERE roster_entry.event_id = ${eventId}::uuid
+    GROUP BY COALESCE(attendee.course, '')
+    ORDER BY students DESC, course ASC
+  `);
 }
 
 export function toAttendanceCsv(entries: AttendanceEntry[]): string {

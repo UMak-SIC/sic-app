@@ -2,16 +2,16 @@
 
 import { useState } from "react";
 import { DonutChart } from "./donut-chart";
-import { DashboardEvent, DASHBOARD_EVENTS } from "./events-data";
+import { DashboardEvent } from "./events-data";
 import { cn } from "@/lib/utils";
 
 interface StudentsRegisteredCardProps {
-  event?: DashboardEvent;
+  event: DashboardEvent;
   className?: string;
 }
 
 export function StudentsRegisteredCard({
-  event = DASHBOARD_EVENTS[0],
+  event,
   className,
 }: StudentsRegisteredCardProps) {
   const [selectedCollege, setSelectedCollege] = useState<string | null>(null);
