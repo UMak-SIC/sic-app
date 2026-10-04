@@ -81,7 +81,7 @@ export function CampaignAssetsStep({
   bannerImage = DEFAULT_BANNER,
   attachments = [DEFAULT_DOC],
   testEmailAddress = "admin@umak.edu.ph",
-  studentCount = 114,
+  studentCount = 0,
   practiceRecipients = [],
   eventVenue = null,
   onBannerImageChange,
@@ -357,7 +357,7 @@ export function CampaignAssetsStep({
             className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 px-5 gap-2 cursor-pointer shadow-xs"
           >
             <PaperPlaneTilt size={15} weight="bold" />
-            <span>Send Email</span>
+            <span>Send Email{studentCount > 0 ? ` (${studentCount})` : ""}</span>
           </Button>
         </div>
       </div>
@@ -839,7 +839,7 @@ export function CampaignAssetsStep({
         <ShieldCheck size={20} className="text-green shrink-0 mt-0.5" weight="bold" />
         <div className="leading-relaxed font-sans">
           <strong className="font-semibold text-green font-display">Ready to publish:</strong>{" "}
-          When you click Send Email, all {studentCount} registered students will receive their personalized announcement and unique QR pass. Duplicate emails are always prevented.
+          When you click Send Email, the {studentCount} selected {studentCount === 1 ? "recipient" : "recipients"} will receive their personalized announcement and unique QR pass. Duplicate emails are always prevented.
         </div>
       </div>
 

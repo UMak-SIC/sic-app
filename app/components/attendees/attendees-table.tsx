@@ -152,9 +152,9 @@ export function AttendeesTable({
   const [dropPosition, setDropPosition] = React.useState<"top" | "bottom" | null>(null);
 
   const isAllSelected =
-    items.length > 0 && selectedIds.length === items.length;
+    items.length > 0 && items.every((student) => selectedIds.includes(student.id));
   const isSomeSelected =
-    selectedIds.length > 0 && selectedIds.length < items.length;
+    !isAllSelected && items.some((student) => selectedIds.includes(student.id));
 
   const handleReorder = (newItems: AttendeeItem[]) => {
     setItems(newItems);
