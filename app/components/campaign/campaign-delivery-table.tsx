@@ -163,6 +163,7 @@ export function CampaignDeliveryTable({
   className,
 }: CampaignDeliveryTableProps) {
   const reduced = useReducedMotion();
+  const wrap = React.useRef<HTMLDivElement>(null);
   const mounted = React.useSyncExternalStore(
     () => () => {},
     () => true,
