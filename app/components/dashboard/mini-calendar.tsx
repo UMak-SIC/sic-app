@@ -1,40 +1,42 @@
 "use client";
 
-import { useState } from "react";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/lib/utils";
 
 interface MiniCalendarProps {
-  selectedDay?: number;
-  onSelectDay?: (day: number) => void;
-  eventDays?: number[];
-  monthName?: string;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  eventDates: string[];
+  month: Date;
+  onMonthChange: (month: Date) => void;
   className?: string;
 }
 
 export function MiniCalendar({
-  selectedDay: controlledDay,
-  onSelectDay,
-  eventDays = [15, 22, 28],
-  monthName = "May 2024",
+  selectedDate,
+  onSelectDate,
+  eventDates,
+  month,
+  onMonthChange,
   className,
 }: MiniCalendarProps) {
-  const [internalDay, setInternalDay] = useState<number>(15);
-  const selectedDay = controlledDay !== undefined ? controlledDay : internalDay;
-
-  const handleSelectDay = (day: number) => {
-    if (onSelectDay) {
-      onSelectDay(day);
-    } else {
-      setInternalDay(day);
-    }
-  };
-
   const daysOfWeek = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+  const monthName = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  }).format(month);
+  const emptyDaysBefore = Array.from(
+    { length: (new Date(year, monthIndex, 1).getDay() + 6) % 7 },
+  );
+  const daysInMonth = Array.from(
+    { length: new Date(year, monthIndex + 1, 0).getDate() },
+    (_, index) => index + 1,
+  );
 
-  // Days configuration for May 2024 (starts on Wednesday, so 2 empty cells)
-  const emptyDaysBefore = [null, null];
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+  const dateKey = (day: number) =>
+    `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
   return (
     <div
@@ -46,6 +48,7 @@ export function MiniCalendar({
       {/* Month Selector Navigation */}
       <div className="flex items-center justify-between mb-2 sm:mb-3">
         <button
+          onClick={() => onMonthChange(new Date(year, monthIndex - 1, 1))}
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Previous month"
         >
@@ -57,6 +60,7 @@ export function MiniCalendar({
         </div>
 
         <button
+          onClick={() => onMonthChange(new Date(year, monthIndex + 1, 1))}
           className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           aria-label="Next month"
         >
@@ -83,13 +87,14 @@ export function MiniCalendar({
         ))}
 
         {daysInMonth.map((day) => {
-          const isSelected = day === selectedDay;
-          const hasEvent = eventDays.includes(day);
+          const date = dateKey(day);
+          const isSelected = date === selectedDate;
+          const hasEvent = eventDates.includes(date);
 
           return (
             <button
               key={day}
-              onClick={() => handleSelectDay(day)}
+                onClick={() => onSelectDate(date)}
               className={cn(
                 "relative flex h-7 w-7 sm:h-8 sm:w-8 mx-auto items-center justify-center rounded-full text-xs font-medium transition-all duration-150 cursor-pointer",
                 isSelected

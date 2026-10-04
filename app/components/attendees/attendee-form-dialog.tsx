@@ -238,11 +238,11 @@ export function AttendeeFormDialog({
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="attendee-course" className="text-xs font-bold text-ink">
-                  Course
+                  Department
                 </Label>
                 <Input
                   id="attendee-course"
-                  placeholder="e.g. BSIT"
+                  placeholder="e.g. CCIS"
                   value={fields.course}
                   onChange={(event) => set("course")(event.target.value)}
                   aria-invalid={problem?.field === "course"}
@@ -253,11 +253,11 @@ export function AttendeeFormDialog({
 
               <div className="grid gap-1.5">
                 <Label htmlFor="attendee-program" className="text-xs font-bold text-ink">
-                  Program
+                  Course
                 </Label>
                 <Input
                   id="attendee-program"
-                  placeholder="e.g. BS Information Technology"
+                  placeholder="e.g. BSCS-AppDev"
                   value={fields.program}
                   onChange={(event) => set("program")(event.target.value)}
                   aria-invalid={problem?.field === "program"}
