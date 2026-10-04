@@ -52,7 +52,7 @@ const EASY_INSERTS: { label: string; token: string }[] = [
 ];
 
 export function CampaignComposerStep({
-  eventId,
+  eventId: _eventId,
   eventName = "UMak SIC General Assembly",
   subject,
   messageContent,
@@ -175,7 +175,7 @@ export function CampaignComposerStep({
             onClick={onContinue}
             className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer"
           >
-            <span>Next: Banner & Preview</span>
+            <span>Next: Select students</span>
             <ArrowRight size={14} weight="bold" />
           </Button>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import {
   Table,
@@ -89,6 +90,12 @@ const STATUS_ACCENTS: Record<
     badgeBg: "bg-red-soft text-red border-red-border",
     icon: WarningCircle,
   },
+  pending: {
+    borderLeftClass: "border-l-amber/60",
+    label: "Not Yet Emailed",
+    badgeBg: "bg-amber-soft text-amber border-amber-border",
+    icon: Clock,
+  },
   already_received: {
     borderLeftClass: "border-l-muted-light",
     label: "Protected",
@@ -157,9 +164,13 @@ export function CampaignDeliveryTable({
 }: CampaignDeliveryTableProps) {
   const reduced = useReducedMotion();
   const wrap = React.useRef<HTMLDivElement>(null);
+  const mounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
-  const [pos, setPos] = React.useState({ x: 0, y: 0 });
-  const [bounds, setBounds] = React.useState({ width: 800, height: 500 });
+  const [pointerPos, setPointerPos] = React.useState({ x: 0, y: 0 });
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
   // Local list state to support immediate responsive reordering
@@ -172,11 +183,7 @@ export function CampaignDeliveryTable({
   }
 
   const onMove = (e: React.PointerEvent) => {
-    const r = wrap.current?.getBoundingClientRect();
-    if (r) {
-      setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
-      setBounds({ width: r.width, height: r.height });
-    }
+    setPointerPos({ x: e.clientX, y: e.clientY });
   };
 
   // Drag and drop state
@@ -376,11 +383,13 @@ export function CampaignDeliveryTable({
             const courseStyle = student.course && COURSE_BADGES[student.course] ? COURSE_BADGES[student.course] : COURSE_BADGES.BSIT;
 
             const timestamp = student.deliveredAt ?? student.scheduledAt;
-            const datePart = timestamp
-              ? timestamp.split(",")[0].trim()
-              : student.isSending
-                ? "Sending now"
-                : "Waiting to send";
+            const datePart = student.deliveryStatus === "pending"
+              ? "Not yet sent"
+              : timestamp
+                ? timestamp.split(",")[0].trim()
+                : student.isSending
+                  ? "Sending now"
+                  : "Waiting to send";
             const timePart = timestamp && timestamp.includes(",")
               ? timestamp.split(",")[1].trim()
               : "";
@@ -464,23 +473,18 @@ export function CampaignDeliveryTable({
                   }}
                   onPointerLeave={() => setHoverIndex(null)}
                 >
-                  <div className="flex flex-col gap-1 max-w-[95%]">
-                    <div className="flex items-center gap-1.5">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "px-2 py-0.5 text-[10px] font-bold rounded-full border shadow-none",
-                          courseStyle.bg,
-                          courseStyle.text,
-                          courseStyle.border
-                        )}
-                      >
-                        {student.course || "BSIT"}
-                      </Badge>
-                    </div>
-                    <span className="text-[11px] text-muted font-sans truncate">
-                      {student.program || "Information Technology"}
-                    </span>
+                  <div className="flex items-center">
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "px-2.5 py-0.5 text-[11px] font-bold rounded-full border shadow-none",
+                        courseStyle.bg,
+                        courseStyle.text,
+                        courseStyle.border
+                      )}
+                    >
+                      {student.course || "BSIT"}
+                    </Badge>
                   </div>
                 </TableCell>
 
@@ -675,106 +679,114 @@ export function CampaignDeliveryTable({
       </Table>
       </div>
 
-      {/* Floating Ticket Pass Preview - alive while a student row is hovered */}
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none absolute z-30 hidden md:block w-[270px] overflow-hidden rounded-[14px] border border-line bg-card shadow-2xl"
-        style={{
-          left: 0,
-          top: 0,
-          boxShadow:
-            "0 20px 40px -10px rgba(18, 51, 58, 0.28), 0 0 0 1px var(--line)",
-        }}
-        animate={{
-          x: Math.max(
-            12,
-            Math.min(pos.x + 24, bounds.width - 282)
-          ),
-          y: Math.max(
-            10,
-            Math.min(pos.y - 80, bounds.height - 240)
-          ),
-          opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
-          scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.95,
-        }}
-        transition={
-          reduced
-            ? { duration: 0 }
-            : {
-                type: "spring",
-                stiffness: 280,
-                damping: 26,
-                opacity: { duration: 0.18, ease: EASE },
-              }
-        }
-      >
-        {items.map((r, i) => {
-          const isCurrent = hoverIndex === i;
-          const currentAccent = STATUS_ACCENTS[r.deliveryStatus] || STATUS_ACCENTS.delivered;
-          const CurrentStatusIcon = currentAccent.icon;
+      {/* Floating Ticket Pass Preview - portal into body so it is never clipped */}
+      {mounted && typeof document !== "undefined" && createPortal(
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none fixed top-0 left-0 z-50 hidden md:block w-[270px] overflow-hidden rounded-[14px] border border-line bg-card shadow-2xl"
+          style={{
+            boxShadow:
+              "0 20px 40px -10px rgba(18, 51, 58, 0.28), 0 0 0 1px var(--line)",
+          }}
+          animate={{
+            x: Math.max(
+              16,
+              Math.min(
+                pointerPos.x + 20 + 270 > (typeof window !== "undefined" ? window.innerWidth : 1200) - 16
+                  ? pointerPos.x - 270 - 20
+                  : pointerPos.x + 20,
+                (typeof window !== "undefined" ? window.innerWidth : 1200) - 270 - 16
+              )
+            ),
+            y: Math.max(
+              16,
+              Math.min(
+                pointerPos.y - 80,
+                (typeof window !== "undefined" ? window.innerHeight : 800) - 200 - 16
+              )
+            ),
+            opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
+            scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.95,
+          }}
+          transition={
+            reduced
+              ? { duration: 0 }
+              : {
+                  type: "spring",
+                  stiffness: 350,
+                  damping: 28,
+                  opacity: { duration: 0.15, ease: EASE },
+                }
+          }
+        >
+          {items.map((r, i) => {
+            if (hoverIndex !== i) return null;
+            const currentAccent = STATUS_ACCENTS[r.deliveryStatus] || STATUS_ACCENTS.delivered;
+            const CurrentStatusIcon = currentAccent.icon;
 
-          return (
-            <div
-              key={r.id || r.name}
-              aria-hidden="true"
-              className="relative w-full"
-              style={{ display: isCurrent ? "block" : "none" }}
-            >
-              {/* Ticket Mini Header */}
-              <div className="bg-ink p-3 text-white flex items-center justify-between">
-                <div>
-                  <span className="text-[9px] uppercase tracking-widest text-cyan-soft font-bold font-display block">
-                    Official Pass Preview
-                  </span>
-                  <h5 className="font-display font-bold text-xs text-white truncate max-w-[180px]">
-                    {eventName}
-                  </h5>
-                </div>
-                <span className="text-[10px] font-mono text-cyan-soft">
-                  {eventDate.split("·")[0] || "17 Oct"}
-                </span>
-              </div>
-
-              {/* Ticket Body with QR Mock */}
-              <div className="p-3.5 bg-paper flex flex-col gap-2.5">
-                <div className="flex items-center gap-3">
-                  <div className="size-16 bg-card p-1 rounded-[6px] border border-line shrink-0 flex items-center justify-center">
-                    <QrCode size={54} className="text-ink" weight="regular" />
+            return (
+              <div
+                key={r.id || r.name}
+                aria-hidden="true"
+                className="relative w-full"
+              >
+                {/* Ticket Mini Header */}
+                <div className="bg-ink p-3 text-white flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] uppercase tracking-widest text-cyan-soft font-bold font-display block">
+                      Official Pass Preview
+                    </span>
+                    <h5 className="font-display font-bold text-xs text-white truncate max-w-[180px]">
+                      {eventName}
+                    </h5>
                   </div>
-                  <div className="min-w-0 flex flex-col">
-                    <span className="font-display font-bold text-xs text-ink truncate">
-                      {r.name}
+                  <span className="text-[10px] font-mono text-cyan-soft">
+                    {eventDate.split("·")[0]?.trim() || "17 Oct"}
+                  </span>
+                </div>
+
+                {/* Ticket Body with QR Mock */}
+                <div className="p-3.5 bg-paper flex flex-col gap-2.5">
+                  <div className="flex items-center gap-3">
+                    <div className="size-16 bg-card p-1 rounded-[6px] border border-line shrink-0 flex items-center justify-center">
+                      <QrCode size={54} className="text-ink" weight="regular" />
+                    </div>
+                    <div className="min-w-0 flex flex-col">
+                      <span className="font-display font-bold text-xs text-ink truncate">
+                        {r.name}
+                      </span>
+                      <span className="font-mono text-[10.5px] text-muted">
+                        {r.studentId}
+                      </span>
+                      <span className="text-[10px] text-cyan font-bold font-sans mt-0.5">
+                        {r.course || "BSIT"}{venue ? ` · ${venue}` : ""}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-line-subtle flex items-center justify-between text-[10px] text-muted">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold border",
+                        currentAccent.badgeBg
+                      )}
+                    >
+                      <CurrentStatusIcon size={11} weight="bold" />
+                      <span>{currentAccent.label}</span>
                     </span>
-                    <span className="font-mono text-[10.5px] text-muted">
-                      {r.studentId}
-                    </span>
-                    <span className="text-[10px] text-cyan font-bold font-sans mt-0.5">
-                      {r.course || "BSIT"} · {venue}
+
+                    <span className="flex items-center gap-1 text-[9.5px] text-green font-semibold">
+                      <ShieldCheck size={12} weight="bold" />
+                      Unique Pass
                     </span>
                   </div>
                 </div>
-
-                <div className="pt-2 border-t border-line-subtle flex items-center justify-between text-[10px] text-muted">
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold border",
-                      currentAccent.badgeBg
-                    )}
-                  >
-                    <CurrentStatusIcon size={11} weight="bold" />
-                    <span>{currentAccent.label}</span>
-                  </span>
-
-                  <span className="flex items-center gap-1 text-[9.5px] text-green font-semibold">
-                    <ShieldCheck size={12} weight="bold" />
-                    Unique Pass
-                  </span>
-                </div>
               </div>
-            </div>
-          );
-        })}
-      </motion.div>
+            );
+          })}
+        </motion.div>,
+        document.body
+      )}
     </div>
   );
 }

@@ -8,7 +8,6 @@ import {
   CalendarBlank,
   CheckCircle,
   Clock,
-  Eye,
   MapPin,
   PaperPlaneTilt,
   PencilSimple,
@@ -17,12 +16,12 @@ import {
 } from "@phosphor-icons/react";
 import { KpiCardRow, type KpiItem } from "@/components/campaign/campaign-kpi-row";
 import { LiveCheckinDialog } from "@/components/checkin/live-checkin-dialog";
+import { EventDetailSkeleton } from "@/components/events/event-detail-skeleton";
 import { EventFormDialog, type EditableEvent } from "@/components/events/event-form-dialog";
 import { EventPeopleDialog } from "@/components/events/event-people-dialog";
 import { EventPeopleTab } from "@/components/events/event-people-tab";
 import { EventStatusBadge, type EventStatus } from "@/components/events/event-status-badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 type Event = EditableEvent & {
   status: "DRAFT" | "PUBLISHED" | "CLOSED";
@@ -30,8 +29,6 @@ type Event = EditableEvent & {
   bannerUrl: string | null;
   _count: { rosterEntries: number };
 };
-
-type EventTab = "overview" | "details" | "people";
 
 function formatDuration(startsAt: string, endsAt: string) {
   const minutes = Math.max(0, Math.round((new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60_000));
@@ -48,7 +45,6 @@ export default function EventDetailPage() {
   const [timezone, setTimezone] = React.useState("the organization timezone");
   const [error, setError] = React.useState("");
   const [notice, setNotice] = React.useState("");
-  const [activeTab, setActiveTab] = React.useState<EventTab>("overview");
   const [editing, setEditing] = React.useState(false);
   const [publishing, setPublishing] = React.useState(false);
   const [managingPeople, setManagingPeople] = React.useState(false);
@@ -82,9 +78,8 @@ export default function EventDetailPage() {
   }
 
   if (error && !event) return <p role="alert" className="rounded-[6px] bg-red-soft px-4 py-3 text-sm text-red">{error}</p>;
-  if (!event) return <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted">Loading event...</div>;
+  if (!event) return <EventDetailSkeleton />;
 
-  const formatDateTime = (value: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeStyle: "short", timeZone: timezone }).format(new Date(value));
   const formatShortDate = (value: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: timezone }).format(new Date(value));
   const formatTime = (value: string) => new Intl.DateTimeFormat("en-US", { timeStyle: "short", timeZone: timezone }).format(new Date(value));
   const status = event.status.toLowerCase() as EventStatus;
@@ -185,35 +180,7 @@ export default function EventDetailPage() {
 
       <KpiCardRow items={kpiItems} />
 
-      <nav aria-label="Event view options" className="sticky top-16 z-20 flex flex-col items-stretch justify-between gap-3 rounded-[12px] border-b border-line-subtle bg-paper/95 px-2 py-1.5 backdrop-blur sm:flex-row sm:items-center">
-        <ul className="flex flex-wrap items-center gap-1.5">
-           <li><button type="button" onClick={() => setActiveTab("overview")} className={cn("inline-flex h-8.5 cursor-pointer items-center gap-2 rounded-full px-4 text-xs font-semibold transition-colors", activeTab === "overview" ? "bg-ink font-bold text-paper shadow-2xs" : "text-muted hover:bg-canvas hover:text-ink")}><Eye size={15} weight={activeTab === "overview" ? "bold" : "regular"} aria-hidden="true" />Overview</button></li>
-           <li><button type="button" onClick={() => setActiveTab("details")} className={cn("inline-flex h-8.5 cursor-pointer items-center gap-2 rounded-full px-4 text-xs font-semibold transition-colors", activeTab === "details" ? "bg-ink font-bold text-paper shadow-2xs" : "text-muted hover:bg-canvas hover:text-ink")}><CalendarBlank size={15} weight={activeTab === "details" ? "bold" : "regular"} aria-hidden="true" />Event Details</button></li>
-           <li><button type="button" onClick={() => setActiveTab("people")} className={cn("inline-flex h-8.5 cursor-pointer items-center gap-2 rounded-full px-4 text-xs font-semibold transition-colors", activeTab === "people" ? "bg-ink font-bold text-paper shadow-2xs" : "text-muted hover:bg-canvas hover:text-ink")}><UsersThree size={15} weight={activeTab === "people" ? "bold" : "regular"} aria-hidden="true" />People</button></li>
-        </ul>
-        <Button type="button" variant="outline" onClick={() => setManagingPeople(true)} className="h-8.5 cursor-pointer self-end rounded-[6px] px-3 text-xs font-semibold sm:self-auto"><UsersThree size={15} aria-hidden="true" />{selectedPeople} {selectedPeople === 1 ? "Person" : "People"} Selected</Button>
-      </nav>
-
-      {activeTab === "overview" && <section className="animate-in fade-in duration-150 rounded-[12px] border border-line bg-card p-5 shadow-xs sm:p-6">
-        <h2 className="font-display text-xl font-bold text-ink">About This Event</h2>
-        <p className="mt-2 max-w-4xl whitespace-pre-wrap text-sm leading-6 text-muted">{event.details || "No event description has been added."}</p>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-[9px] border border-line bg-paper p-4"><CalendarBlank size={20} className="text-cyan" aria-hidden="true" /><p className="mt-3 text-xs font-semibold text-muted">Starts</p><p className="mt-1 text-sm font-semibold text-ink">{formatDateTime(event.startsAt)}</p></div>
-          <div className="rounded-[9px] border border-line bg-paper p-4"><Clock size={20} className="text-cyan" aria-hidden="true" /><p className="mt-3 text-xs font-semibold text-muted">Ends</p><p className="mt-1 text-sm font-semibold text-ink">{formatDateTime(event.endsAt)}</p></div>
-        </div>
-      </section>}
-
-       {activeTab === "details" && <section className="animate-in fade-in duration-150 rounded-[12px] border border-line bg-card p-5 shadow-xs sm:p-6">
-        <h2 className="font-display text-xl font-bold text-ink">Event Details</h2>
-        <dl className="mt-4 divide-y divide-line-subtle">
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"><dt className="text-xs font-semibold text-muted">Location</dt><dd className="text-sm font-medium text-ink">{event.venue ?? "Online event"}</dd></div>
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"><dt className="text-xs font-semibold text-muted">People selected</dt><dd className="text-sm font-medium text-ink">{selectedPeople}</dd></div>
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"><dt className="text-xs font-semibold text-muted">Event length</dt><dd className="text-sm font-medium text-ink">{duration}</dd></div>
-          <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between"><dt className="text-xs font-semibold text-muted">Timezone</dt><dd className="text-sm font-medium text-ink">{timezone}</dd></div>
-        </dl>
-       </section>}
-
-       {activeTab === "people" && <EventPeopleTab eventId={event.id} />}
+      <EventPeopleTab eventId={event.id} />
 
       <EventFormDialog open={editing} onOpenChange={setEditing} event={event} timezone={timezone} onSaved={loadEvent} />
       <EventPeopleDialog eventId={event.id} eventName={event.name} open={managingPeople} onOpenChange={setManagingPeople} />

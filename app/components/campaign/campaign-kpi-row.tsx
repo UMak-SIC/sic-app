@@ -290,8 +290,14 @@ export function KpiCardRow({
   labels = DEFAULT_LABELS,
   className,
 }: KpiCardRowProps) {
+  const gridClass = items.length === 4
+    ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full"
+    : items.length === 2
+    ? "grid grid-cols-1 sm:grid-cols-2 gap-4 w-full"
+    : "grid grid-cols-1 sm:grid-cols-3 gap-4 w-full";
+
   return (
-    <div className={cn("grid grid-cols-1 sm:grid-cols-3 gap-4 w-full", className)}>
+    <div className={cn(gridClass, className)}>
       {items.map((item, i) => (
         <KpiCard
           key={item.label}

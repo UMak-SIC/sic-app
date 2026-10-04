@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { animate, motion, useReducedMotion } from "motion/react";
+import { animate, useReducedMotion } from "motion/react";
 import {
   Users,
   CheckCircle,
@@ -9,6 +9,7 @@ import {
   X,
   MagnifyingGlass,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   CalendarBlank,
   Clock,
@@ -146,196 +147,110 @@ const SAMPLE_RECIPIENTS: StudentRecipient[] = [
   {
     id: "rec_1",
     name: "Andrea Santos",
-    studentId: "2023-00182",
+    studentId: "2023-00182-MK",
     email: "andrea.santos@umak.edu.ph",
     college: "CCIS",
     course: "BSIT",
-    program: "BS Information Technology",
     deliveryStatus: "delivered",
   },
   {
     id: "rec_2",
-    name: "Miguel Dela Cruz",
-    studentId: "2023-00491",
-    email: "miguel.delacruz@umak.edu.ph",
+    name: "Carlos Mendoza",
+    studentId: "2022-04911-MK",
+    email: "carlos.mendoza@umak.edu.ph",
     college: "CCIS",
     course: "BSCS",
-    program: "BS Computer Science",
     deliveryStatus: "delivered",
   },
   {
     id: "rec_3",
-    name: "Bianca Flores",
-    studentId: "2023-00612",
-    email: "bianca.flores@umak.edu.ph",
+    name: "Eileen Joy Reyes",
+    studentId: "2024-00832-MK",
+    email: "eileen.reyes@umak.edu.ph",
     college: "CCIS",
-    course: "BSINS",
-    program: "BS Information Systems",
+    course: "BSIT",
     deliveryStatus: "already_received",
-    statusNote: "Already received earlier reminder",
+    statusNote: "Received in previous blast (14 Oct)",
   },
   {
     id: "rec_4",
-    name: "Joshua Ramos",
-    studentId: "2022-01934",
-    email: "joshua.ramos@umak.edu.ph",
+    name: "Gabriel Ramos",
+    studentId: "2023-01449-MK",
+    email: "gabriel.ramos@umak.edu.ph",
     college: "CCIS",
-    course: "BSIT",
-    program: "BS Information Technology",
+    course: "BSINS",
     deliveryStatus: "delivered",
   },
   {
     id: "rec_5",
-    name: "Patricia Reyes",
-    studentId: "2023-00823",
-    email: "patricia.reyes@umak.edu.ph",
+    name: "Hannah Patricia Cruz",
+    studentId: "2023-08912-MK",
+    email: "hannah.cruz@umak.edu.ph",
     college: "CCIS",
     course: "BSCS",
-    program: "BS Computer Science",
     deliveryStatus: "delivered",
   },
   {
     id: "rec_6",
-    name: "Christian Bautista",
-    studentId: "2023-01044",
-    email: "christian.bautista@umak.edu.ph",
-    college: "CBFS",
-    course: "BSBA",
-    program: "BS Business Administration",
-    deliveryStatus: "delivered",
-  },
-  {
-    id: "rec_7",
-    name: "Mark Bautista",
-    studentId: "2021-03412",
-    email: "mark.bautista@umak.edu.ph",
-    college: "CCIS",
-    course: "BSCS",
-    program: "BS Computer Science",
-    deliveryStatus: "already_received",
-    statusNote: "Already received earlier reminder",
-  },
-  {
-    id: "rec_8",
-    name: "Erika Mae Tan",
-    studentId: "2023-01289",
-    email: "erika.tan@umak.edu.ph",
-    college: "CBFS",
-    course: "BSOA",
-    program: "BS Office Administration",
-    deliveryStatus: "delivered",
-  },
-  {
-    id: "rec_9",
-    name: "Rafael Mercado",
-    studentId: "2023-01550",
-    email: "rafael.mercado@umak.edu.ph",
-    college: "CT",
-    course: "BET",
-    program: "Bachelor of Engineering Technology",
-    deliveryStatus: "delivered",
-  },
-  {
-    id: "rec_10",
-    name: "Chloe Lim",
-    studentId: "2023-01129",
-    email: "chloe.lim@umak.edu.ph",
+    name: "Joshua Dela Cruz",
+    studentId: "2024-01201-MK",
+    email: "joshua.delacruz@umak.edu.ph",
     college: "CCIS",
     course: "BSIT",
-    program: "BS Information Technology",
     deliveryStatus: "delivered",
-  },
-  {
-    id: "rec_11",
-    name: "Daniel Tan",
-    studentId: "2022-02104",
-    email: "daniel.tan@umak.edu.ph",
-    college: "CAL",
-    course: "ABComm",
-    program: "AB Broadcasting & Communication",
-    deliveryStatus: "delivered",
-  },
-  {
-    id: "rec_12",
-    name: "Janelle Garcia",
-    studentId: "2023-01822",
-    email: "janelle.garcia@umak.edu.ph",
-    college: "CAL",
-    course: "ABComm",
-    program: "AB Broadcasting & Communication",
-    deliveryStatus: "already_received",
-    statusNote: "Already received earlier reminder",
   },
 ];
 
-// Sparkline Component for KPI Cards (campaign-kpi-row style)
-const SPARK_W = 300;
-const SPARK_H = 74;
-const SPARK_TOP = 6;
-const SPARK_BOT = 4;
-
-function RecipientKpiSpark({
-  data,
-  color,
-}: {
-  data: number[];
-  color: string;
-}) {
-  const reduced = useReducedMotion();
-  const uid = React.useId().replace(/:/g, "");
-
-  const max = Math.max(...data);
+function RecipientKpiSpark({ data, color }: { data: number[]; color: string }) {
+  const max = Math.max(1, ...data);
   const min = Math.min(...data);
-  const span = Math.max(1e-6, max - min);
-  const x = (i: number) => (i / Math.max(1, data.length - 1)) * SPARK_W;
-  const y = (v: number) =>
-    SPARK_TOP + (1 - (v - min) / span) * (SPARK_H - SPARK_TOP - SPARK_BOT);
-  const line = data
-    .map((v, i) => `${i === 0 ? "M" : "L"} ${x(i)} ${y(v)}`)
+  const range = max - min || 1;
+  const height = 32;
+  const width = 120;
+
+  const points = data
+    .map((val, idx) => {
+      const x = (idx / (data.length - 1 || 1)) * width;
+      const y = height - ((val - min) / range) * (height - 6) - 3;
+      return `${x},${y}`;
+    })
     .join(" ");
-  const area = `${line} L ${SPARK_W} ${SPARK_H} L 0 ${SPARK_H} Z`;
+
+  const gradientId = React.useId();
 
   return (
-    <div className="relative w-full overflow-hidden block">
+    <div className="h-8 w-full">
       <svg
-        viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-full overflow-visible"
         preserveAspectRatio="none"
-        className="block w-full h-[76px]"
-        fill="none"
         aria-hidden="true"
       >
         <defs>
-          <linearGradient id={`kpi-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity="0.28" />
             <stop offset="100%" stopColor={color} stopOpacity="0.0" />
           </linearGradient>
         </defs>
-        <motion.path
-          d={area}
-          fill={`url(#kpi-${uid})`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={
-            reduced ? { duration: 0 } : { duration: 0.5, ease: EASE, delay: 0.2 }
-          }
+
+        <polygon
+          points={`0,${height} ${points} ${width},${height}`}
+          fill={`url(#${gradientId})`}
         />
-        <motion.path
-          d={line}
+
+        <polyline
+          fill="none"
           stroke={color}
-          strokeWidth="2.5"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={reduced ? { duration: 0 } : { duration: 0.8, ease: EASE }}
+          points={points}
         />
       </svg>
     </div>
   );
 }
 
-// KPI Card Component
 interface RecipientKpiCardProps {
   label: string;
   value: number;
@@ -344,7 +259,9 @@ interface RecipientKpiCardProps {
   icon: React.ReactNode;
   color: string;
   sparkData: number[];
-  delay: number;
+  delay?: number;
+  onClick?: () => void;
+  isActive?: boolean;
 }
 
 function RecipientKpiCard({
@@ -355,7 +272,9 @@ function RecipientKpiCard({
   icon,
   color,
   sparkData,
-  delay,
+  delay = 0,
+  onClick,
+  isActive,
 }: RecipientKpiCardProps) {
   const reduced = useReducedMotion();
   const [displayValue, setDisplayValue] = React.useState(0);
@@ -374,7 +293,14 @@ function RecipientKpiCard({
   const resolvedValue = reduced ? value : displayValue;
 
   return (
-    <div className="relative flex-1 min-w-[240px] overflow-hidden rounded-[16px] bg-card border border-line shadow-xs flex flex-col justify-between transition-all hover:border-cyan/50 hover:shadow-sm">
+    <div
+      onClick={onClick}
+      className={cn(
+        "relative flex-1 min-w-[240px] overflow-hidden rounded-[16px] bg-card border shadow-xs flex flex-col justify-between transition-all",
+        onClick && "cursor-pointer hover:border-cyan/50 hover:shadow-sm",
+        isActive ? "border-cyan ring-1 ring-cyan/30" : "border-line"
+      )}
+    >
       <div className="p-5 pb-0">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm text-muted">
@@ -419,32 +345,30 @@ function RecipientKpiCard({
   );
 }
 
-interface CampaignRecipientsStepProps {
+// -------------------------------------------------------------
+// STEP 1: CHOOSE TARGET EVENT
+// -------------------------------------------------------------
+export interface CampaignEventStepProps {
   eventId?: string;
   eventName?: string;
   eventOptions?: EventOption[];
-  recipients?: StudentRecipient[];
+  recipientsCount?: number;
   onEventChange?: (eventId: string, eventName: string) => void;
-  onContinue: (recipientIds: string[]) => void;
+  onContinue: () => void;
   onSaveDraft?: () => void;
 }
 
-export function CampaignRecipientsStep({
+export function CampaignEventStep({
   eventId = "evt_1",
-  eventName = "UMak SIC General Assembly",
+  eventName: _eventName = "UMak SIC General Assembly",
   eventOptions = AVAILABLE_EVENTS,
-  recipients = SAMPLE_RECIPIENTS,
+  recipientsCount = 0,
   onEventChange,
   onContinue,
   onSaveDraft,
-}: CampaignRecipientsStepProps) {
+}: CampaignEventStepProps) {
   const [selectedEventId, setSelectedEventId] = React.useState<string>(eventId);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [filterTab, setFilterTab] = React.useState<"all" | "will_receive" | "already_received">("all");
-  const [selectedStudentIds, setSelectedStudentIds] = React.useState<string[]>([]);
-  const [excludedIds, setExcludedIds] = React.useState<string[]>([]);
 
-  // Find active event details
   const currentEvent =
     eventOptions.find((e) => e.id === selectedEventId) || eventOptions[0] || EMPTY_EVENT;
 
@@ -456,77 +380,19 @@ export function CampaignRecipientsStep({
     }
   };
 
-  const totalRegisteredCount = currentEvent.registeredCount;
-  const alreadyReceivedCount = currentEvent.alreadyReceivedCount;
-  const willReceiveCount = Math.max(0, currentEvent.willReceiveCount - excludedIds.length);
-
-  // Recipient list filtering
-  const filteredStudents = React.useMemo(() => {
-    return recipients.filter((student) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        q === "" ||
-        student.name.toLowerCase().includes(q) ||
-        student.studentId.toLowerCase().includes(q) ||
-        student.email.toLowerCase().includes(q) ||
-        (student.course && student.course.toLowerCase().includes(q));
-
-      const isReadyToSend = student.deliveryStatus === "delivered";
-      const matchesTab =
-        filterTab === "all"
-          ? true
-          : filterTab === "will_receive"
-          ? isReadyToSend && !excludedIds.includes(student.id)
-          : student.deliveryStatus === "already_received" || excludedIds.includes(student.id);
-
-      return matchesSearch && matchesTab;
-    });
-  }, [recipients, searchQuery, filterTab, excludedIds]);
-
-  const isAllSelected =
-    filteredStudents.length > 0 &&
-    filteredStudents.every((s) => selectedStudentIds.includes(s.id));
-  const isSomeSelected =
-    selectedStudentIds.length > 0 && !isAllSelected;
-
-  const handleToggleSelectStudent = (id: string) => {
-    setSelectedStudentIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleToggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedStudentIds([]);
-    } else {
-      setSelectedStudentIds(filteredStudents.map((s) => s.id));
-    }
-  };
-
-  const handleExcludeSelected = () => {
-    setExcludedIds((prev) => Array.from(new Set([...prev, ...selectedStudentIds])));
-    setSelectedStudentIds([]);
-  };
-
-  const handleIncludeSelected = () => {
-    setExcludedIds((prev) => prev.filter((id) => !selectedStudentIds.includes(id)));
-    setSelectedStudentIds([]);
-  };
-
-  const handleContinue = () => {
-    onContinue(recipients.filter((recipient) => !excludedIds.includes(recipient.id)).map((recipient) => recipient.id));
-  };
-
   return (
     <div className="flex flex-col gap-6 w-full font-sans">
-      {/* 1. Header Card (Clean - 'Step 1 // Target Audience' badge removed) */}
+      {/* 1. Header Card */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-5 rounded-[12px] border border-line shadow-xs">
         <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-soft text-cyan font-bold text-[10px] uppercase tracking-wider mb-2 font-display">
+            Step 1 // Choose Event
+          </div>
           <h2 className="text-xl font-display font-bold text-ink tracking-tight">
-            Choose Event & Review Students
+            Choose Target Event
           </h2>
           <p className="text-xs text-muted mt-1 font-sans">
-            Select which event&apos;s registered students will receive this announcement.
+            Select which event&apos;s registered students will receive this email announcement.
           </p>
         </div>
 
@@ -544,7 +410,7 @@ export function CampaignRecipientsStep({
           )}
           <Button
             type="button"
-            onClick={handleContinue}
+            onClick={onContinue}
             className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer"
           >
             <span>Next: Write message</span>
@@ -553,7 +419,7 @@ export function CampaignRecipientsStep({
         </div>
       </div>
 
-      {/* 2. Rich Event Picker & Banner Card (Inspiration from events/page.tsx) */}
+      {/* 2. Rich Event Picker & Banner Card */}
       <div className="bg-card rounded-[12px] border border-line p-5 shadow-xs flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -622,7 +488,7 @@ export function CampaignRecipientsStep({
                 {currentEvent.title}
               </h3>
               <p className="text-xs text-muted font-sans mt-0.5">
-                Target roster automatically loaded from confirmed event registrations.
+                Target roster will be automatically loaded from confirmed event registrations.
               </p>
             </div>
 
@@ -651,12 +517,12 @@ export function CampaignRecipientsStep({
               <div className="flex items-start gap-2">
                 <Users size={16} weight="bold" className="text-cyan shrink-0 mt-0.5" />
                 <div className="flex flex-col">
-                  <span className="text-muted text-[11px] font-sans">Event Capacity</span>
+                  <span className="text-muted text-[11px] font-sans">Registrations</span>
                   <span className="font-semibold text-ink font-display">
-                    {totalRegisteredCount} / {currentEvent.capacity} registered
+                    {recipientsCount || currentEvent.registeredCount} students registered
                   </span>
                   <span className="text-[11px] text-green font-medium">
-                    {Math.round((totalRegisteredCount / currentEvent.capacity) * 100)}% filled
+                    Ready for announcement
                   </span>
                 </div>
               </div>
@@ -664,50 +530,245 @@ export function CampaignRecipientsStep({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* 3. Three KPI Metric Cards (campaign-kpi-row style) */}
+// -------------------------------------------------------------
+// STEP 3: SELECT STUDENTS TO SEND EMAIL
+// -------------------------------------------------------------
+export interface CampaignRecipientsStepProps {
+  eventId?: string;
+  eventName?: string;
+  eventOptions?: EventOption[];
+  recipients?: StudentRecipient[];
+  initialSelectedIds?: string[];
+  onBack?: () => void;
+  onEventChange?: (eventId: string, eventName: string) => void;
+  onContinue: (recipientIds: string[]) => void;
+  onSaveDraft?: () => void;
+}
+
+export function CampaignRecipientsStep({
+  eventId: _eventId = "evt_1",
+  eventName = "UMak SIC General Assembly",
+  eventOptions: _eventOptions = AVAILABLE_EVENTS,
+  recipients = SAMPLE_RECIPIENTS,
+  initialSelectedIds,
+  onBack,
+  onEventChange: _onEventChange,
+  onContinue,
+  onSaveDraft,
+}: CampaignRecipientsStepProps) {
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [filterTab, setFilterTab] = React.useState<"all" | "will_receive" | "already_received">("all");
+  const [selectedStudentIds, setSelectedStudentIds] = React.useState<string[]>(
+    initialSelectedIds ?? recipients.filter((r) => r.deliveryStatus !== "already_received").map((r) => r.id)
+  );
+  const [excludedIds, setExcludedIds] = React.useState<string[]>([]);
+  const [isDuplicateNoticeDismissed, setIsDuplicateNoticeDismissed] = React.useState(false);
+
+  // Derive live dynamic counts directly from the actual roster recipients and exclusions
+  const totalRegisteredCount = recipients.length;
+  const alreadyReceivedCount = recipients.filter((s) => s.deliveryStatus === "already_received").length;
+  const willReceiveCount = recipients.filter(
+    (s) => s.deliveryStatus !== "already_received" && !excludedIds.includes(s.id)
+  ).length;
+
+  const registeredSparkData = React.useMemo(() => {
+    if (totalRegisteredCount === 0) return [0, 0, 0, 0, 0];
+    return [
+      Math.max(1, Math.round(totalRegisteredCount * 0.25)),
+      Math.max(1, Math.round(totalRegisteredCount * 0.5)),
+      Math.max(1, Math.round(totalRegisteredCount * 0.75)),
+      Math.max(1, Math.round(totalRegisteredCount * 0.9)),
+      totalRegisteredCount,
+    ];
+  }, [totalRegisteredCount]);
+
+  const willReceiveSparkData = React.useMemo(() => {
+    if (willReceiveCount === 0) return [0, 0, 0, 0, 0];
+    return [
+      Math.max(1, Math.round(willReceiveCount * 0.25)),
+      Math.max(1, Math.round(willReceiveCount * 0.5)),
+      Math.max(1, Math.round(willReceiveCount * 0.75)),
+      Math.max(1, Math.round(willReceiveCount * 0.9)),
+      willReceiveCount,
+    ];
+  }, [willReceiveCount]);
+
+  const alreadyReceivedSparkData = React.useMemo(() => {
+    if (alreadyReceivedCount === 0) return [0, 0, 0, 0, 0];
+    return [
+      Math.max(1, Math.round(alreadyReceivedCount * 0.3)),
+      Math.max(1, Math.round(alreadyReceivedCount * 0.6)),
+      alreadyReceivedCount,
+    ];
+  }, [alreadyReceivedCount]);
+
+  // Recipient list filtering
+  const filteredStudents = React.useMemo(() => {
+    return recipients.filter((student) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        q === "" ||
+        student.name.toLowerCase().includes(q) ||
+        student.studentId.toLowerCase().includes(q) ||
+        student.email.toLowerCase().includes(q) ||
+        (student.course && student.course.toLowerCase().includes(q));
+
+      const isAlreadyReceived = student.deliveryStatus === "already_received";
+      const isExcluded = excludedIds.includes(student.id);
+      const isWillReceive = !isAlreadyReceived && !isExcluded;
+
+      const matchesTab =
+        filterTab === "all"
+          ? true
+          : filterTab === "will_receive"
+          ? isWillReceive
+          : isAlreadyReceived || isExcluded;
+
+      return matchesSearch && matchesTab;
+    });
+  }, [recipients, searchQuery, filterTab, excludedIds]);
+
+  const isAllSelected =
+    filteredStudents.length > 0 &&
+    filteredStudents.every((s) => selectedStudentIds.includes(s.id));
+  const isSomeSelected =
+    selectedStudentIds.length > 0 && !isAllSelected;
+
+  const handleToggleSelectStudent = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedStudentIds([]);
+    } else {
+      setSelectedStudentIds(filteredStudents.map((s) => s.id));
+    }
+  };
+
+  const handleExcludeSelected = () => {
+    setExcludedIds((prev) => Array.from(new Set([...prev, ...selectedStudentIds])));
+    setSelectedStudentIds([]);
+  };
+
+  const handleIncludeSelected = () => {
+    setExcludedIds((prev) => prev.filter((id) => !selectedStudentIds.includes(id)));
+    setSelectedStudentIds([]);
+  };
+
+  const handleContinue = () => {
+    onContinue(
+      recipients
+        .filter((recipient) => !excludedIds.includes(recipient.id) && recipient.deliveryStatus !== "already_received")
+        .map((recipient) => recipient.id)
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-6 w-full font-sans">
+      {/* 1. Header Card */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-5 rounded-[12px] border border-line shadow-xs">
+        <div>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-soft text-cyan font-bold text-[10px] uppercase tracking-wider mb-2 font-display">
+            Step 3 // Select Students
+          </div>
+          <h2 className="text-xl font-display font-bold text-ink tracking-tight">
+            Select Students to Send Email
+          </h2>
+          <p className="text-xs text-muted mt-1 font-sans">
+            Review registered students for <strong className="font-semibold text-ink">{eventName}</strong>, apply exclusions, and check duplicate prevention.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {onBack && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onBack}
+              className="text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer border-line"
+            >
+              <ArrowLeft size={14} weight="bold" />
+              <span>Back</span>
+            </Button>
+          )}
+          {onSaveDraft && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onSaveDraft}
+              className="text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer border-line"
+            >
+              <FloppyDisk size={14} weight="bold" className="text-muted" />
+              <span>Save Draft</span>
+            </Button>
+          )}
+          <Button
+            type="button"
+            onClick={handleContinue}
+            className="bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 gap-1.5 cursor-pointer"
+          >
+            <span>Next: Banner & send</span>
+            <ArrowRight size={14} weight="bold" />
+          </Button>
+        </div>
+      </div>
+
+      {/* 2. Three KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
         <RecipientKpiCard
           label="Registered for event"
           value={totalRegisteredCount}
           subLabel="students"
-          deltaText="Students on roster"
+          deltaText="All on roster"
           icon={<Users size={18} weight="bold" />}
           color={CYAN}
-          sparkData={[32, 45, 58, 70, 84, 96, 104, 110, 115, totalRegisteredCount]}
+          sparkData={registeredSparkData}
           delay={0}
+          onClick={() => setFilterTab("all")}
+          isActive={filterTab === "all"}
         />
 
         <RecipientKpiCard
-          label="Will receive email"
+          label="Not Yet Emailed"
           value={willReceiveCount}
           subLabel="students"
           deltaText="Ready to send"
           icon={<PaperPlaneTilt size={18} weight="bold" />}
           color={GREEN}
-          sparkData={[28, 40, 52, 65, 80, 92, 100, 106, 111, willReceiveCount]}
+          sparkData={willReceiveSparkData}
           delay={0.12}
+          onClick={() => setFilterTab("will_receive")}
+          isActive={filterTab === "will_receive"}
         />
 
         <RecipientKpiCard
-          label="Already received"
+          label="Already Emailed"
           value={alreadyReceivedCount}
           subLabel="students"
-          deltaText="Skipped (no duplicates)"
+          deltaText="Received earlier blast"
           icon={<ShieldCheck size={18} weight="bold" />}
           color={MUTED}
-          sparkData={[1, 2, 2, 3, 3, 4, 4, 4, 4, alreadyReceivedCount]}
+          sparkData={alreadyReceivedSparkData}
           delay={0.24}
+          onClick={() => setFilterTab("already_received")}
+          isActive={filterTab === "already_received"}
         />
       </div>
 
-      {/* 4. Enhanced Recipient Roster Table (event-roster style) */}
+      {/* 3. Recipient Roster Table Card */}
       <div className="flex flex-col rounded-[12px] border border-line bg-card shadow-2xs overflow-hidden">
         {/* Roster Header Toolbar */}
         <div className="flex flex-col gap-3.5 border-b border-line-subtle p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-display text-base font-bold text-ink">
-              Registered Student Recipients
+              Select Students to Send Email
             </h3>
             <span className="rounded-full bg-canvas px-2.5 py-0.5 font-sans text-xs font-semibold text-muted">
               {filteredStudents.length} {filteredStudents.length === 1 ? "student" : "students"}
@@ -767,7 +828,7 @@ export function CampaignRecipientsStep({
                   : "text-muted hover:text-green hover:bg-green-soft"
               )}
             >
-              Will receive ({willReceiveCount})
+              Not Yet Emailed ({willReceiveCount})
             </button>
             <button
               type="button"
@@ -779,7 +840,9 @@ export function CampaignRecipientsStep({
                   : "text-muted hover:text-ink hover:bg-canvas"
               )}
             >
-              Already sent ({alreadyReceivedCount})
+              {excludedIds.length > 0
+                ? `Already Emailed / Excluded (${alreadyReceivedCount + excludedIds.length})`
+                : `Already Emailed (${alreadyReceivedCount})`}
             </button>
           </div>
 
@@ -867,12 +930,12 @@ export function CampaignRecipientsStep({
                 {filteredStudents.map((student) => {
                   const isSelected = selectedStudentIds.includes(student.id);
                   const isExcluded = excludedIds.includes(student.id);
+                  const isAlreadyReceived = student.deliveryStatus === "already_received";
+                  const willReceiveThisEmail = !isAlreadyReceived && !isExcluded;
+
                   const courseBadge = student.course
                     ? COURSE_BADGES[student.course] || COURSE_BADGES.BSIT
                     : COURSE_BADGES.BSIT;
-
-                  const willReceiveThisEmail =
-                    student.deliveryStatus === "delivered" && !isExcluded;
 
                   return (
                     <tr
@@ -911,7 +974,7 @@ export function CampaignRecipientsStep({
                         </div>
                       </td>
 
-                      {/* Program Pill Badge Only */}
+                      {/* Program Pill Badge */}
                       <td className="py-3 px-3">
                         {student.course ? (
                           <Badge
@@ -971,6 +1034,10 @@ export function CampaignRecipientsStep({
                             >
                               Re-include
                             </Button>
+                          ) : isAlreadyReceived ? (
+                            <span className="text-[11px] text-muted font-sans pr-2">
+                              Skipped
+                            </span>
                           ) : (
                             <Button
                               size="sm"
@@ -1017,19 +1084,31 @@ export function CampaignRecipientsStep({
         )}
       </div>
 
-      {/* 5. Plain Language Duplicate Protection Notice */}
-      <div className="p-4 bg-green-soft border border-green-border rounded-[12px] text-xs text-ink flex items-start gap-3 shadow-2xs">
-        <ShieldCheck size={20} className="text-green shrink-0 mt-0.5" weight="bold" />
-        <div className="leading-relaxed">
-          <strong className="font-semibold text-green font-display text-sm block mb-0.5">
-            Automatic Duplicate Protection Active
-          </strong>
-          <span>
-            Students who already received this announcement will be safely skipped.
-            No student will ever get duplicate emails or redundant notifications.
-          </span>
+      {/* 4. Plain Language Duplicate Protection Notice (Dismissible) */}
+      {!isDuplicateNoticeDismissed && alreadyReceivedCount > 0 && (
+        <div className="p-4 bg-green-soft border border-green-border rounded-[12px] text-xs text-ink flex items-start justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-3">
+            <ShieldCheck size={20} className="text-green shrink-0 mt-0.5" weight="bold" />
+            <div className="leading-relaxed">
+              <strong className="font-semibold text-green font-display text-sm block mb-0.5">
+                Automatic Duplicate Protection Active
+              </strong>
+              <span>
+                Students who already received this announcement will be safely skipped.
+                No student will ever get duplicate emails or redundant notifications.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsDuplicateNoticeDismissed(true)}
+            aria-label="Dismiss duplicate protection notice"
+            className="text-green hover:text-ink transition-colors cursor-pointer shrink-0 p-1"
+          >
+            <X size={16} weight="bold" />
+          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }

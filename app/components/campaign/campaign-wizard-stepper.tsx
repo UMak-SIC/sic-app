@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Users, NotePencil, Paperclip, Check } from "@phosphor-icons/react";
+import { CalendarBlank, NotePencil, Users, Paperclip, Check } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
-export type WizardStep = 1 | 2 | 3;
+export type WizardStep = 1 | 2 | 3 | 4;
 
 interface CampaignWizardStepperProps {
   currentStep: WizardStep;
@@ -15,19 +15,25 @@ interface CampaignWizardStepperProps {
 const STEPS = [
   {
     step: 1 as WizardStep,
-    title: "1. Choose Event & Students",
-    description: "Pick target audience",
-    icon: Users,
+    title: "1. Choose Event",
+    description: "Pick target event",
+    icon: CalendarBlank,
   },
   {
     step: 2 as WizardStep,
     title: "2. Write Message",
-    description: "Subject & friendly message",
+    description: "Subject & friendly copy",
     icon: NotePencil,
   },
   {
     step: 3 as WizardStep,
-    title: "3. Add Banner, Files & Preview",
+    title: "3. Select Students",
+    description: "Review recipient roster",
+    icon: Users,
+  },
+  {
+    step: 4 as WizardStep,
+    title: "4. Banner, Files & Send",
     description: "Attachments, test & send",
     icon: Paperclip,
   },
@@ -36,11 +42,11 @@ const STEPS = [
 export function CampaignWizardStepper({
   currentStep,
   onStepClick,
-  maxAccessibleStep = 3,
+  maxAccessibleStep = 4,
 }: CampaignWizardStepperProps) {
   return (
     <div className="w-full bg-card rounded-[12px] border border-line p-2.5 shadow-xs">
-      <nav aria-label="Campaign creation steps" className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <nav aria-label="Campaign creation steps" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         {STEPS.map((item) => {
           const isCompleted = currentStep > item.step;
           const isActive = currentStep === item.step;

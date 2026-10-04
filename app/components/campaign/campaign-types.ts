@@ -1,11 +1,11 @@
-export type CampaignStatus = "draft" | "sending" | "sent" | "needs_attention";
+export type CampaignStatus = "draft" | "sending" | "sent" | "needs_attention" | "no_campaigns";
 
 export interface StudentRecipient {
   id: string;
   name: string;
   studentId: string;
   email: string;
-  deliveryStatus: "delivered" | "sending" | "invalid_email" | "already_received";
+  deliveryStatus: "delivered" | "sending" | "invalid_email" | "already_received" | "pending";
   deliveredAt?: string;
   scheduledAt?: string;
   isSending?: boolean;
@@ -50,8 +50,16 @@ export interface DeliveryDiagnosticItem {
   lastAttemptTime: string;
 }
 
+export interface CampaignBroadcastHistoryItem {
+  id: string;
+  subject: string;
+  createdAt: string;
+  deliveredCount: number;
+}
+
 export interface CampaignSummary {
   id: string;
+  eventId?: string;
   subject: string;
   eventName: string;
   venue?: string;
@@ -62,6 +70,9 @@ export interface CampaignSummary {
   deliveredCount: number;
   sendingCount: number;
   invalidEmailCount: number;
+  pendingCount?: number;
+  campaignsCount?: number;
+  broadcasts?: CampaignBroadcastHistoryItem[];
   bannerImageName?: string;
   attachedFilesCount: number;
   recipients: StudentRecipient[];

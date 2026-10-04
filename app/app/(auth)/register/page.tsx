@@ -51,9 +51,10 @@ export default function RegisterPage() {
             {/* UMak SIC Emblem */}
             <div className="relative w-14 h-14 sm:w-16 sm:h-16 mb-5 sm:mb-6">
               <Image
-                src="/assets/sic_logo_nobg.png"
+                src="/sic_logo_nobg.png"
                 alt="UMak SIC Emblem"
                 fill
+                sizes="(max-width: 640px) 56px, 64px"
                 className="object-contain"
                 priority
               />

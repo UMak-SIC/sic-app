@@ -5,7 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header";
 import { CampaignWizardStepper, WizardStep } from "@/components/campaign/campaign-wizard-stepper";
-import { CampaignRecipientsStep, type EventOption } from "@/components/campaign/campaign-recipients-step";
+import { CampaignWizardSkeleton } from "@/components/campaign/campaign-wizard-skeleton";
+import {
+  CampaignEventStep,
+  CampaignRecipientsStep,
+  type EventOption,
+} from "@/components/campaign/campaign-recipients-step";
 import { CampaignComposerStep } from "@/components/campaign/campaign-composer-step";
 import { CampaignAssetsStep } from "@/components/campaign/campaign-assets-step";
 import { CampaignSendConfirmationDialog } from "@/components/campaign/campaign-send-confirmation-dialog";
@@ -42,7 +47,19 @@ function NewCampaignContent() {
     let active = true;
     fetch("/api/events")
       .then(async (response) => {
-        const payload = await response.json() as { events?: Array<{ id: string; name: string; venue: string | null; startsAt: string; endsAt: string; status: "DRAFT" | "PUBLISHED" | "CLOSED" }>; error?: string };
+        const payload = await response.json() as {
+          events?: Array<{
+            id: string;
+            name: string;
+            venue: string | null;
+            startsAt: string;
+            endsAt: string;
+            status: "DRAFT" | "PUBLISHED" | "CLOSED";
+            bannerUrl?: string | null;
+            imageAssetId?: string | null;
+          }>;
+          error?: string;
+        };
         if (!response.ok) throw new Error(payload.error);
         return payload.events ?? [];
       })
@@ -59,6 +76,7 @@ function NewCampaignContent() {
           willReceiveCount: 0,
           alreadyReceivedCount: 0,
           capacity: 0,
+          image: event.bannerUrl ?? undefined,
         }));
         setEventOptions(options);
         const selectedId = requestedEventId ?? options.find((event) => event.status === "published")?.id;
@@ -76,19 +94,70 @@ function NewCampaignContent() {
     Promise.all([
       fetch(`/api/events/${eventId}`),
       fetch(`/api/events/${eventId}/people`),
+      fetch(`/api/events/${eventId}/people/status`).catch(() => null),
     ])
-      .then(async ([eventResponse, organizersResponse]) => {
+      .then(async ([eventResponse, organizersResponse, statusResponse]) => {
         if (!eventResponse.ok || !organizersResponse.ok) throw new Error();
-        return Promise.all([eventResponse.json(), organizersResponse.json()]);
+        const statusData = statusResponse && statusResponse.ok ? await statusResponse.json().catch(() => null) : null;
+        const [data, people] = await Promise.all([eventResponse.json(), organizersResponse.json()]);
+        return { data, people, statusData };
       })
-      .then(([data, people]) => {
-        const event = data.event as { id: string; name: string; venue: string | null; startsAt: string; endsAt: string };
-        const recipients = people.attendees.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => ({ ...person, section: person.section ?? undefined, deliveryStatus: "sending" as const }));
-        const organizers = people.organizers.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => ({ ...person, section: person.section ?? undefined, deliveryStatus: "sending" as const }));
+      .then(({ data, people, statusData }) => {
+        const event = data.event as {
+          id: string;
+          name: string;
+          venue: string | null;
+          startsAt: string;
+          endsAt: string;
+          bannerUrl?: string | null;
+          imageAssetId?: string | null;
+          imageAsset?: {
+            id?: string;
+            originalFilename?: string;
+            storageBucket?: string | null;
+            mediaType?: string;
+          } | null;
+        };
+
+        const sentStudentIds = new Set<string>();
+        if (statusData?.people) {
+          for (const p of statusData.people as Array<{ studentId: string; ticketSentAt: string | null }>) {
+            if (p.ticketSentAt) sentStudentIds.add(p.studentId);
+          }
+        }
+
+        const recipients = people.attendees.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => {
+          const alreadyReceived = sentStudentIds.has(person.studentId);
+          return {
+            ...person,
+            section: person.section ?? undefined,
+            deliveryStatus: alreadyReceived ? ("already_received" as const) : ("delivered" as const),
+            statusNote: alreadyReceived ? "Already received earlier announcement" : undefined,
+          };
+        });
+
+        const organizers = people.organizers.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => ({ ...person, section: person.section ?? undefined, deliveryStatus: "delivered" as const }));
         setRosterRecipients(recipients);
         setOrganizerRecipients(organizers);
         setOrganizerCount(people.organizers.length);
-        setDraft((current) => ({ ...current, eventId: event.id, eventName: event.name, subject: `Reminder: ${event.name}` }));
+
+        const assetId = event.imageAsset?.id ?? event.imageAssetId;
+        const bannerAsset = assetId && event.bannerUrl ? {
+          id: assetId,
+          fileName: event.imageAsset?.originalFilename ?? `${event.name} Banner`,
+          fileSize: "Event image",
+          fileType: "image" as const,
+          role: "banner" as const,
+          url: event.bannerUrl,
+        } : null;
+
+        setDraft((current) => ({
+          ...current,
+          eventId: event.id,
+          eventName: event.name,
+          subject: current.subject || `Reminder: ${event.name}`,
+          bannerImage: current.eventId === event.id && current.bannerImage ? current.bannerImage : bannerAsset,
+        }));
       })
       .catch(() => setSubmitError("We could not load the selected event. Choose another event and try again."));
   }, [draft.eventId, requestedEventId]);
@@ -148,39 +217,39 @@ function NewCampaignContent() {
         }
       />
 
-      {/* 3-Step Guided Stepper */}
+      {/* 4-Step Guided Stepper */}
       <CampaignWizardStepper
         currentStep={currentStep}
         maxAccessibleStep={maxAccessibleStep}
         onStepClick={(step) => goToStep(step)}
       />
 
-      {/* Step 1: Choose Event & Students */}
+      {/* Step 1: Choose Target Event */}
       {currentStep === 1 && !eventsLoaded && (
-        <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted font-sans">Loading published events...</div>
+        <CampaignWizardSkeleton />
       )}
       {currentStep === 1 && eventsLoaded && eventOptions.length === 0 && (
-        <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted font-sans">No published events are ready for an email campaign.</div>
+        <div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted font-sans">
+          No published events are ready for an email campaign.
+        </div>
       )}
       {currentStep === 1 && eventsLoaded && eventOptions.length > 0 && (
-        <CampaignRecipientsStep
+        <CampaignEventStep
           key={draft.eventId}
           eventId={draft.eventId}
           eventName={draft.eventName}
           eventOptions={eventOptions}
-          recipients={rosterRecipients}
-           onEventChange={(id, name) =>
-             setDraft((d) => ({
+          recipientsCount={rosterRecipients.length}
+          onEventChange={(id, name) =>
+            setDraft((d) => ({
               ...d,
               eventId: id,
               eventName: name,
-               subject: `Reminder: ${name} this Saturday!`,
-             }))
-           }
-           onContinue={(recipientIds) => {
-             setSelectedRosterRecipientIds(recipientIds);
-             goToStep(2);
-           }}
+              subject: `Reminder: ${name} this Saturday!`,
+              bannerImage: null,
+            }))
+          }
+          onContinue={() => goToStep(2)}
         />
       )}
 
@@ -193,7 +262,7 @@ function NewCampaignContent() {
           messageContent={draft.messageContent}
           includeOfficers={draft.includeOfficers}
           organizerCount={organizerCount}
-          studentCount={recipientCount}
+          studentCount={rosterRecipients.length}
           onSubjectChange={(subj) => setDraft((d) => ({ ...d, subject: subj }))}
           onMessageContentChange={(msg) => setDraft((d) => ({ ...d, messageContent: msg }))}
           onIncludeOfficersChange={(inc) => setDraft((d) => ({ ...d, includeOfficers: inc }))}
@@ -202,8 +271,25 @@ function NewCampaignContent() {
         />
       )}
 
-      {/* Step 3: Add Banner, Files & Send */}
+      {/* Step 3: Select Students to Send Email */}
       {currentStep === 3 && (
+        <CampaignRecipientsStep
+          key={draft.eventId}
+          eventId={draft.eventId}
+          eventName={draft.eventName}
+          eventOptions={eventOptions}
+          recipients={rosterRecipients}
+          initialSelectedIds={selectedRosterRecipientIds.length > 0 ? selectedRosterRecipientIds : undefined}
+          onBack={() => goToStep(2)}
+          onContinue={(recipientIds) => {
+            setSelectedRosterRecipientIds(recipientIds);
+            goToStep(4);
+          }}
+        />
+      )}
+
+      {/* Step 4: Add Banner, Files & Send */}
+      {currentStep === 4 && (
         <CampaignAssetsStep
           subject={draft.subject}
           messageContent={draft.messageContent}
@@ -215,11 +301,10 @@ function NewCampaignContent() {
           onBannerImageChange={(img) => setDraft((d) => ({ ...d, bannerImage: img }))}
           onAttachmentsChange={(atts) => setDraft((d) => ({ ...d, attachments: atts }))}
           onTestEmailAddressChange={(email) => setDraft((d) => ({ ...d, testEmailAddress: email }))}
-          onBack={() => goToStep(2)}
+          onBack={() => goToStep(3)}
           onSubmitFinal={() => setIsConfirmModalOpen(true)}
         />
       )}
-
 
       {/* Pre-Send Confirmation & Checklist Dialog */}
       <CampaignSendConfirmationDialog
@@ -228,16 +313,16 @@ function NewCampaignContent() {
         eventName={draft.eventName}
         subject={draft.subject}
         studentCount={recipientCount}
-          onConfirmSend={handleBroadcastConfirmed}
-        />
-        {submitError && <p role="alert" className="text-sm text-red font-sans">{submitError}</p>}
+        onConfirmSend={handleBroadcastConfirmed}
+      />
+      {submitError && <p role="alert" className="text-sm text-red font-sans">{submitError}</p>}
     </div>
   );
 }
 
 export default function NewCampaignPage() {
   return (
-    <React.Suspense fallback={<div className="rounded-[12px] border border-line bg-card p-6 text-sm text-muted">Loading email composer...</div>}>
+    <React.Suspense fallback={<CampaignWizardSkeleton />}>
       <NewCampaignContent />
     </React.Suspense>
   );

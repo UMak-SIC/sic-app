@@ -488,7 +488,12 @@ export default function AttendeesPage() {
       {/* Mounted only while open, so each one starts from the student it is about and
           never shows the last one's half-typed values. */}
       {isAddOpen ? (
-        <AttendeeFormDialog open onOpenChange={setIsAddOpen} onSaved={handleAttendeeSaved} />
+        <AttendeeFormDialog
+          open
+          onOpenChange={setIsAddOpen}
+          courseOptions={courseOptions}
+          onSaved={handleAttendeeSaved}
+        />
       ) : null}
 
       {attendeeBeingEdited ? (
@@ -498,6 +503,7 @@ export default function AttendeesPage() {
             if (!next) setAttendeeBeingEdited(null);
           }}
           attendee={attendeeBeingEdited}
+          courseOptions={courseOptions}
           onSaved={handleAttendeeSaved}
         />
       ) : null}

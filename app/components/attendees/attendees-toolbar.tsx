@@ -14,7 +14,6 @@ import {
   MagnifyingGlass,
   UploadSimple,
   DownloadSimple,
-  UserPlus,
   CalendarPlus,
   Trash,
   X,
@@ -58,8 +57,8 @@ export function AttendeesToolbar({
   eventIdFilter,
   onEventIdFilterChange,
   eventOptions,
-  totalCount,
-  filteredCount,
+  totalCount: _totalCount,
+  filteredCount: _filteredCount,
   selectedCount,
   onClearSelection,
   onBatchAddToEvent,
@@ -67,7 +66,7 @@ export function AttendeesToolbar({
   onExport,
   isExporting = false,
   onOpenImport,
-  onOpenAddStudent,
+  onOpenAddStudent: _onOpenAddStudent,
   className,
 }: AttendeesToolbarProps) {
   return (

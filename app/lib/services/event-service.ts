@@ -66,9 +66,16 @@ function validateEventInput(input: EventInput): EventInput {
   return { ...input, name, details, venue };
 }
 
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 async function validateBanner(imageAssetId: string | null | undefined): Promise<void> {
   if (!imageAssetId) {
     return;
+  }
+
+  if (!UUID_REGEX.test(imageAssetId)) {
+    throw new EventLifecycleError("An event banner must be a public uploaded asset.");
   }
 
   const asset = await getPrismaClient().asset.findFirst({

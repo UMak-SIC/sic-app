@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CheckCircle, Clock, MagnifyingGlass, Ticket, UsersThree, XCircle } from "@phosphor-icons/react";
 import { ProfileCircle } from "@/components/attendees/profile-circle";
+import { EventPeopleTableSkeleton } from "@/components/events/event-people-table-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -64,7 +65,11 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
         </div>
       </div>
 
-      {loading ? <p className="p-6 text-sm text-muted">Loading invited people...</p> : error ? <p role="alert" className="m-4 rounded-[6px] bg-red-soft px-3 py-2 text-xs text-red">{error}</p> : filteredPeople.length === 0 ? (
+      {loading ? (
+        <EventPeopleTableSkeleton rowCount={5} />
+      ) : error ? (
+        <p role="alert" className="m-4 rounded-[6px] bg-red-soft px-3 py-2 text-xs text-red">{error}</p>
+      ) : filteredPeople.length === 0 ? (
         <div className="flex flex-col items-center px-4 py-14 text-center">
           <UsersThree size={24} weight="bold" className="text-muted" aria-hidden="true" />
           <h3 className="mt-3 font-display text-base font-bold text-ink">No people found</h3>

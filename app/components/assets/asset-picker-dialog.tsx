@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { MagnifyingGlass, Image as ImageIcon, FilePdf, Check } from "@phosphor-icons/react";
 import { AssetItem, AssetCategory } from "./asset-types";
-import { INITIAL_ASSETS } from "./asset-data";
 import { cn } from "@/lib/utils";
 
 interface AssetPickerDialogProps {
@@ -32,8 +31,77 @@ export function AssetPickerDialog({
 }: AssetPickerDialogProps) {
   const [search, setSearch] = React.useState("");
   const [selected, setSelected] = React.useState<string | null>(null);
+  const [assets, setAssets] = React.useState<AssetItem[]>([]);
+  const [loading, setLoading] = React.useState(false);
 
-  const filtered = INITIAL_ASSETS.filter((a) => {
+  React.useEffect(() => {
+    if (!open) return;
+
+    let mounted = true;
+    const fetchAssets = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/assets/public");
+        const data = (res.ok ? await res.json() : { assets: [] }) as {
+          assets?: Array<{
+            id: string;
+            originalFilename: string;
+            mediaType: string;
+            byteSize: number;
+            uploadedAt: string;
+            url: string | null;
+          }>;
+        };
+        if (!mounted) return;
+        const mapped: AssetItem[] = (data.assets || []).map((a) => {
+          const isDoc = a.mediaType === "application/pdf" || a.originalFilename.endsWith(".pdf");
+          const format = a.originalFilename.endsWith(".png")
+            ? "png"
+            : a.originalFilename.endsWith(".webp")
+            ? "webp"
+            : isDoc
+            ? "pdf"
+            : "jpg";
+          const size = a.byteSize || 0;
+          const sizeFormatted =
+            size > 1024 * 1024
+              ? `${(size / (1024 * 1024)).toFixed(1)} MB`
+              : `${Math.round(size / 1024)} KB`;
+
+          return {
+            id: a.id,
+            objectKey: "",
+            originalFilename: a.originalFilename,
+            mediaType: a.mediaType,
+            format,
+            category: isDoc ? "document" : "image",
+            byteSize: size,
+            fileSizeFormatted: sizeFormatted,
+            uploadedBy: "Administrator",
+            uploadedAt: a.uploadedAt ? new Date(a.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Uploaded",
+            sha256Hash: "",
+            url: a.url || "#",
+            previewUrl: a.url || undefined,
+            references: [],
+            downloadCount: 0,
+          };
+        });
+        setAssets(mapped);
+      } catch {
+        if (mounted) setAssets([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void fetchAssets();
+
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
+
+  const filtered = assets.filter((a) => {
     const matchesCat = !categoryFilter || a.category === categoryFilter;
     const matchesSearch =
       search === "" ||
@@ -87,11 +155,20 @@ export function AssetPickerDialog({
 
         {/* File grid */}
         <div className="flex-1 overflow-y-auto mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 min-h-0">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="col-span-3 flex flex-col items-center justify-center py-12 text-center text-muted">
+              <ImageIcon size={28} className="mb-2 text-muted-light animate-pulse" />
+              <p className="font-sans text-sm font-semibold">Loading assets...</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="col-span-3 flex flex-col items-center justify-center py-12 text-center text-muted">
               <ImageIcon size={28} className="mb-2 text-muted-light" />
               <p className="font-sans text-sm font-semibold">No files found</p>
-              <p className="text-xs text-muted-light">Try clearing your search.</p>
+              <p className="text-xs text-muted-light">
+                {assets.length === 0
+                  ? "Upload a banner file to add it to your library."
+                  : "Try clearing your search."}
+              </p>
             </div>
           ) : (
             filtered.map((asset) => {
