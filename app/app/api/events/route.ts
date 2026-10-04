@@ -1,0 +1,65 @@
+import { requireAdmin } from "@/lib/auth/require-admin";
+import {
+  createEvent,
+  EventLifecycleError,
+  listEvents,
+  publicImageUrl,
+} from "@/lib/services/event-service";
+import { getOrganizationTimezone } from "@/lib/events/organization-timezone";
+
+function parseEventInput(body: unknown) {
+  if (!body || typeof body !== "object") {
+    throw new EventLifecycleError("Please complete the event details.");
+  }
+
+  const input = body as Record<string, unknown>;
+  if (
+    typeof input.name !== "string" ||
+    typeof input.details !== "string" ||
+    typeof input.startsAt !== "string" ||
+    typeof input.endsAt !== "string" ||
+    (input.venue !== undefined && input.venue !== null && typeof input.venue !== "string") ||
+    (input.imageAssetId !== undefined && input.imageAssetId !== null && typeof input.imageAssetId !== "string")
+  ) {
+    throw new EventLifecycleError("Please complete the event details.");
+  }
+
+  return {
+    name: input.name,
+    details: input.details,
+    // Optional and free text, so absent is null rather than an empty string.
+    venue: input.venue ?? null,
+    startsAt: new Date(input.startsAt),
+    endsAt: new Date(input.endsAt),
+    imageAssetId: input.imageAssetId ?? null,
+  };
+}
+
+export async function GET() {
+  const authorization = await requireAdmin();
+  if (authorization instanceof Response) return authorization;
+
+  const events = await listEvents();
+  const serializedEvents = events.map((event) => ({
+    ...event,
+    bannerUrl: publicImageUrl(event.imageAsset),
+  }));
+
+  return Response.json({ events: serializedEvents, timezone: getOrganizationTimezone() });
+}
+
+export async function POST(request: Request) {
+  const authorization = await requireAdmin();
+  if (authorization instanceof Response) return authorization;
+
+  try {
+    const event = await createEvent(parseEventInput(await request.json()), authorization.adminId);
+    return Response.json({ event }, { status: 201 });
+  } catch (error) {
+    if (error instanceof EventLifecycleError) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+
+    throw error;
+  }
+}

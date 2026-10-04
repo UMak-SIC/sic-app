@@ -5,8 +5,8 @@
 ### Admin
 
 The single authorised application operator. The Admin authenticates through
-Clerk and has a corresponding Neon record keyed by the Clerk user ID for audit
-references.
+Neon Managed Better Auth and has a corresponding Neon record keyed by the Neon
+Auth user ID for audit references.
 
 ### Attendee
 
@@ -41,6 +41,6 @@ separate from the technical queue work used to process it.
 
 ### Asset
 
-A file stored in Filebase and referenced by an Event or Campaign. Asset
+A file stored in Neon Object Storage and referenced by an Event or Campaign. Asset
 metadata records its object key, original filename, media type, size, and
 uploading Admin.
