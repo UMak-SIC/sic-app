@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { FileArrowUp, MagnifyingGlass, UserPlus, Users, UserGear } from "@phosphor-icons/react";
+import {
+  FileArrowUp,
+  MagnifyingGlass,
+  UserPlus,
+  Users,
+  UserGear,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { AttendeeFormDialog } from "@/components/attendees/attendee-form-dialog";
 import { commitImport, previewImport, type ImportPreview } from "@/components/attendees/attendee-import";
 import { Button } from "@/components/ui/button";
@@ -18,9 +25,10 @@ type Props = {
   eventName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSaved?: () => void | Promise<void>;
 };
 
-export function EventPeopleDialog({ eventId, eventName, open, onOpenChange }: Props) {
+export function EventPeopleDialog({ eventId, eventName, open, onOpenChange, onSaved }: Props) {
   const [attendees, setAttendees] = React.useState<DirectoryAttendee[]>([]);
   const [selectedAttendeeIds, setSelectedAttendeeIds] = React.useState<string[]>([]);
   const [selectedOrganizerIds, setSelectedOrganizerIds] = React.useState<string[]>([]);
@@ -61,9 +69,20 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange }: Pr
     [attendee.name, attendee.studentId, attendee.email, attendee.course ?? ""]
       .some((value) => value.toLowerCase().includes(query.toLowerCase().trim()))
   );
+  const selectedFilteredCount = filtered.filter((attendee) => selectedIds.includes(attendee.id)).length;
+  const allFilteredSelected = filtered.length > 0 && selectedFilteredCount === filtered.length;
+  const someFilteredSelected = selectedFilteredCount > 0 && !allFilteredSelected;
 
   function toggle(id: string) {
     setSelectedIds((ids) => ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]);
+  }
+
+  function toggleAllFiltered() {
+    const filteredIds = new Set(filtered.map((attendee) => attendee.id));
+    setSelectedIds((ids) => {
+      const allSelected = filtered.length > 0 && filtered.every((attendee) => ids.includes(attendee.id));
+      return allSelected ? ids.filter((id) => !filteredIds.has(id)) : [...new Set([...ids, ...filteredIds])];
+    });
   }
 
   async function loadMore() {
@@ -132,6 +151,7 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange }: Pr
       const saved = await response.json() as { attendeeIds: string[]; organizerIds: string[] };
       setSelectedAttendeeIds(saved.attendeeIds);
       setSelectedOrganizerIds(saved.organizerIds);
+      await onSaved?.();
       onOpenChange(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "People could not be saved. Try again.");
@@ -161,7 +181,16 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange }: Pr
                   <MagnifyingGlass size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
                   <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, student ID, or email" className="h-9 rounded-[6px] border-line pl-9 text-xs" />
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[6px] border border-line px-3 text-xs font-semibold text-ink hover:bg-canvas">
+                    <Checkbox
+                      checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" : false}
+                      disabled={filtered.length === 0}
+                      onCheckedChange={toggleAllFiltered}
+                      aria-label="Select all matching people"
+                    />
+                    Select all
+                  </label>
                   <Button type="button" variant="outline" onClick={() => setAddingPerson(true)} className="h-9 rounded-[6px] border-line text-xs"><UserPlus size={16} weight="bold" />Add person</Button>
                   <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[6px] border border-line px-3 text-xs font-semibold text-ink hover:bg-canvas">
                     <FileArrowUp size={16} weight="bold" aria-hidden="true" />Import CSV
@@ -176,7 +205,48 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange }: Pr
               <p className="py-2 text-[11px] text-muted">CSV rows are matched against the directory first. New people are added to the directory before they are selected.</p>
               {notice && <p className="mb-2 rounded-[6px] bg-cyan-soft px-3 py-2 text-xs text-ink">{notice}</p>}
               {error && <p role="alert" className="mb-2 rounded-[6px] bg-red-soft px-3 py-2 text-xs text-red">{error}</p>}
-              {csvImport && <div className="mb-2 rounded-[6px] border border-cyan-border bg-cyan-soft/40 p-3 text-xs text-ink"><p className="font-semibold">Ready to import {csvImport.preview.approvableRows.length} people</p><p className="mt-1 text-muted">{csvImport.preview.summary.updateCount} matched in Global Attendees, {csvImport.preview.summary.newCount} new, {csvImport.preview.summary.malformed + csvImport.preview.summary.conflictCount} need attention.</p><div className="mt-3 flex gap-2"><Button type="button" size="sm" onClick={() => void confirmCsvImport()} className="rounded-[6px] bg-cyan text-xs text-white hover:bg-cyan-hover">Add matched people</Button><Button type="button" size="sm" variant="outline" onClick={() => setCsvImport(null)} className="rounded-[6px] border-line text-xs">Cancel import</Button></div></div>}
+               {csvImport && (
+                 <div className="mb-2 rounded-[6px] border border-cyan-border bg-cyan-soft/40 p-3 text-xs text-ink">
+                   <p className="font-semibold">Ready to import {csvImport.preview.approvableRows.length} people</p>
+                   <p className="mt-1 text-muted">
+                     {csvImport.preview.summary.updateCount} matched in Global Attendees, {csvImport.preview.summary.newCount} new, {csvImport.preview.summary.malformed + csvImport.preview.summary.conflictCount} need attention.
+                   </p>
+                   {csvImport.preview.errors.length > 0 || csvImport.preview.preview.conflicts.length > 0 ? (
+                     <ul aria-label="Rows that cannot be added" className="mt-3 space-y-1.5">
+                       {csvImport.preview.errors.map((importError) => (
+                         <li
+                           key={`error-${importError.row}-${importError.field}`}
+                           className="flex items-start gap-2 rounded-[6px] border border-red/30 bg-red-soft/50 px-3 py-2"
+                         >
+                           <WarningCircle size={16} weight="bold" aria-hidden="true" className="mt-0.5 shrink-0 text-red" />
+                           <span className="leading-snug">
+                             <strong>Row {importError.row}</strong> cannot be added: {importFieldLabel(importError.field)} {importError.message}
+                           </span>
+                         </li>
+                       ))}
+                       {csvImport.preview.preview.conflicts.map((conflict) => (
+                         <li
+                           key={`conflict-${conflict.record.row}`}
+                           className="flex items-start gap-2 rounded-[6px] border border-red/30 bg-red-soft/50 px-3 py-2"
+                         >
+                           <WarningCircle size={16} weight="bold" aria-hidden="true" className="mt-0.5 shrink-0 text-red" />
+                           <span className="leading-snug">
+                             <strong>Row {conflict.record.row}</strong> cannot be added: {conflict.message}
+                           </span>
+                         </li>
+                       ))}
+                     </ul>
+                   ) : null}
+                   <div className="mt-3 flex gap-2">
+                     <Button type="button" size="sm" onClick={() => void confirmCsvImport()} className="rounded-[6px] bg-cyan text-xs text-white hover:bg-cyan-hover">
+                       Add matched people
+                     </Button>
+                     <Button type="button" size="sm" variant="outline" onClick={() => setCsvImport(null)} className="rounded-[6px] border-line text-xs">
+                       Cancel import
+                     </Button>
+                   </div>
+                 </div>
+               )}
               <div className="min-h-0 flex-1 overflow-y-auto rounded-[9px] border border-line">
                 {filtered.map((attendee) => (
                   <label key={attendee.id} className="flex cursor-pointer items-center gap-3 border-b border-line-subtle px-3 py-3 last:border-b-0 hover:bg-canvas/50">
@@ -204,4 +274,18 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange }: Pr
       }} />}
     </>
   );
+}
+
+function importFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    email: "Email address",
+    studentId: "Student ID",
+    name: "Name",
+    course: "Course",
+    program: "Program",
+    section: "Section",
+    format: "File format",
+  };
+
+  return labels[field] ?? "Row";
 }
