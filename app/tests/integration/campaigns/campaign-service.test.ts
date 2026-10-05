@@ -19,7 +19,7 @@ afterEach(() => {
 async function seedCampaignContext() {
   const adminId = `admin-${randomUUID()}`;
   const eventId = randomUUID();
-  const attendeeIds = [randomUUID(), randomUUID()];
+  const attendeeIds = Array.from({ length: 126 }, () => randomUUID());
 
   await seedTestDatabase(async (database) => {
     await database.admin.create({ data: { neonAuthUserId: adminId } });
