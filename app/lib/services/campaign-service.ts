@@ -27,7 +27,7 @@ type SubmitCampaignDependencies = {
 };
 
 const defaultSubmitCampaignDependencies: SubmitCampaignDependencies = {
-  generateDeliveryIdempotencyKey: crypto.randomUUID,
+  generateDeliveryIdempotencyKey: () => crypto.randomUUID(),
 };
 
 export type CampaignListItem = {
