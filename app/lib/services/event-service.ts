@@ -145,6 +145,7 @@ export async function listEvents() {
     include: {
       imageAsset: { select: { originalFilename: true, objectKey: true, storageBucket: true } },
       _count: { select: { rosterEntries: true } },
+      rosterEntries: { select: { status: true } },
     },
     orderBy: { startsAt: "desc" },
   });

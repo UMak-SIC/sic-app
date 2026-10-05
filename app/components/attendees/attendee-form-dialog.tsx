@@ -274,8 +274,8 @@ export function AttendeeFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md font-sans rounded-[12px] border-line">
-        <form onSubmit={handleSubmit}>
+      <DialogContent className="sm:max-w-xl sm:h-[560px] font-sans rounded-[12px] border-line">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold font-display text-ink">
               {isEdit ? "Edit Student Profile" : "Add Student to Global Attendees"}
@@ -287,7 +287,7 @@ export function AttendeeFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-3.5 py-4">
+          <div className="grid flex-1 content-start gap-3.5 py-4">
             <div className="grid gap-1.5">
               <Label htmlFor="attendee-name" className="text-xs font-bold text-ink">
                 Full Name
@@ -402,7 +402,7 @@ export function AttendeeFormDialog({
             ) : null}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="mt-auto gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"

@@ -4,6 +4,7 @@ import { Prisma, PrismaClient } from "@prisma/client";
 import ws from "ws";
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
+const activeDatabaseUrl = process.env.DATABASE_URL;
 
 neonConfig.webSocketConstructor = ws;
 
@@ -33,9 +34,7 @@ export function hasTestDatabase(): boolean {
 
 export function getTestDatabase(): PrismaClient {
   if (!testDatabase) {
-    throw new Error(
-      "Database tests require TEST_DATABASE_URL for an isolated Neon test branch.",
-    );
+    throw new Error("Database tests require TEST_DATABASE_URL for an isolated test database.");
   }
 
   return testDatabase;
@@ -46,13 +45,15 @@ export async function cleanTestDatabase(): Promise<void> {
     return;
   }
 
-  try {
-    await testDatabase.$executeRawUnsafe(
-      `TRUNCATE TABLE ${applicationTables.map((table) => `"${table}"`).join(", ")} RESTART IDENTITY CASCADE`,
+  if (activeDatabaseUrl === testDatabaseUrl) {
+    throw new Error(
+      "Refusing to truncate because DATABASE_URL points to TEST_DATABASE_URL.",
     );
-  } catch {
-    // Offline / unit test fallback when TEST_DATABASE_URL is unreachable
   }
+
+  await testDatabase.$executeRawUnsafe(
+    `TRUNCATE TABLE ${applicationTables.map((table) => `"${table}"`).join(", ")} RESTART IDENTITY CASCADE`,
+  );
 }
 
 export async function disconnectTestDatabase(): Promise<void> {

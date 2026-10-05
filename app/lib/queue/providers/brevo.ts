@@ -90,6 +90,7 @@ export async function dispatchViaBrevo(
         "api-key": apiKey,
         "Content-Type": "application/json",
         Accept: "application/json",
+        "X-Sib-Idempotency": job.idempotencyKey,
       },
       body: JSON.stringify(payload),
     });
@@ -104,8 +105,8 @@ export async function dispatchViaBrevo(
       succeeded: false,
       httpStatus: response.status,
       errorMessage: describeBrevoFailure(response.status, responseBody),
-      requestPayload: toLoggablePayload({ to: message.to, subject: message.subject }),
-      responsePayload: toLoggablePayload(responseBody),
+      requestPayload: toLoggablePayload({ deliveryId: job.deliveryId }),
+      responsePayload: undefined,
     };
   }
 
@@ -114,8 +115,8 @@ export async function dispatchViaBrevo(
     providerMessageId:
       typeof responseBody?.messageId === "string" ? responseBody.messageId : undefined,
     httpStatus: response.status,
-    requestPayload: toLoggablePayload({ to: message.to, subject: message.subject }),
-    responsePayload: toLoggablePayload(responseBody),
+    requestPayload: toLoggablePayload({ deliveryId: job.deliveryId }),
+    responsePayload: undefined,
   };
 }
 

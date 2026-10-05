@@ -40,9 +40,10 @@ export async function GET() {
   if (authorization instanceof Response) return authorization;
 
   const events = await listEvents();
-  const serializedEvents = events.map((event) => ({
+  const serializedEvents = events.map(({ rosterEntries, ...event }) => ({
     ...event,
     bannerUrl: publicImageUrl(event.imageAsset),
+    attendedCount: rosterEntries.filter((entry) => entry.status === "ATTENDED").length,
   }));
 
   return Response.json({ events: serializedEvents, timezone: getOrganizationTimezone() });

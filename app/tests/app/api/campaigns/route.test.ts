@@ -41,6 +41,7 @@ test("submits a campaign with the signed-in administrator as creator", async () 
     method: "POST",
     body: JSON.stringify({
       eventId: "00000000-0000-4000-8000-000000000001",
+      idempotencyKey: "request-idempotency-key",
       attendeeIds: ["00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-000000000003"],
       subject: "General assembly reminder",
       markdown: "Hello {{student_name}}",
@@ -50,6 +51,7 @@ test("submits a campaign with the signed-in administrator as creator", async () 
 
   expect(submitCampaign).toHaveBeenCalledWith({
     eventId: "00000000-0000-4000-8000-000000000001",
+    idempotencyKey: "request-idempotency-key",
     attendeeIds: ["00000000-0000-4000-8000-000000000002", "00000000-0000-4000-8000-000000000003"],
     subject: "General assembly reminder",
     markdown: "Hello {{student_name}}",

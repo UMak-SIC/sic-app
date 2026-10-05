@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { PrismaClient } from "@prisma/client";
+
 import { getPrismaClient } from "@/lib/prisma";
 
 export type CloseExpiredEventsResult = {
@@ -7,8 +9,11 @@ export type CloseExpiredEventsResult = {
   absentEntryCount: number;
 };
 
-export async function closeExpiredEvents(now = new Date()): Promise<CloseExpiredEventsResult> {
-  return getPrismaClient().$transaction(async (tx) => {
+export async function closeExpiredEvents(
+  now = new Date(),
+  database: PrismaClient = getPrismaClient(),
+): Promise<CloseExpiredEventsResult> {
+  return database.$transaction(async (tx) => {
     const events = await tx.event.findMany({
       where: { status: "PUBLISHED", endsAt: { lte: now } },
       select: { id: true },

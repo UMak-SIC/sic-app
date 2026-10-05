@@ -23,6 +23,7 @@ import type { ClaimedQueueJob } from "@/lib/queue/claim-jobs";
 const job: ClaimedQueueJob = {
   id: "job-1",
   deliveryId: "delivery-1",
+  idempotencyKey: "delivery-idempotency-key",
   retryCount: 0,
   maxRetries: 3,
   scheduledAt: new Date("2026-09-30T10:00:00.000Z"),
@@ -189,6 +190,8 @@ test("warns when a placeholder could not be resolved", async () => {
   // The sent email shows "Join us at ." with no explanation, so the warning is
   // the only signal that the event has no venue.
   expect(warn).toHaveBeenCalledWith(expect.stringContaining("venue"));
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining("attendee"));
+  expect(warn).not.toHaveBeenCalledWith(expect.stringContaining("Ada@Example.com"));
   warn.mockRestore();
 });
 

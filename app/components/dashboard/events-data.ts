@@ -10,6 +10,7 @@ export interface DashboardEvent {
   title: string;
   location: string;
   participants: number;
+  attendedCount: number;
   collegeBreakdown: DonutDatum[];
 }
 
@@ -20,6 +21,7 @@ export type PersistedEvent = {
   startsAt: string;
   status: "DRAFT" | "PUBLISHED" | "CLOSED";
   _count: { rosterEntries: number };
+  attendedCount: number;
 };
 
 type RegistrationBreakdown = { course: string; students: number };
@@ -57,6 +59,7 @@ export function toDashboardEvent(event: PersistedEvent, timezone: string): Dashb
     title: event.name,
     location: event.venue ?? "Online event",
     participants: event._count.rosterEntries,
+    attendedCount: event.attendedCount,
     collegeBreakdown: [],
   };
 }

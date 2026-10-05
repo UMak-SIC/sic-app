@@ -2,8 +2,8 @@ import { afterAll, afterEach, beforeEach } from "vitest";
 
 import { cleanTestDatabase, disconnectTestDatabase } from "./database";
 
-// A configured test database starts and ends each test clean. Unit tests stay
-// fully offline when TEST_DATABASE_URL is absent.
+// Every test run starts and ends with the explicitly configured test database
+// clean. The production application URL is never repointed by Vitest.
 beforeEach(async () => {
   await cleanTestDatabase();
 });

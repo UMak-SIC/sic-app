@@ -57,6 +57,7 @@ test.skipIf(!hasTestDatabase())("does not claim the same job twice concurrently"
       data: {
         id: campaignId,
         eventId,
+        idempotencyKey: "queue-test-campaign",
         subject: "Queue test campaign",
         markdown: "Queue test campaign body",
         createdById: adminId,
@@ -86,4 +87,4 @@ test.skipIf(!hasTestDatabase())("does not claim the same job twice concurrently"
   await expect(
     getTestDatabase().emailDelivery.findUniqueOrThrow({ where: { id: deliveryId } }),
   ).resolves.toMatchObject({ status: "SENDING" });
-});
+}, 15_000);

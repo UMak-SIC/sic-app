@@ -8,6 +8,7 @@ import type { OutboundMessage } from "@/lib/queue/providers/types";
 const job: ClaimedQueueJob = {
   id: "job-1",
   deliveryId: "delivery-1",
+  idempotencyKey: "delivery-idempotency-key",
   retryCount: 1,
   maxRetries: 3,
   scheduledAt: new Date("2026-09-30T10:00:00.000Z"),
@@ -65,6 +66,7 @@ test("posts the message to the Brevo transactional endpoint", async () => {
   // Brevo uses a bare api-key header, not Basic auth.
   expect(init.headers["api-key"]).toBe("xkeysib-test-abcdefghijklmnop");
   expect(init.headers["Content-Type"]).toBe("application/json");
+  expect(init.headers["X-Sib-Idempotency"]).toBe("delivery-idempotency-key");
 
   const payload = JSON.parse(init.body);
   expect(payload.sender).toEqual({ email: "events@example.com", name: "UMak SIC" });
@@ -73,6 +75,9 @@ test("posts the message to the Brevo transactional endpoint", async () => {
   expect(payload.htmlContent).toBe("<p>Hello</p>");
   expect(payload.textContent).toBe("Hello");
   expect(payload.replyTo).toEqual({ email: "events@example.com" });
+  expect(result.requestPayload).toEqual({ deliveryId: "delivery-1" });
+  expect(JSON.stringify(result.requestPayload)).not.toContain("attendee@example.com");
+  expect(JSON.stringify(result.requestPayload)).not.toContain("Your UMak SIC check-in pass");
 });
 
 test("omits the sender name when it is not configured", async () => {
