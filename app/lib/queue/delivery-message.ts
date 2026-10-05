@@ -190,6 +190,7 @@ export function createDeliveryMessageResolver(): ResolveMessage {
             id: true,
             attendee: {
               select: {
+                id: true,
                 name: true,
                 studentId: true,
                 displayEmail: true,
@@ -228,7 +229,7 @@ export function createDeliveryMessageResolver(): ResolveMessage {
     // otherwise, and the operator has no other way to learn the body is wrong.
     if (unknownTokens.length > 0) {
       console.warn(
-        `Delivery ${delivery.id} to ${attendee.displayEmail} dropped unresolved placeholder(s): ${unknownTokens.join(", ")}`,
+        `Delivery ${delivery.id} for attendee ${attendee.id} dropped unresolved placeholder(s): ${unknownTokens.join(", ")}`,
       );
     }
 

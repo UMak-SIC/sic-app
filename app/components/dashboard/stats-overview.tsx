@@ -5,6 +5,7 @@ import { StatCard } from "./stat-card";
 
 export function StatsOverview() {
   const [upcomingEvents, setUpcomingEvents] = React.useState(0);
+  const [nextEventDate, setNextEventDate] = React.useState("No upcoming events");
   const [participantEntries, setParticipantEntries] = React.useState(0);
   const [attendanceRate, setAttendanceRate] = React.useState(0);
 
@@ -14,11 +15,16 @@ export function StatsOverview() {
 
     const { events } = await response.json();
     const now = Date.now();
-    setUpcomingEvents(
-      events.filter((event: { startsAt: string; status: string }) =>
+    const upcoming = events.filter((event: { startsAt: string; status: string }) =>
         event.status === "PUBLISHED" && new Date(event.startsAt).getTime() > now,
-      ).length,
-    );
+      );
+    setUpcomingEvents(upcoming.length);
+    const nextEvent = upcoming.sort((left: { startsAt: string }, right: { startsAt: string }) =>
+      new Date(left.startsAt).getTime() - new Date(right.startsAt).getTime(),
+    )[0];
+    setNextEventDate(nextEvent
+      ? `Next ${new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" }).format(new Date(nextEvent.startsAt))}`
+      : "No upcoming events");
   }, []);
 
   React.useEffect(() => {
@@ -43,7 +49,7 @@ export function StatsOverview() {
       <StatCard
         title="Upcoming events"
         value={String(upcomingEvents)}
-        subtitle="Next October 17"
+        subtitle={nextEventDate}
         variant="primary"
       />
       <StatCard

@@ -12,6 +12,11 @@ on:
 
 jobs:
   lint-and-build:
+    # Integration tests truncate a single shared Neon database before and after
+    # every test, so no two CI runs may access it at the same time.
+    concurrency:
+      group: sic-shared-test-database
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     defaults:
       run:

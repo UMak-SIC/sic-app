@@ -126,6 +126,7 @@ export async function POST(request: Request) {
     {
       id: "test-send",
       deliveryId: "test-send",
+      idempotencyKey: crypto.randomUUID(),
       retryCount: 0,
       maxRetries: 0,
       scheduledAt: new Date(),

@@ -22,13 +22,13 @@ afterEach(() => vi.resetAllMocks());
 
 test("lists persisted events for an administrator with the organization timezone", async () => {
   requireAdmin.mockResolvedValue({ adminId: "admin-id" });
-  listEvents.mockResolvedValue([{ id: "event-id", imageAsset: null }]);
+  listEvents.mockResolvedValue([{ id: "event-id", imageAsset: null, rosterEntries: [{ status: "ATTENDED" }] }]);
 
   const response = await GET();
 
   expect(listEvents).toHaveBeenCalledOnce();
   await expect(response.json()).resolves.toEqual({
-    events: [{ id: "event-id", imageAsset: null, bannerUrl: null }],
+    events: [{ id: "event-id", imageAsset: null, bannerUrl: null, attendedCount: 1 }],
     timezone: "Asia/Manila",
   });
 });

@@ -143,7 +143,7 @@ export function OverviewEventsSection() {
           onOpenChange={setIsCheckInOpen}
           eventId={String(checkInEvent.id)}
           eventName={checkInEvent.title}
-          totalAttended={Math.round(checkInEvent.participants * 0.6)}
+          totalAttended={checkInEvent.attendedCount}
           totalRegistered={checkInEvent.participants}
         />
       )}
