@@ -22,6 +22,14 @@ export type SubmitCampaignInput = {
   assets?: { assetId: string; role: CampaignAssetRole }[];
 };
 
+type SubmitCampaignDependencies = {
+  generateDeliveryIdempotencyKey: () => string;
+};
+
+const defaultSubmitCampaignDependencies: SubmitCampaignDependencies = {
+  generateDeliveryIdempotencyKey: crypto.randomUUID,
+};
+
 export type CampaignListItem = {
   id: string;
   eventId: string;
@@ -106,7 +114,10 @@ function countsFrom(rows: { status: DeliveryStatus; _count?: { _all: number } }[
   return counts;
 }
 
-export async function submitCampaign(input: SubmitCampaignInput) {
+export async function submitCampaign(
+  input: SubmitCampaignInput,
+  dependencies: SubmitCampaignDependencies = defaultSubmitCampaignDependencies,
+) {
   const { subject, markdown, attendeeIds } = cleanCampaignInput(input);
   const idempotencyKey = input.idempotencyKey.trim();
   const assetBindings = input.assets ?? [];
@@ -191,7 +202,7 @@ export async function submitCampaign(input: SubmitCampaignInput) {
             eventId: event.id,
             campaignId: campaign.id,
             rosterEntryId: rosterEntry.id,
-            idempotencyKey: crypto.randomUUID(),
+            idempotencyKey: dependencies.generateDeliveryIdempotencyKey(),
             queueJob: { create: {} },
           },
           select: { id: true },
