@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { UserPlus, PencilSimple, Warning } from "@phosphor-icons/react";
 import {
   TypeableCombobox,
-  type ComboboxOption,
 } from "@/components/ui/typeable-combobox";
 import {
   AttendeeSaveError,
@@ -26,84 +25,13 @@ import {
 } from "./attendee-writes";
 import type { AttendeeItem } from "./attendees-table";
 
-export const DEFAULT_DEPARTMENT_OPTIONS: ComboboxOption[] = [
-  { value: "CCIS", label: "CCIS", description: "College of Computing and Information Sciences" },
-  { value: "CBFS", label: "CBFS", description: "College of Business and Financial Science" },
-  { value: "CT", label: "CT", description: "College of Technology" },
-  { value: "CAL", label: "CAL", description: "College of Arts and Letters" },
-  { value: "COS", label: "COS", description: "College of Science" },
-  { value: "CCJE", label: "CCJE", description: "College of Criminal Justice Education" },
-  { value: "CSWDI", label: "CSWDI", description: "College of Social Work and Development Studies" },
-  { value: "CME", label: "CME", description: "College of Maritime Education" },
-  { value: "CTHM", label: "CTHM", description: "College of Tourism and Hospitality Management" },
-  { value: "CGPP", label: "CGPP", description: "College of Governance and Public Policy" },
-  { value: "SOL", label: "SOL", description: "School of Law" },
-  { value: "IIHS", label: "IIHS", description: "Institute of Allied Health Studies" },
-  { value: "CHK", label: "CHK", description: "Center for Human Kinetics" },
-  { value: "HSU", label: "HSU", description: "Higher School ng UMak" },
-];
-
-export const DEFAULT_COURSE_OPTIONS: ComboboxOption[] = [
-  { value: "BSIT", label: "BSIT", description: "BS in Information Technology" },
-  { value: "BSCS", label: "BSCS", description: "BS in Computer Science" },
-  { value: "BSCS-AppDev", label: "BSCS-AppDev", description: "BSCS Major in Application Development" },
-  { value: "BSIT-NetSec", label: "BSIT-NetSec", description: "BSIT Major in Network and Security" },
-  { value: "BSIT-SM", label: "BSIT-SM", description: "BSIT Major in Service Management" },
-  { value: "BSIT-WebDev", label: "BSIT-WebDev", description: "BSIT Major in Web Development" },
-  { value: "BSIS", label: "BSIS", description: "BS in Information Systems" },
-  { value: "ACT", label: "ACT", description: "Associate in Computer Technology" },
-  { value: "BSBA", label: "BSBA", description: "BS in Business Administration" },
-  { value: "BSA", label: "BSA", description: "BS in Accountancy" },
-  { value: "BSF", label: "BSF", description: "BS in Finance" },
-  { value: "BSN", label: "BSN", description: "BS in Nursing" },
-  { value: "BSP", label: "BSP", description: "BS in Pharmacy" },
-  { value: "BSCrim", label: "BSCrim", description: "BS in Criminology" },
-  { value: "BEEd", label: "BEEd", description: "Bachelor of Elementary Education" },
-  { value: "BSEd", label: "BSEd", description: "Bachelor of Secondary Education" },
-];
-
-export const DEFAULT_SECTION_OPTIONS: ComboboxOption[] = [
-  { value: "BSIT-1A", label: "BSIT-1A", description: "1st Year - Section A" },
-  { value: "BSIT-1B", label: "BSIT-1B", description: "1st Year - Section B" },
-  { value: "BSIT-2A", label: "BSIT-2A", description: "2nd Year - Section A" },
-  { value: "BSIT-2B", label: "BSIT-2B", description: "2nd Year - Section B" },
-  { value: "BSIT-3A", label: "BSIT-3A", description: "3rd Year - Section A" },
-  { value: "BSIT-3B", label: "BSIT-3B", description: "3rd Year - Section B" },
-  { value: "BSIT-4A", label: "BSIT-4A", description: "4th Year - Section A" },
-  { value: "BSIT-4B", label: "BSIT-4B", description: "4th Year - Section B" },
-  { value: "BSCS-1A", label: "BSCS-1A", description: "1st Year - Section A" },
-  { value: "BSCS-1B", label: "BSCS-1B", description: "1st Year - Section B" },
-  { value: "BSCS-2A", label: "BSCS-2A", description: "2nd Year - Section A" },
-  { value: "BSCS-2B", label: "BSCS-2B", description: "2nd Year - Section B" },
-  { value: "BSCS-3A", label: "BSCS-3A", description: "3rd Year - Section A" },
-  { value: "BSCS-3B", label: "BSCS-3B", description: "3rd Year - Section B" },
-  { value: "BSCS-4A", label: "BSCS-4A", description: "4th Year - Section A" },
-  { value: "BSCS-4B", label: "BSCS-4B", description: "4th Year - Section B" },
-  { value: "BSIS-1A", label: "BSIS-1A", description: "1st Year - Section A" },
-  { value: "BSIS-2A", label: "BSIS-2A", description: "2nd Year - Section A" },
-  { value: "BSIS-3A", label: "BSIS-3A", description: "3rd Year - Section A" },
-  { value: "BSIS-4A", label: "BSIS-4A", description: "4th Year - Section A" },
-  { value: "ACT-1A", label: "ACT-1A", description: "1st Year - Section A" },
-  { value: "ACT-1B", label: "ACT-1B", description: "1st Year - Section B" },
-  { value: "ACT-2A", label: "ACT-2A", description: "2nd Year - Section A" },
-  { value: "ACT-2B", label: "ACT-2B", description: "2nd Year - Section B" },
-  { value: "1A", label: "1A", description: "1st Year - Block A" },
-  { value: "1B", label: "1B", description: "1st Year - Block B" },
-  { value: "2A", label: "2A", description: "2nd Year - Block A" },
-  { value: "2B", label: "2B", description: "2nd Year - Block B" },
-  { value: "3A", label: "3A", description: "3rd Year - Block A" },
-  { value: "3B", label: "3B", description: "3rd Year - Block B" },
-  { value: "4A", label: "4A", description: "4th Year - Block A" },
-  { value: "4B", label: "4B", description: "4th Year - Block B" },
-];
-
 /**
  * One form for adding a student and for editing one.
  *
  * Two dialogs would have meant two copies of the same six fields and two copies of
  * the same "which field is wrong" handling, and the two would drift.
  *
- * Course, program and section are free text with intelligent dropdown suggestions.
+ * Course, program and section are free text with suggestions from the directory.
  * The registry stores whatever the organizer writes or selects.
  */
 
@@ -134,8 +62,12 @@ interface AttendeeFormDialogProps {
   onOpenChange: (open: boolean) => void;
   /** The student being edited. Absent means a new one is being added. */
   attendee?: AttendeeItem | null;
-  /** Available course options from registry facets. */
-  courseOptions?: string[];
+  /** Available department options from registry facets. */
+  departmentOptions?: string[];
+  /** Available program options from registry facets. */
+  programOptions?: string[];
+  /** Available section options from registry facets. */
+  sectionOptions?: string[];
   /**
    * Called after a successful save with what happened, so the page can say the right
    * thing. A student who was removed and has now been added back is not the same
@@ -148,7 +80,9 @@ export function AttendeeFormDialog({
   open,
   onOpenChange,
   attendee = null,
-  courseOptions = [],
+  departmentOptions = [],
+  programOptions = [],
+  sectionOptions = [],
   onSaved,
 }: AttendeeFormDialogProps) {
   const isEdit = attendee !== null;
@@ -167,50 +101,6 @@ export function AttendeeFormDialog({
     message: string;
   } | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
-
-  // Merge default course options with any dynamic facet courses passed down
-  const computedCourseOptions = React.useMemo(() => {
-    const list: (string | ComboboxOption)[] = [...DEFAULT_COURSE_OPTIONS];
-    for (const opt of courseOptions) {
-      if (
-        !list.some(
-          (item) =>
-            (typeof item === "string" ? item : item.value).toLowerCase() ===
-            opt.toLowerCase()
-        )
-      ) {
-        list.push({ value: opt, label: opt });
-      }
-    }
-    return list;
-  }, [courseOptions]);
-
-  // Dynamically tailor section options based on the chosen course or department
-  const computedSectionOptions = React.useMemo(() => {
-    const activeTrack = (fields.program || fields.course || "").trim().toUpperCase();
-    const cleanPrefix = activeTrack.split(/[\s-]+/)[0];
-
-    if (cleanPrefix && cleanPrefix.length >= 2) {
-      const tailoredSections: ComboboxOption[] = [
-        { value: `${cleanPrefix}-1A`, label: `${cleanPrefix}-1A`, description: "1st Year - Section A" },
-        { value: `${cleanPrefix}-1B`, label: `${cleanPrefix}-1B`, description: "1st Year - Section B" },
-        { value: `${cleanPrefix}-2A`, label: `${cleanPrefix}-2A`, description: "2nd Year - Section A" },
-        { value: `${cleanPrefix}-2B`, label: `${cleanPrefix}-2B`, description: "2nd Year - Section B" },
-        { value: `${cleanPrefix}-3A`, label: `${cleanPrefix}-3A`, description: "3rd Year - Section A" },
-        { value: `${cleanPrefix}-3B`, label: `${cleanPrefix}-3B`, description: "3rd Year - Section B" },
-        { value: `${cleanPrefix}-4A`, label: `${cleanPrefix}-4A`, description: "4th Year - Section A" },
-        { value: `${cleanPrefix}-4B`, label: `${cleanPrefix}-4B`, description: "4th Year - Section B" },
-      ];
-
-      const existingValues = new Set(tailoredSections.map((s) => s.value.toLowerCase()));
-      const remaining = DEFAULT_SECTION_OPTIONS.filter(
-        (s) => !existingValues.has(s.value.toLowerCase())
-      );
-      return [...tailoredSections, ...remaining];
-    }
-
-    return DEFAULT_SECTION_OPTIONS;
-  }, [fields.program, fields.course]);
 
   const set = (field: keyof Fields) => (value: string) => {
     setFields((previous) => ({ ...previous, [field]: value }));
@@ -330,7 +220,7 @@ export function AttendeeFormDialog({
                   placeholder="e.g. BSIT-2A"
                   value={fields.section}
                   onChange={(val) => set("section")(val)}
-                  options={computedSectionOptions}
+                  options={sectionOptions}
                   aria-invalid={problem?.field === "section"}
                   inputClassName="h-9 text-xs rounded-[6px] border-line"
                 />
@@ -365,7 +255,7 @@ export function AttendeeFormDialog({
                   placeholder="e.g. CCIS"
                   value={fields.course}
                   onChange={(val) => set("course")(val)}
-                  options={DEFAULT_DEPARTMENT_OPTIONS}
+                  options={departmentOptions}
                   aria-invalid={problem?.field === "course"}
                   inputClassName="h-9 text-xs rounded-[6px] border-line"
                 />
@@ -378,10 +268,10 @@ export function AttendeeFormDialog({
                 </Label>
                 <TypeableCombobox
                   id="attendee-program"
-                  placeholder="e.g. BSCS-AppDev"
+                  placeholder="e.g. BSCS"
                   value={fields.program}
                   onChange={(val) => set("program")(val)}
-                  options={computedCourseOptions}
+                  options={programOptions}
                   aria-invalid={problem?.field === "program"}
                   inputClassName="h-9 text-xs rounded-[6px] border-line"
                 />

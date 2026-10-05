@@ -109,6 +109,25 @@ describe("parseCsv", () => {
     expect(result.records[0].row).toBe(2);
   });
 
+  test("removes invisible spreadsheet marks around imported fields", () => {
+    const result = parseCsv(
+      [
+        "Name,Email,Student ID,Course,Program,Section",
+        "\u200e Ana Reyes \u200e,\u200eana@example.com\u200e,\u200eA12653804\u200e,\u200eBSIS\u200e,\u200eCCIS\u200e,\u200eI-AIS\u200e",
+      ].join("\n"),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.records[0]).toMatchObject({
+      name: "Ana Reyes",
+      normalizedEmail: "ana@example.com",
+      studentId: "A12653804",
+      course: "BSIS",
+      program: "CCIS",
+      section: "I-AIS",
+    });
+  });
+
   test("reports each malformed row without discarding the valid ones", () => {
     const result = parseCsv(
       [

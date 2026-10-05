@@ -38,6 +38,9 @@ function attendee(overrides: Record<string, unknown> = {}) {
     section: null,
     createdAt: new Date("2026-09-12T00:00:00.000Z"),
     rosterEntries: [attended, pending],
+    organizedEvents: [
+      { event: { id: "evt-3", name: "Student Leadership Summit", startsAt: new Date("2026-11-01T00:00:00.000Z") } },
+    ],
     ...overrides,
   };
 }
@@ -81,6 +84,13 @@ test("returns the directory shape the table already expects", async () => {
           attended: false,
         },
       ],
+      organizedEvents: [
+        {
+          id: "evt-3",
+          name: "Student Leadership Summit",
+          startsAt: new Date("2026-11-01T00:00:00.000Z"),
+        },
+      ],
       totalEventsJoined: 2,
       attendedEventsCount: 1,
       attendanceRate: 50,
@@ -102,6 +112,7 @@ test("returns no event short code", async () => {
     "id",
     "joinedDate",
     "name",
+    "organizedEvents",
     "program",
     "section",
     "studentId",

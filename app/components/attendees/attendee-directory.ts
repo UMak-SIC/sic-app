@@ -39,6 +39,7 @@ type AttendeeDto = {
   section: string | null;
   joinedDate: string;
   events: { id: string; name: string; startsAt: string; attended: boolean }[];
+  organizedEvents: { id: string; name: string; startsAt: string }[];
   totalEventsJoined: number;
   attendedEventsCount: number;
   attendanceRate: number;
@@ -47,8 +48,8 @@ type AttendeeDto = {
 type DirectoryResponse = {
   attendees: AttendeeDto[];
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
-  /** Distinct courses present, so the filter lists real values. */
-  facets?: { courses?: string[] };
+  /** Distinct values present in the directory, for filters and form suggestions. */
+  facets?: { courses?: string[]; programs?: string[]; sections?: string[] };
   timezone: string;
 };
 
@@ -56,6 +57,8 @@ export type DirectoryResult = {
   attendees: AttendeeItem[];
   pagination: DirectoryResponse["pagination"];
   courses: string[];
+  programs: string[];
+  sections: string[];
 };
 
 /** The filters the directory and the export both apply. */
@@ -95,6 +98,11 @@ function toAttendeeItem(row: AttendeeDto, timeZone: string): AttendeeItem {
       title: event.name,
       date: formatDate(event.startsAt, timeZone, "short"),
       attended: event.attended,
+    })),
+    organizedEvents: row.organizedEvents.map((event) => ({
+      id: event.id,
+      title: event.name,
+      date: formatDate(event.startsAt, timeZone, "short"),
     })),
     // The API derives these from roster entries, so the directory keeps no copy of
     // the arithmetic.
@@ -168,6 +176,8 @@ export async function fetchAttendeeDirectory({
     attendees: payload.attendees.map((row) => toAttendeeItem(row, payload.timezone)),
     pagination: payload.pagination,
     courses: payload.facets?.courses ?? [],
+    programs: payload.facets?.programs ?? [],
+    sections: payload.facets?.sections ?? [],
   };
 }
 

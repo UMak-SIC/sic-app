@@ -47,10 +47,10 @@ export function AssetKpiRow({ kpis }: AssetKpiRowProps) {
   const filesCount = reduced ? kpis.totalFilesCount : displayFiles;
   const lockedCount = reduced ? kpis.referencedCount : displayLocked;
 
-  const storageUsagePercent = Math.max(
-    1,
-    Math.round((kpis.totalBytesUsed / kpis.storageQuotaBytes) * 100)
-  );
+  const hasStorageQuota = Boolean(kpis.storageQuotaBytes && kpis.storageQuotaFormatted);
+  const storageUsagePercent = hasStorageQuota
+    ? Math.max(1, Math.round((kpis.totalBytesUsed / kpis.storageQuotaBytes!) * 100))
+    : 0;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full font-sans">
@@ -75,21 +75,30 @@ export function AssetKpiRow({ kpis }: AssetKpiRowProps) {
             <span className="text-2xl font-display font-bold text-ink tracking-tight">
               {kpis.totalBytesFormatted}
             </span>
-            <span className="text-xs text-muted font-sans font-medium">
-              / {kpis.storageQuotaFormatted}
-            </span>
+            {hasStorageQuota && (
+              <span className="text-xs text-muted font-sans font-medium">
+                / {kpis.storageQuotaFormatted}
+              </span>
+            )}
           </div>
 
-          {/* Mini progress bar */}
-          <div className="mt-2.5 h-1.5 w-full bg-line-subtle rounded-full overflow-hidden">
-            <div
-              className="h-full bg-cyan rounded-full transition-all duration-500"
-              style={{ width: `${Math.max(2, storageUsagePercent)}%` }}
-            />
-          </div>
-          <span className="text-[10px] text-muted font-sans mt-1 block">
-            {storageUsagePercent}% of quota allocated
-          </span>
+          {hasStorageQuota ? (
+            <>
+              <div className="mt-2.5 h-1.5 w-full bg-line-subtle rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-cyan rounded-full transition-all duration-500"
+                  style={{ width: `${Math.max(2, storageUsagePercent)}%` }}
+                />
+              </div>
+              <span className="text-[10px] text-muted font-sans mt-1 block">
+                {storageUsagePercent}% of quota allocated
+              </span>
+            </>
+          ) : (
+            <span className="text-[10px] text-muted font-sans mt-1 block">
+              Storage limit is not configured
+            </span>
+          )}
         </div>
       </div>
 

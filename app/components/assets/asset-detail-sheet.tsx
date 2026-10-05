@@ -48,7 +48,8 @@ export function AssetDetailSheet({
   const isLocked = asset.references.length > 0;
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(window.location.origin + asset.url);
+    if (!asset.url) return;
+    navigator.clipboard.writeText(new URL(asset.url, window.location.origin).toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -216,14 +217,16 @@ export function AssetDetailSheet({
             </div>
 
             {/* Security Verification Code */}
-            <div className="pt-2 border-t border-line-subtle flex flex-col gap-1">
-              <span className="text-[10px] uppercase font-bold text-muted font-display">
-                Security Verification Code:
-              </span>
-              <span className="font-mono text-[10px] text-muted select-all bg-canvas/60 p-1.5 rounded-[4px] border border-line break-all">
-                {asset.sha256Hash}
-              </span>
-            </div>
+            {asset.sha256Hash && (
+              <div className="pt-2 border-t border-line-subtle flex flex-col gap-1">
+                <span className="text-[10px] uppercase font-bold text-muted font-display">
+                  Security Verification Code:
+                </span>
+                <span className="font-mono text-[10px] text-muted select-all bg-canvas/60 p-1.5 rounded-[4px] border border-line break-all">
+                  {asset.sha256Hash}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -274,6 +277,7 @@ export function AssetDetailSheet({
               type="button"
               variant="outline"
               onClick={handleCopyUrl}
+              disabled={!asset.url}
               className="text-xs font-semibold rounded-[6px] h-9 px-3 gap-1.5 cursor-pointer border-line"
             >
               {copied ? <Check size={14} className="text-green" weight="bold" /> : <Copy size={14} />}

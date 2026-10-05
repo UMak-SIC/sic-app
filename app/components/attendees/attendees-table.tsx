@@ -53,6 +53,7 @@ export interface AttendeeItem {
   /** The student's year and block, e.g. "BSIT-2A". Null when never recorded. */
   section: string | null;
   assignedEvents: EventBadgeItem[];
+  organizedEvents: EventBadgeItem[];
   totalEventsJoined: number;
   attendedEventsCount: number;
   attendanceRate: number;
@@ -267,7 +268,7 @@ export function AttendeesTable({
       <div className="absolute inset-x-0 top-0 h-[2px] bg-linear-to-r from-cyan via-green to-amber opacity-50 z-10" />
 
       <div className="overflow-x-auto w-full">
-        <Table className="min-w-[760px] table-fixed">
+        <Table className="min-w-[980px] table-fixed">
           <TableHeader>
           <TableRow className="bg-linear-to-b from-canvas/90 via-canvas/60 to-canvas/20 hover:bg-canvas/70 border-b border-line">
             {/* Selection & Reorder Checkbox */}
@@ -291,22 +292,26 @@ export function AttendeesTable({
             </TableHead>
 
             {/* Student Name & ID */}
-            <TableHead className="w-[30%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[24%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Student
             </TableHead>
 
             {/* Course / Program Track */}
-            <TableHead className="w-[20%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[15%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Course & Program
             </TableHead>
 
             {/* Registered Events */}
-            <TableHead className="w-[22%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[17%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Registered Events
             </TableHead>
 
+            <TableHead className="w-[17%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+              Organized Events
+            </TableHead>
+
             {/* Attendance Record (Tick Comb) */}
-            <TableHead className="w-[18%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[17%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Attendance Record
             </TableHead>
 
@@ -421,6 +426,20 @@ export function AttendeesTable({
                         : student.totalEventsJoined === 1
                         ? "1 registered event"
                         : `${student.totalEventsJoined} registered events`}
+                    </span>
+                  </div>
+                </TableCell>
+
+                {/* Events this student organizes, separate from their roster history. */}
+                <TableCell className="py-3.5">
+                  <div className="flex flex-col gap-1">
+                    <AvatarStack events={student.organizedEvents} max={2} />
+                    <span className="text-[11px] text-muted font-medium font-sans">
+                      {student.organizedEvents.length === 0
+                        ? "Not organizing any event"
+                        : student.organizedEvents.length === 1
+                          ? "1 organized event"
+                          : `${student.organizedEvents.length} organized events`}
                     </span>
                   </div>
                 </TableCell>

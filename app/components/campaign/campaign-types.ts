@@ -63,6 +63,7 @@ export interface CampaignSummary {
   subject: string;
   eventName: string;
   venue?: string;
+  bannerUrl?: string;
   eventDate?: string;
   sentDate: string;
   status: CampaignStatus;
