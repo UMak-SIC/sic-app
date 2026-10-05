@@ -56,9 +56,9 @@ export async function claimQueueJobs({
           lock_expires_at = NOW() + ${lockDurationSeconds} * INTERVAL '1 second',
           locked_by = ${workerId},
           updated_at = NOW()
-        FROM claimable_jobs
-        JOIN email_deliveries AS delivery ON delivery.id = job.delivery_id
+        FROM claimable_jobs, email_deliveries AS delivery
         WHERE job.id = claimable_jobs.id
+          AND delivery.id = job.delivery_id
         RETURNING
           job.id,
           job.delivery_id AS "deliveryId",

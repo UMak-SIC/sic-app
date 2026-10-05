@@ -49,7 +49,7 @@ describeWithDatabase("closeExpiredEvents", () => {
       },
     });
 
-    await Promise.all([closeExpiredEvents(now), closeExpiredEvents(now)]);
+    await Promise.all([closeExpiredEvents(now, db), closeExpiredEvents(now, db)]);
 
     await expect(db.event.findUniqueOrThrow({ where: { id: event.id } })).resolves.toMatchObject({
       status: "CLOSED",

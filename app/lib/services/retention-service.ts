@@ -1,6 +1,8 @@
 import "server-only";
 
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import type { PrismaClient } from "@prisma/client";
+
 import { getPrismaClient } from "@/lib/prisma";
 import { getNeonStorageClient, type StorageClient } from "@/lib/storage/neon-storage-client";
 
@@ -16,6 +18,7 @@ export type RetentionResult = {
 
 type RetentionDependencies = {
   getNeonStorageClient: () => StorageClient;
+  prisma?: PrismaClient;
 };
 
 const defaultDependencies: RetentionDependencies = { getNeonStorageClient };
@@ -43,8 +46,9 @@ export async function runRetention(
   dependencies: RetentionDependencies = defaultDependencies,
 ): Promise<RetentionResult> {
   const cutoff = fiveYearsBefore(now);
+  const prisma = dependencies.prisma ?? getPrismaClient();
 
-  const retained = await getPrismaClient().$transaction(async (tx) => {
+  const retained = await prisma.$transaction(async (tx) => {
     const deletedDeliveries = await tx.emailDelivery.deleteMany({
       where: { createdAt: { lt: cutoff } },
     });
@@ -115,7 +119,7 @@ export async function runRetention(
         Bucket: asset.storageBucket === "PRIVATE_IMAGES" ? "private-images" : "public-images",
         Key: asset.objectKey,
       }));
-      const deletion = await getPrismaClient().$transaction(async (tx) => {
+      const deletion = await prisma.$transaction(async (tx) => {
         const deleted = await tx.asset.deleteMany({
           where: {
             id: asset.id,
@@ -129,7 +133,7 @@ export async function runRetention(
       deletedAssets += deletion;
     } catch (error) {
       assetDeletionFailures += 1;
-      await getPrismaClient().assetDeletionFailure.upsert({
+      await prisma.assetDeletionFailure.upsert({
         where: { assetId: asset.id },
         create: { assetId: asset.id, errorMessage: error instanceof Error ? error.message : "File deletion failed." },
         update: { errorMessage: error instanceof Error ? error.message : "File deletion failed.", lastFailedAt: now },
