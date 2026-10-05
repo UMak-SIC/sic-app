@@ -129,6 +129,9 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange }: Pr
         const body = await response.json().catch(() => null) as { error?: string } | null;
         throw new Error(body?.error ?? "People could not be saved. Try again.");
       }
+      const saved = await response.json() as { attendeeIds: string[]; organizerIds: string[] };
+      setSelectedAttendeeIds(saved.attendeeIds);
+      setSelectedOrganizerIds(saved.organizerIds);
       onOpenChange(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "People could not be saved. Try again.");

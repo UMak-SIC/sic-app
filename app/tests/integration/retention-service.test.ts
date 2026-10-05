@@ -89,6 +89,8 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
 
   await expect(runRetention(now)).resolves.toMatchObject({
     anonymizedAttendees: 1,
+    assetDeletionFailures: 0,
+    deletedAssets: 0,
     deletedAttendees: 1,
     deletedDeliveries: 1,
     deletedRosterEntries: 1,

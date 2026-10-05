@@ -280,6 +280,18 @@ model Asset {
   uploadedBy     Admin           @relation("AssetUploader", fields: [uploadedById], references: [neonAuthUserId], onDelete: Restrict)
   eventImages    Event[]         @relation("EventImage")
   campaignAssets CampaignAsset[]
+  deletionFailure AssetDeletionFailure?
 
   @@map("assets")
+}
+
+model AssetDeletionFailure {
+  assetId       String   @id @map("asset_id") @db.Uuid
+  errorMessage  String   @map("error_message") @db.Text
+  firstFailedAt DateTime @default(now()) @map("first_failed_at") @db.Timestamptz(6)
+  lastFailedAt  DateTime @default(now()) @map("last_failed_at") @db.Timestamptz(6)
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("asset_deletion_failures")
 }
