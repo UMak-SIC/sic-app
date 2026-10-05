@@ -127,7 +127,7 @@ function NewCampaignContent() {
           }
         }
 
-        const recipients = people.attendees.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => {
+        const recipients: StudentRecipient[] = people.attendees.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => {
           const alreadyReceived = sentStudentIds.has(person.studentId);
           return {
             ...person,
@@ -137,10 +137,13 @@ function NewCampaignContent() {
           };
         });
 
-        const organizers = people.organizers.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => ({ ...person, section: person.section ?? undefined, deliveryStatus: "delivered" as const }));
+        const organizers: StudentRecipient[] = people.organizers.map((person: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null; section: string | null }) => ({ ...person, section: person.section ?? undefined, deliveryStatus: "delivered" as const }));
         setRosterRecipients(recipients);
         setOrganizerRecipients(organizers);
         setOrganizerCount(people.organizers.length);
+        setSelectedRosterRecipientIds(
+          recipients.filter((r) => r.deliveryStatus !== "already_received").map((r) => r.id)
+        );
 
         const assetId = event.imageAsset?.id ?? event.imageAssetId;
         const bannerAsset = assetId && event.bannerUrl ? {
@@ -242,15 +245,16 @@ function NewCampaignContent() {
           eventName={draft.eventName}
           eventOptions={eventOptions}
           recipientsCount={rosterRecipients.length}
-          onEventChange={(id, name) =>
+          onEventChange={(id, name) => {
+            setSelectedRosterRecipientIds([]);
             setDraft((d) => ({
               ...d,
               eventId: id,
               eventName: name,
               subject: `Reminder: ${name} this Saturday!`,
               bannerImage: null,
-            }))
-          }
+            }));
+          }}
           onContinue={() => goToStep(2)}
         />
       )}
@@ -281,7 +285,7 @@ function NewCampaignContent() {
           eventName={draft.eventName}
           eventOptions={eventOptions}
           recipients={rosterRecipients}
-          initialSelectedIds={selectedRosterRecipientIds.length > 0 ? selectedRosterRecipientIds : undefined}
+          initialSelectedIds={selectedRosterRecipientIds}
           onBack={() => goToStep(2)}
           onContinue={(recipientIds) => {
             setSelectedRosterRecipientIds(recipientIds);
