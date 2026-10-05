@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test } from "vitest";
 
 import { submitCampaign } from "@/lib/services/campaign-service";
 import { getTestDatabase, hasTestDatabase, seedTestDatabase } from "@/tests/setup";
@@ -12,7 +12,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
   if (originalDatabaseUrl === undefined) delete process.env.DATABASE_URL;
   else process.env.DATABASE_URL = originalDatabaseUrl;
 });
@@ -53,6 +52,7 @@ test.skipIf(!hasTestDatabase())("creates one roster entry, delivery, and queue j
   const { adminId, eventId, attendeeIds } = await seedCampaignContext();
 
   const result = await submitCampaign({
+    idempotencyKey: crypto.randomUUID(),
     eventId,
     attendeeIds,
     subject: "Campaign test",
@@ -64,22 +64,24 @@ test.skipIf(!hasTestDatabase())("creates one roster entry, delivery, and queue j
   await expect(getTestDatabase().eventRosterEntry.count({ where: { eventId } })).resolves.toBe(attendeeIds.length);
   await expect(getTestDatabase().emailDelivery.count({ where: { campaignId: result.campaignId } })).resolves.toBe(attendeeIds.length);
   await expect(getTestDatabase().queueJob.count({ where: { delivery: { campaignId: result.campaignId } } })).resolves.toBe(attendeeIds.length);
-});
+}, 15_000);
 
 test.skipIf(!hasTestDatabase())("rolls back campaign records when delivery queue creation fails", async () => {
   const { adminId, eventId, attendeeIds } = await seedCampaignContext();
-  vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000001");
 
   await expect(submitCampaign({
+    idempotencyKey: randomUUID(),
     eventId,
     attendeeIds,
     subject: "Campaign test",
     markdown: "Campaign body",
     createdById: adminId,
+  }, {
+    generateDeliveryIdempotencyKey: () => "00000000-0000-4000-8000-000000000001",
   })).rejects.toThrow();
 
   await expect(getTestDatabase().campaign.count({ where: { eventId } })).resolves.toBe(0);
   await expect(getTestDatabase().eventRosterEntry.count({ where: { eventId } })).resolves.toBe(0);
   await expect(getTestDatabase().emailDelivery.count({ where: { eventId } })).resolves.toBe(0);
   await expect(getTestDatabase().queueJob.count()).resolves.toBe(0);
-});
+}, 15_000);

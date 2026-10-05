@@ -147,13 +147,17 @@ test("publishes a complete draft using a conditional transition", async () => {
   });
 });
 
-test("selects only the banner filename and the roster count for event lists", async () => {
+test("selects banner data, roster counts, and actual attendance for event lists", async () => {
   await listEvents();
   await getEvent("event-id");
 
   const imageAsset = { select: { originalFilename: true, objectKey: true, storageBucket: true } };
   expect(eventFindMany).toHaveBeenCalledWith({
-    include: { imageAsset, _count: { select: { rosterEntries: true } } },
+    include: {
+      imageAsset,
+      _count: { select: { rosterEntries: true } },
+      rosterEntries: { select: { status: true } },
+    },
     orderBy: { startsAt: "desc" },
   });
   expect(eventFindUnique).toHaveBeenCalledWith({

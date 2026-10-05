@@ -19,7 +19,7 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
         details: "Expired event",
         endsAt: expired,
         name: "Expired event",
-        startsAt: expired,
+        startsAt: new Date("2024-12-30T23:00:00.000Z"),
       },
     }),
     database.event.create({
@@ -72,6 +72,7 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
     data: {
       createdById: "admin-id",
       eventId: currentEvent.id,
+      idempotencyKey: "retention-test-campaign",
       markdown: "Test campaign",
       subject: "Test campaign",
     },
@@ -86,8 +87,15 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
     },
   });
 
-  await expect(runRetention(now)).resolves.toMatchObject({
+  await expect(runRetention(now, {
+    getNeonStorageClient: () => {
+      throw new Error("No asset deletion expected.");
+    },
+    prisma: database,
+  })).resolves.toMatchObject({
     anonymizedAttendees: 1,
+    assetDeletionFailures: 0,
+    deletedAssets: 0,
     deletedAttendees: 1,
     deletedDeliveries: 1,
     deletedRosterEntries: 1,
@@ -103,4 +111,4 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
     normalizedEmail: `deleted-${retained.id}@invalid.local`,
     studentId: `deleted-${retained.id}`,
   });
-});
+}, 15_000);

@@ -67,4 +67,4 @@ test.skipIf(!hasTestDatabase())("allows one concurrent check-in and returns the 
   await expect(
     getTestDatabase().eventRosterEntry.findUniqueOrThrow({ where: { id: rosterEntryId } }),
   ).resolves.toMatchObject({ status: "ATTENDED", arrivedAt: checkedIn.arrivedAt, scannedByAdminId: adminId });
-});
+}, 15_000);

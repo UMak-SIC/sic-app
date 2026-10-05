@@ -1,6 +1,6 @@
 import "server-only";
 
-import { EventStatus } from "@prisma/client";
+import { EventStatus, RosterEntryStatus } from "@prisma/client";
 import { getPrismaClient } from "@/lib/prisma";
 
 export class EventOrganizerError extends Error {}
@@ -75,6 +75,30 @@ export async function saveEventPeople(eventId: string, attendeeIds: string[], or
     const known = await transaction.attendee.count({ where: { id: { in: allIds }, deletedAt: null } });
     if (known !== allIds.length) throw new EventOrganizerError("One or more selected people are no longer in the attendee directory.");
 
+    const protectedEntries = await transaction.eventRosterEntry.findMany({
+      where: {
+        eventId,
+        attendeeId: { notIn: rosterIds },
+        OR: [
+          { status: { not: RosterEntryStatus.PENDING } },
+          { deliveries: { some: {} } },
+        ],
+      },
+      select: { attendee: { select: { name: true } } },
+    });
+    if (protectedEntries.length > 0) {
+      const names = protectedEntries.map((entry) => entry.attendee.name).join(", ");
+      throw new EventOrganizerError(`Cannot remove ${names} because their attendance or email history must be kept.`);
+    }
+
+    await transaction.eventRosterEntry.deleteMany({
+      where: {
+        eventId,
+        attendeeId: { notIn: rosterIds },
+        status: RosterEntryStatus.PENDING,
+        deliveries: { none: {} },
+      },
+    });
     const roster = await transaction.eventRosterEntry.createMany({
       data: rosterIds.map((attendeeId) => ({ eventId, attendeeId })),
       skipDuplicates: true,
@@ -83,6 +107,13 @@ export async function saveEventPeople(eventId: string, attendeeIds: string[], or
     if (organizerIdsUnique.length) {
       await transaction.eventOrganizer.createMany({ data: organizerIdsUnique.map((attendeeId) => ({ eventId, attendeeId })) });
     }
-    return { addedAttendees: roster.count };
+    return {
+      addedAttendees: roster.count,
+      attendeeIds: (await transaction.eventRosterEntry.findMany({
+        where: { eventId },
+        select: { attendeeId: true },
+      })).map((entry) => entry.attendeeId),
+      organizerIds: organizerIdsUnique,
+    };
   });
 }
