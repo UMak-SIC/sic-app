@@ -12,7 +12,10 @@ import { searchGlobalAttendees } from "@/lib/services/attendee-search-service";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  findMany.mockResolvedValue([{ course: "BSIT" }, { course: "BSCS" }]);
+  findMany
+    .mockResolvedValueOnce([{ course: "CCIS" }])
+    .mockResolvedValueOnce([{ program: "BSIT" }, { program: "BSCS" }])
+    .mockResolvedValueOnce([{ section: "BSIT-2A" }]);
   queryRaw.mockResolvedValue([
     {
       id: "6a5d30af-f299-4c8c-8de2-cbfa9d79d3df",
@@ -54,8 +57,12 @@ test("maps the guarded search result into the directory shape", async () => {
   expect(result.attendees[0].organizedEvents).toEqual([
     { id: "event-2", name: "Student Leadership Summit", startsAt: new Date("2026-10-24T00:00:00.000Z") },
   ]);
-  // The courses actually on file, so the filter does not list a fixed set of three.
-  expect(result.facets).toEqual({ courses: ["BSIT", "BSCS"] });
+  // The values actually on file, so suggestions do not use hardcoded presets.
+  expect(result.facets).toEqual({
+    courses: ["CCIS"],
+    programs: ["BSIT", "BSCS"],
+    sections: ["BSIT-2A"],
+  });
 });
 
 test("the course list is not narrowed by the filters already in force", async () => {

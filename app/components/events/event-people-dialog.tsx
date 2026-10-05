@@ -18,6 +18,11 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type DirectoryAttendee = { id: string; name: string; studentId: string; email: string; course: string | null };
+type DirectoryResponse = {
+  attendees: DirectoryAttendee[];
+  pagination: { page: number; totalPages: number };
+  facets?: { courses?: string[]; programs?: string[]; sections?: string[] };
+};
 type Target = "attendees" | "organizers";
 
 type Props = {
@@ -40,6 +45,11 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange, onSa
   const [error, setError] = React.useState("");
   const [directoryPage, setDirectoryPage] = React.useState(1);
   const [totalPages, setTotalPages] = React.useState(1);
+  const [departmentOptions, setDepartmentOptions] = React.useState<string[]>([]);
+  const [programOptions, setProgramOptions] = React.useState<string[]>([]);
+  const [sectionOptions, setSectionOptions] = React.useState<string[]>([]);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const loadingMoreRef = React.useRef(false);
   const [csvImport, setCsvImport] = React.useState<{ content: string; preview: ImportPreview } | null>(null);
 
   const load = React.useEffectEvent(async () => {
@@ -51,10 +61,16 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange, onSa
       setError("People could not be loaded. Refresh the page and try again.");
       return;
     }
-    const [directory, people] = await Promise.all([directoryResponse.json(), peopleResponse.json()]);
+    const [directory, people] = await Promise.all([directoryResponse.json(), peopleResponse.json()]) as [
+      DirectoryResponse,
+      { attendees: DirectoryAttendee[]; organizers: DirectoryAttendee[] },
+    ];
     setAttendees(directory.attendees);
     setDirectoryPage(directory.pagination.page);
     setTotalPages(directory.pagination.totalPages);
+    setDepartmentOptions(directory.facets?.courses ?? []);
+    setProgramOptions(directory.facets?.programs ?? []);
+    setSectionOptions(directory.facets?.sections ?? []);
     setSelectedAttendeeIds(people.attendees.map((person: DirectoryAttendee) => person.id));
     setSelectedOrganizerIds(people.organizers.map((person: DirectoryAttendee) => person.id));
   });
@@ -86,16 +102,31 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange, onSa
   }
 
   async function loadMore() {
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    setError("");
     const nextPage = directoryPage + 1;
-    const response = await fetch(`/api/attendees?pageSize=100&page=${nextPage}`);
-    if (!response.ok) {
+    try {
+      const response = await fetch(`/api/attendees?pageSize=100&page=${nextPage}`);
+      if (!response.ok) {
+        setError("More people could not be loaded. Try again.");
+        return;
+      }
+      const data = await response.json();
+      setAttendees((current) => {
+        const byId = new Map(current.map((attendee) => [attendee.id, attendee]));
+        for (const attendee of data.attendees as DirectoryAttendee[]) byId.set(attendee.id, attendee);
+        return [...byId.values()];
+      });
+      setDirectoryPage(data.pagination.page);
+      setTotalPages(data.pagination.totalPages);
+    } catch {
       setError("More people could not be loaded. Try again.");
-      return;
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
     }
-    const data = await response.json();
-    setAttendees((current) => [...current, ...data.attendees]);
-    setDirectoryPage(data.pagination.page);
-    setTotalPages(data.pagination.totalPages);
   }
 
   async function importCsv(file: File) {
@@ -257,7 +288,7 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange, onSa
                 ))}
                 {filtered.length === 0 && <p className="p-8 text-center text-sm text-muted">No people match this search.</p>}
               </div>
-              {directoryPage < totalPages && <Button type="button" variant="outline" onClick={() => void loadMore()} className="mt-3 self-center rounded-[6px] border-line text-xs">Load more people</Button>}
+              {directoryPage < totalPages && <Button type="button" variant="outline" disabled={loadingMore} onClick={() => void loadMore()} className="mt-3 self-center rounded-[6px] border-line text-xs">{loadingMore ? "Loading people..." : "Load more people"}</Button>}
             </TabsContent>
           </Tabs>
           <DialogFooter className="border-t border-line-subtle px-5 py-4">
@@ -266,12 +297,19 @@ export function EventPeopleDialog({ eventId, eventName, open, onOpenChange, onSa
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {addingPerson && <AttendeeFormDialog open={addingPerson} onOpenChange={setAddingPerson} onSaved={(person) => {
+      {addingPerson && <AttendeeFormDialog
+        open={addingPerson}
+        onOpenChange={setAddingPerson}
+        departmentOptions={departmentOptions}
+        programOptions={programOptions}
+        sectionOptions={sectionOptions}
+        onSaved={(person) => {
         void load().then(() => {
           setSelectedIds((ids) => [...new Set([...ids, person.id])]);
         });
         setNotice(`${person.restored ? "Restored" : "Added"} ${person.id ? "and selected" : ""}.`);
-      }} />}
+        }}
+      />}
     </>
   );
 }

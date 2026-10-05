@@ -48,8 +48,8 @@ type AttendeeDto = {
 type DirectoryResponse = {
   attendees: AttendeeDto[];
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
-  /** Distinct courses present, so the filter lists real values. */
-  facets?: { courses?: string[] };
+  /** Distinct values present in the directory, for filters and form suggestions. */
+  facets?: { courses?: string[]; programs?: string[]; sections?: string[] };
   timezone: string;
 };
 
@@ -57,6 +57,8 @@ export type DirectoryResult = {
   attendees: AttendeeItem[];
   pagination: DirectoryResponse["pagination"];
   courses: string[];
+  programs: string[];
+  sections: string[];
 };
 
 /** The filters the directory and the export both apply. */
@@ -174,6 +176,8 @@ export async function fetchAttendeeDirectory({
     attendees: payload.attendees.map((row) => toAttendeeItem(row, payload.timezone)),
     pagination: payload.pagination,
     courses: payload.facets?.courses ?? [],
+    programs: payload.facets?.programs ?? [],
+    sections: payload.facets?.sections ?? [],
   };
 }
 

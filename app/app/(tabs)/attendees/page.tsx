@@ -49,6 +49,8 @@ export default function AttendeesPage() {
   const [eventIdFilter, setEventIdFilter] = React.useState("all");
   /** Courses the directory actually holds, from the API's facets. */
   const [courseOptions, setCourseOptions] = React.useState<string[]>([]);
+  const [programOptions, setProgramOptions] = React.useState<string[]>([]);
+  const [sectionOptions, setSectionOptions] = React.useState<string[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [selectedAttendeesMap, setSelectedAttendeesMap] = React.useState<Map<string, AttendeeItem>>(
     () => new Map()
@@ -181,6 +183,8 @@ export default function AttendeesPage() {
         setStudents(result.attendees);
         setPagination(result.pagination);
         setCourseOptions(result.courses);
+        setProgramOptions(result.programs);
+        setSectionOptions(result.sections);
         setLoadError(null);
         setLoadedKey(wantedKey);
       })
@@ -573,7 +577,9 @@ export default function AttendeesPage() {
         <AttendeeFormDialog
           open
           onOpenChange={setIsAddOpen}
-          courseOptions={courseOptions}
+          departmentOptions={courseOptions}
+          programOptions={programOptions}
+          sectionOptions={sectionOptions}
           onSaved={handleAttendeeSaved}
         />
       ) : null}
@@ -585,7 +591,9 @@ export default function AttendeesPage() {
             if (!next) setAttendeeBeingEdited(null);
           }}
           attendee={attendeeBeingEdited}
-          courseOptions={courseOptions}
+          departmentOptions={courseOptions}
+          programOptions={programOptions}
+          sectionOptions={sectionOptions}
           onSaved={handleAttendeeSaved}
         />
       ) : null}

@@ -75,6 +75,8 @@ export type ListAttendeesResult = {
    */
   facets?: {
     courses: string[];
+    programs: string[];
+    sections: string[];
   };
 };
 
