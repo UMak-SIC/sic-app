@@ -1,6 +1,8 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import QRCode from "qrcode";
 import sharp from "sharp";
@@ -41,6 +43,13 @@ export type QrTicketImage = {
 const DEFAULT_ERROR_CORRECTION: "L" | "M" | "Q" | "H" = "M";
 const DEFAULT_MODULE_SIZE = 8;
 const DEFAULT_MARGIN = 4;
+
+// Serverless images, including Vercel's, do not guarantee any system fonts.
+// Embed this licensed project font so librsvg cannot replace every character
+// with a missing-glyph box when it rasterizes a pass.
+const PASS_FONT_DATA_URL = `data:font/otf;base64,${readFileSync(
+  join(process.cwd(), "fonts", "Agrandir-Regular.otf"),
+).toString("base64")}`;
 
 function requireTicket(ticket: string): string {
   const trimmed = ticket.trim();
@@ -150,7 +159,7 @@ export async function renderQrTicketPassImage({
   eventName: string;
 }): Promise<QrTicketImage> {
   const qr = await renderQrTicketImage(ticket);
-  const pass = Buffer.from(`<svg width="840" height="320" viewBox="0 0 840 320" xmlns="http://www.w3.org/2000/svg"><rect width="840" height="320" rx="16" fill="#fbfdfd"/><rect x="1" y="1" width="838" height="318" rx="15" fill="none" stroke="#cfe0e0" stroke-width="2"/><path d="M558 1V319" stroke="#cfe0e0" stroke-width="2" stroke-dasharray="5 6"/><text x="40" y="56" fill="#12333a" font-family="Arial, sans-serif" font-size="22" font-weight="700">UMak SIC Pass</text><text x="40" y="84" fill="#607579" font-family="Arial, sans-serif" font-size="15">${escapeXml(eventName)}</text><text x="40" y="132" fill="#607579" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">ATTENDEE NAME</text><text x="40" y="160" fill="#12333a" font-family="Arial, sans-serif" font-size="22" font-weight="700">${escapeXml(attendeeName)}</text><text x="40" y="204" fill="#607579" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="1.5">STUDENT ID NUMBER</text><text x="40" y="230" fill="#12333a" font-family="Arial, sans-serif" font-size="16" font-weight="700">${escapeXml(studentId)}</text><text x="40" y="278" fill="#607579" font-family="Arial, sans-serif" font-size="13">Present this pass at check-in.</text><rect x="600" y="43" width="198" height="198" rx="12" fill="#ffffff" stroke="#cfe0e0" stroke-width="2"/><text x="699" y="278" fill="#087f8c" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="1.5">CHECK-IN PASS</text></svg>`);
+  const pass = Buffer.from(`<svg width="840" height="320" viewBox="0 0 840 320" xmlns="http://www.w3.org/2000/svg"><style>@font-face { font-family: SICPass; src: url('${PASS_FONT_DATA_URL}') format('opentype'); } text { font-family: SICPass; }</style><rect width="840" height="320" rx="16" fill="#fbfdfd"/><rect x="1" y="1" width="838" height="318" rx="15" fill="none" stroke="#cfe0e0" stroke-width="2"/><path d="M558 1V319" stroke="#cfe0e0" stroke-width="2" stroke-dasharray="5 6"/><text x="40" y="56" fill="#12333a" font-size="22" font-weight="700">UMak SIC Pass</text><text x="40" y="84" fill="#607579" font-size="15">${escapeXml(eventName)}</text><text x="40" y="132" fill="#607579" font-size="12" font-weight="700" letter-spacing="1.5">ATTENDEE NAME</text><text x="40" y="160" fill="#12333a" font-size="22" font-weight="700">${escapeXml(attendeeName)}</text><text x="40" y="204" fill="#607579" font-size="12" font-weight="700" letter-spacing="1.5">STUDENT ID NUMBER</text><text x="40" y="230" fill="#12333a" font-size="16" font-weight="700">${escapeXml(studentId)}</text><text x="40" y="278" fill="#607579" font-size="13">Present this pass at check-in.</text><rect x="600" y="43" width="198" height="198" rx="12" fill="#ffffff" stroke="#cfe0e0" stroke-width="2"/><text x="699" y="278" fill="#087f8c" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="1.5">CHECK-IN PASS</text></svg>`);
   const image = await sharp(pass)
     .composite([{
       input: await sharp(qr.buffer).resize(170, 170, { kernel: sharp.kernel.nearest }).png().toBuffer(),

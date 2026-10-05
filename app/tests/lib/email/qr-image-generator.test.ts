@@ -1,5 +1,8 @@
+import { createHash } from "node:crypto";
+
 import jsQR from "jsqr";
 import { PNG } from "pngjs";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import {
@@ -144,6 +147,25 @@ describe("renderQrTicketPassImage", () => {
     expect([...image.buffer.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
     expect(image.mediaType).toBe("image/png");
     expect(image.contentId).toBe(qrTicketCid(value));
+  });
+
+  test("embeds a font instead of relying on the serverless runtime", async () => {
+    const image = await renderQrTicketPassImage({
+      ticket: "test-ticket",
+      attendeeName: "Ada Lovelace",
+      studentId: "S-001",
+      eventName: "UMak SIC Summit",
+    });
+    const titlePixels = await sharp(image.buffer)
+      .extract({ left: 40, top: 30, width: 180, height: 32 })
+      .raw()
+      .toBuffer();
+
+    // This title crop changes to the repeated tofu glyph when no font is
+    // available to librsvg in a serverless runtime.
+    expect(createHash("sha256").update(titlePixels).digest("hex")).toBe(
+      "b1df1eff1ec5cfd1cae62301970de48ada5686573a73c369dc2d838e4b39afff",
+    );
   });
 });
 

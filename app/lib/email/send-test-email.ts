@@ -2,7 +2,7 @@ export type TestEmailRequest = {
   to: string;
   subject: string;
   markdown: string;
-  includeDummyTicket?: boolean;
+  includePracticePass?: boolean;
 };
 
 type TestEmailResponse = {
