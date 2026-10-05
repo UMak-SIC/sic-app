@@ -6,15 +6,13 @@ import ws from "ws";
 const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 const activeDatabaseUrl = process.env.DATABASE_URL;
 
-if (!testDatabaseUrl) {
-  throw new Error("TEST_DATABASE_URL is required to run database tests.");
-}
-
 neonConfig.webSocketConstructor = ws;
 
-const testDatabase = new PrismaClient({
-  adapter: new PrismaNeon({ connectionString: testDatabaseUrl }),
-});
+const testDatabase = testDatabaseUrl
+  ? new PrismaClient({
+      adapter: new PrismaNeon({ connectionString: testDatabaseUrl }),
+    })
+  : undefined;
 
 const applicationTables = [
   "delivery_attempts",
@@ -31,14 +29,22 @@ const applicationTables = [
 ];
 
 export function hasTestDatabase(): boolean {
-  return true;
+  return testDatabase !== undefined;
 }
 
 export function getTestDatabase(): PrismaClient {
+  if (!testDatabase) {
+    throw new Error("Database tests require TEST_DATABASE_URL for an isolated test database.");
+  }
+
   return testDatabase;
 }
 
 export async function cleanTestDatabase(): Promise<void> {
+  if (!testDatabase) {
+    return;
+  }
+
   if (activeDatabaseUrl === testDatabaseUrl) {
     throw new Error(
       "Refusing to truncate because DATABASE_URL points to TEST_DATABASE_URL.",
@@ -51,7 +57,7 @@ export async function cleanTestDatabase(): Promise<void> {
 }
 
 export async function disconnectTestDatabase(): Promise<void> {
-  await testDatabase.$disconnect();
+  await testDatabase?.$disconnect();
 }
 
 export async function seedTestDatabase<T>(
