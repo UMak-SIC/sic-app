@@ -8,17 +8,92 @@ import { AssetLibraryView } from "@/components/assets/asset-library-view";
 import { AssetDetailSheet } from "@/components/assets/asset-detail-sheet";
 import { AssetUploadDialog } from "@/components/assets/asset-upload-dialog";
 import { AssetPolicyDialog } from "@/components/assets/asset-policy-dialog";
-import { INITIAL_ASSETS, STORAGE_KPIS_DATA } from "@/components/assets/asset-data";
 import { AssetItem, StorageKpis } from "@/components/assets/asset-types";
 
+type AssetResponse = {
+  id: string;
+  objectKey: string;
+  originalFilename: string;
+  mediaType: string;
+  byteSize: number;
+  uploadedAt: string;
+  url: string | null;
+  references: AssetItem["references"];
+};
+
+function formatAsset(asset: AssetResponse): AssetItem {
+  const isDocument = asset.mediaType === "application/pdf" || asset.originalFilename.toLowerCase().endsWith(".pdf");
+  const format = isDocument
+    ? "pdf"
+    : asset.originalFilename.toLowerCase().endsWith(".png")
+    ? "png"
+    : asset.originalFilename.toLowerCase().endsWith(".webp")
+    ? "webp"
+    : "jpg";
+
+  return {
+    ...asset,
+    format,
+    category: isDocument ? "document" : "image",
+    fileSizeFormatted: asset.byteSize >= 1024 * 1024
+      ? `${(asset.byteSize / (1024 * 1024)).toFixed(1)} MB`
+      : `${Math.max(1, Math.round(asset.byteSize / 1024))} KB`,
+    uploadedBy: "Administrator",
+    uploadedAt: new Date(asset.uploadedAt).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    previewUrl: isDocument ? undefined : asset.url ?? undefined,
+    downloadCount: 0,
+  };
+}
+
 export default function AssetsPage() {
-  const [assets, setAssets] = React.useState<AssetItem[]>(INITIAL_ASSETS);
+  const [assets, setAssets] = React.useState<AssetItem[]>([]);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = React.useState<AssetItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
   const [isUploadOpen, setIsUploadOpen] = React.useState(false);
   const [isPolicyOpen, setIsPolicyOpen] = React.useState(false);
 
-  // Compute dynamic KPIs
+  const loadAssets = React.useEffectEvent(async () => {
+    try {
+      const response = await fetch("/api/assets");
+      if (!response.ok) throw new Error("Unable to load files.");
+
+      const payload = await response.json() as { assets: AssetResponse[] };
+      setAssets(payload.assets.map(formatAsset));
+      setLoadError(null);
+    } catch {
+      setLoadError("We could not load your files. Please refresh the page and try again.");
+    }
+  });
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+
+    void fetch("/api/assets", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Unable to load files.");
+        return response.json() as Promise<{ assets: AssetResponse[] }>;
+      })
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        setAssets(payload.assets.map(formatAsset));
+        setLoadError(null);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setLoadError("We could not load your files. Please refresh the page and try again.");
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+
   const currentKpis: StorageKpis = React.useMemo(() => {
     const totalBytes = assets.reduce((acc, a) => acc + a.byteSize, 0);
     const sizeInMb = (totalBytes / (1024 * 1024)).toFixed(1);
@@ -29,8 +104,6 @@ export default function AssetsPage() {
     return {
       totalBytesUsed: totalBytes,
       totalBytesFormatted: `${sizeInMb} MB`,
-      storageQuotaBytes: STORAGE_KPIS_DATA.storageQuotaBytes,
-      storageQuotaFormatted: STORAGE_KPIS_DATA.storageQuotaFormatted,
       totalFilesCount: assets.length,
       imageCount,
       documentCount: docCount,
@@ -45,47 +118,20 @@ export default function AssetsPage() {
     setIsDetailOpen(true);
   };
 
-  const handleAssetUploaded = (newAsset: AssetItem) => {
-    setAssets((prev) => [newAsset, ...prev]);
+  const handleAssetUploaded = () => {
+    void loadAssets();
   };
 
-  const handleDirectUpload = (file: File) => {
-    const isImage = file.type.startsWith("image/");
-    const format = file.name.endsWith(".png")
-      ? "png"
-      : file.name.endsWith(".webp")
-      ? "webp"
-      : file.name.endsWith(".pdf")
-      ? "pdf"
-      : "jpg";
-
-    const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
-    const sizeFormatted =
-      file.size > 1024 * 1024
-        ? `${sizeInMb} MB`
-        : `${Math.round(file.size / 1024)} KB`;
-
-    const newAsset: AssetItem = {
-      id: "ast_" + Date.now(),
-      objectKey: `assets/${isImage ? "banners" : "documents"}/${file.name}`,
-      originalFilename: file.name,
-      mediaType: file.type || (isImage ? "image/jpeg" : "application/pdf"),
-      format,
-      category: isImage ? "image" : "document",
-      byteSize: file.size,
-      fileSizeFormatted: sizeFormatted,
-      uploadedBy: "Charles Reyes",
-      uploadedAt: "Just now",
-      dimensions: isImage ? "1200 × 500 px" : undefined,
-      pageCount: isImage ? undefined : 1,
-      sha256Hash: "b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9",
-      url: isImage ? URL.createObjectURL(file) : "#",
-      previewUrl: isImage ? URL.createObjectURL(file) : undefined,
-      references: [],
-      downloadCount: 0,
-    };
-
-    setAssets((prev) => [newAsset, ...prev]);
+  const handleDirectUpload = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.set("file", file);
+      const response = await fetch("/api/assets/public/upload", { method: "POST", body: formData });
+      if (!response.ok) throw new Error("Unable to upload file.");
+      await loadAssets();
+    } catch {
+      setLoadError("We could not upload that file. Please try again.");
+    }
   };
 
   const handleDeleteAsset = (id: string) => {
@@ -110,6 +156,12 @@ export default function AssetsPage() {
 
       {/* 2. Storage Metric KPI Row */}
       <AssetKpiRow kpis={currentKpis} />
+
+      {loadError && (
+        <p className="rounded-[6px] border border-red-border bg-red-soft px-3 py-2 text-xs text-red">
+          {loadError}
+        </p>
+      )}
 
       {/* 3. Main Asset Library View */}
       <AssetLibraryView

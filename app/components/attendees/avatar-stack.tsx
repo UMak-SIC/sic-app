@@ -8,7 +8,7 @@ export interface EventBadgeItem {
   id: string;
   title: string;
   date: string;
-  attended: boolean;
+  attended?: boolean;
 }
 
 export interface AvatarStackProps {

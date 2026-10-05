@@ -161,7 +161,7 @@ function splitCsvRows(text: string): CsvRow[] {
 }
 
 function normalizeHeader(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  return trimImportedField(value).toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function detectColumns(header: string[]): ColumnMap | null {
@@ -195,9 +195,16 @@ function readCell(row: string[], column: number): string | null {
     return null;
   }
 
-  const value = row[column]?.trim() ?? "";
+  const value = trimImportedField(row[column] ?? "");
 
   return value === "" ? null : value;
+}
+
+// Spreadsheet exports occasionally carry invisible direction and zero-width marks
+// around a value. They are not part of an attendee's details and would otherwise
+// make an otherwise valid student ID fail validation.
+function trimImportedField(value: string): string {
+  return value.replace(/^[\s\u200B-\u200D\u200E\u200F\u2060\uFEFF]+|[\s\u200B-\u200D\u200E\u200F\u2060\uFEFF]+$/gu, "");
 }
 
 type BuildOutcome =
@@ -301,7 +308,7 @@ function buildRecord(
 
 // Strips the decorations people paste from a bulleted or numbered list.
 function stripListDecoration(value: string): string {
-  return value.replace(/^\s*(?:[-*•‣▪]|\d+[.)])\s+/, "").trim();
+  return trimImportedField(value.replace(/^\s*(?:[-*•‣▪]|\d+[.)])\s+/, ""));
 }
 
 // US-09: comma, line break, or list separated. Splitting on all of them at once

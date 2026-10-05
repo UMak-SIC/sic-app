@@ -183,7 +183,16 @@ export default function EventDetailPage() {
       <EventPeopleTab eventId={event.id} />
 
       <EventFormDialog open={editing} onOpenChange={setEditing} event={event} timezone={timezone} onSaved={loadEvent} />
-      <EventPeopleDialog eventId={event.id} eventName={event.name} open={managingPeople} onOpenChange={setManagingPeople} />
+      <EventPeopleDialog
+        eventId={event.id}
+        eventName={event.name}
+        open={managingPeople}
+        onOpenChange={setManagingPeople}
+        onSaved={async () => {
+          await loadEvent();
+          setNotice("Event people saved successfully.");
+        }}
+      />
       <LiveCheckinDialog open={scannerOpen} onOpenChange={setScannerOpen} eventId={event.id} eventName={event.name} totalAttended={0} totalRegistered={selectedPeople} />
     </div>
   );
