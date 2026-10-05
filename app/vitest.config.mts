@@ -11,10 +11,14 @@ const testDatabaseUrl =
   rootTestEnv.TEST_DATABASE_URL ??
   rootTestEnv.NEON_TEST_DATABASE_URL;
 
-if (testDatabaseUrl) {
-  process.env.TEST_DATABASE_URL = testDatabaseUrl;
-  process.env.DATABASE_URL = testDatabaseUrl;
+if (!testDatabaseUrl) {
+  throw new Error("TEST_DATABASE_URL is required to run the test suite.");
 }
+if (process.env.DATABASE_URL === testDatabaseUrl) {
+  throw new Error("DATABASE_URL must not point to the TEST_DATABASE_URL database.");
+}
+
+process.env.TEST_DATABASE_URL = testDatabaseUrl;
 
 export default defineConfig({
   resolve: {

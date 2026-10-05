@@ -53,6 +53,7 @@ test.skipIf(!hasTestDatabase())("creates one roster entry, delivery, and queue j
   const { adminId, eventId, attendeeIds } = await seedCampaignContext();
 
   const result = await submitCampaign({
+    idempotencyKey: crypto.randomUUID(),
     eventId,
     attendeeIds,
     subject: "Campaign test",
@@ -71,6 +72,7 @@ test.skipIf(!hasTestDatabase())("rolls back campaign records when delivery queue
   vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000001");
 
   await expect(submitCampaign({
+    idempotencyKey: crypto.randomUUID(),
     eventId,
     attendeeIds,
     subject: "Campaign test",

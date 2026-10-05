@@ -13,6 +13,7 @@ type ClaimQueueJobsInput = {
 export type ClaimedQueueJob = {
   id: string;
   deliveryId: string;
+  idempotencyKey: string;
   retryCount: number;
   maxRetries: number;
   scheduledAt: Date;
@@ -56,10 +57,12 @@ export async function claimQueueJobs({
           locked_by = ${workerId},
           updated_at = NOW()
         FROM claimable_jobs
+        JOIN email_deliveries AS delivery ON delivery.id = job.delivery_id
         WHERE job.id = claimable_jobs.id
         RETURNING
           job.id,
           job.delivery_id AS "deliveryId",
+          delivery.idempotency_key AS "idempotencyKey",
           job.retry_count AS "retryCount",
           job.max_retries AS "maxRetries",
           job.scheduled_at AS "scheduledAt",

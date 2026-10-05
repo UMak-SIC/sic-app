@@ -72,6 +72,7 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
     data: {
       createdById: "admin-id",
       eventId: currentEvent.id,
+      idempotencyKey: "retention-test-campaign",
       markdown: "Test campaign",
       subject: "Test campaign",
     },

@@ -57,6 +57,7 @@ test.skipIf(!hasTestDatabase())("does not claim the same job twice concurrently"
       data: {
         id: campaignId,
         eventId,
+        idempotencyKey: "queue-test-campaign",
         subject: "Queue test campaign",
         markdown: "Queue test campaign body",
         createdById: adminId,

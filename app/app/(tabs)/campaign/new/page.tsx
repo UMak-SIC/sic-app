@@ -41,6 +41,7 @@ function NewCampaignContent() {
   const [organizerRecipients, setOrganizerRecipients] = React.useState<StudentRecipient[]>([]);
   const [selectedRosterRecipientIds, setSelectedRosterRecipientIds] = React.useState<string[]>([]);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const submissionKey = React.useRef(crypto.randomUUID());
   const requestedEventId = searchParams.get("eventId");
 
   React.useEffect(() => {
@@ -182,6 +183,7 @@ function NewCampaignContent() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        idempotencyKey: submissionKey.current,
         eventId: draft.eventId,
         attendeeIds: [...new Set(recipients.map((recipient) => recipient.id))],
         subject: draft.subject,

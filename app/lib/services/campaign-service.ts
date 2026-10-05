@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DeliveryStatus, EventStatus, QueueJobStatus } from "@prisma/client";
+import { DeliveryStatus, EventStatus, Prisma, QueueJobStatus } from "@prisma/client";
 
 import { getPrismaClient } from "@/lib/prisma";
 
@@ -13,6 +13,7 @@ const MANUAL_RETRY_ATTEMPTS = 3;
 export class CampaignError extends Error {}
 
 export type SubmitCampaignInput = {
+  idempotencyKey: string;
   eventId: string;
   attendeeIds: string[];
   subject: string;
@@ -92,7 +93,7 @@ function cleanCampaignInput(input: SubmitCampaignInput) {
   return { subject, markdown, attendeeIds };
 }
 
-function countsFrom(rows: { status: DeliveryStatus; _count: { _all: number } }[]) {
+function countsFrom(rows: { status: DeliveryStatus; _count?: { _all: number } }[]) {
   const counts: Record<DeliveryStatus, number> = {
     QUEUED: 0,
     SENDING: 0,
@@ -101,20 +102,34 @@ function countsFrom(rows: { status: DeliveryStatus; _count: { _all: number } }[]
     FAILED: 0,
   };
 
-  for (const row of rows) counts[row.status] = row._count._all;
+  for (const row of rows) counts[row.status] += row._count?._all ?? 1;
   return counts;
 }
 
 export async function submitCampaign(input: SubmitCampaignInput) {
   const { subject, markdown, attendeeIds } = cleanCampaignInput(input);
+  const idempotencyKey = input.idempotencyKey.trim();
   const assetBindings = input.assets ?? [];
   const assetIds = [...new Set(assetBindings.map((asset) => asset.assetId))];
 
   if (assetIds.length !== assetBindings.length) {
     throw new CampaignError("Each uploaded file can only be added once.");
   }
+  if (!idempotencyKey) {
+    throw new CampaignError("This email request needs a submission key. Please try again.");
+  }
 
-  return getPrismaClient().$transaction(async (transaction) => {
+  const prisma = getPrismaClient();
+  try {
+    return await prisma.$transaction(async (transaction) => {
+    const existingCampaign = await transaction.campaign.findUnique({
+      where: { idempotencyKey },
+      select: { id: true, _count: { select: { emailDeliveries: true } } },
+    });
+    if (existingCampaign) {
+      return { campaignId: existingCampaign.id, queuedCount: existingCampaign._count.emailDeliveries };
+    }
+
     const event = await transaction.event.findFirst({
       where: { id: input.eventId, status: EventStatus.PUBLISHED },
       select: { id: true },
@@ -158,6 +173,7 @@ export async function submitCampaign(input: SubmitCampaignInput) {
     const campaign = await transaction.campaign.create({
       data: {
         eventId: event.id,
+        idempotencyKey,
         subject,
         markdown,
         createdById: input.createdById,
@@ -183,7 +199,19 @@ export async function submitCampaign(input: SubmitCampaignInput) {
     }
 
     return { campaignId: campaign.id, queuedCount: deliveries.length };
-  });
+    });
+  } catch (error) {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+      throw error;
+    }
+
+    const duplicateCampaign = await prisma.campaign.findUnique({
+      where: { idempotencyKey },
+      select: { id: true, _count: { select: { emailDeliveries: true } } },
+    });
+    if (!duplicateCampaign) throw error;
+    return { campaignId: duplicateCampaign.id, queuedCount: duplicateCampaign._count.emailDeliveries };
+  }
 }
 
 export async function listCampaigns(): Promise<CampaignListItem[]> {
@@ -202,6 +230,7 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
           attendeeId: true,
           deliveries: {
             select: {
+              campaignId: true,
               status: true,
             },
           },
@@ -220,26 +249,16 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
   });
 
   return events.map((event) => {
-    const totalStudents = event.rosterEntries.length;
-    let deliveredCount = 0;
-    let sendingCount = 0;
-    let invalidEmailCount = 0;
-    let unsentCount = 0;
-
-    for (const rosterEntry of event.rosterEntries) {
-      const statuses = rosterEntry.deliveries.map((d) => d.status);
-      if (statuses.includes(DeliveryStatus.SENT)) {
-        deliveredCount++;
-      } else if (statuses.includes(DeliveryStatus.SENDING) || statuses.includes(DeliveryStatus.QUEUED)) {
-        sendingCount++;
-      } else if (statuses.includes(DeliveryStatus.FAILED) || statuses.includes(DeliveryStatus.BOUNCED)) {
-        invalidEmailCount++;
-      } else {
-        unsentCount++;
-      }
-    }
-
     const latestCampaign = event.campaigns[0];
+    const totalStudents = event.rosterEntries.length;
+    const counts = countsFrom(latestCampaign
+      ? event.rosterEntries.flatMap((entry) =>
+          entry.deliveries.filter((delivery) => delivery.campaignId === latestCampaign.id),
+        )
+      : []);
+    const unsentCount = latestCampaign
+      ? Math.max(0, totalStudents - Object.values(counts).reduce((total, count) => total + count, 0))
+      : totalStudents;
     const subject = latestCampaign ? latestCampaign.subject : "No announcements sent yet";
     const primaryId = latestCampaign ? latestCampaign.id : event.id;
 
@@ -253,18 +272,12 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
       createdAt: latestCampaign ? latestCampaign.createdAt : event.createdAt,
       campaignsCount: event.campaigns.length,
       totalStudents,
-      deliveredCount,
-      sendingCount,
-      invalidEmailCount,
+      deliveredCount: counts.SENT,
+      sendingCount: counts.QUEUED + counts.SENDING,
+      invalidEmailCount: counts.FAILED + counts.BOUNCED,
       pendingCount: unsentCount,
       unsentCount,
-      counts: {
-        QUEUED: sendingCount,
-        SENDING: 0,
-        SENT: deliveredCount,
-        BOUNCED: 0,
-        FAILED: invalidEmailCount,
-      },
+      counts,
     };
   });
 }
@@ -340,21 +353,21 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
   const markdown = currentCampaign ? currentCampaign.markdown : "";
   const createdAt = currentCampaign ? currentCampaign.createdAt : event.createdAt;
 
-  let deliveredCount = 0;
-  let sendingCount = 0;
-  let invalidEmailCount = 0;
-  let unsentCount = 0;
+  const deliveryRows = event.rosterEntries.flatMap((rosterEntry) =>
+    rosterEntry.deliveries.filter((delivery) => delivery.campaignId === currentCampaign?.id),
+  );
+  const counts = countsFrom(deliveryRows.map((delivery) => ({
+    status: delivery.status,
+    _count: { _all: 1 },
+  })));
+  const unsentCount = event.rosterEntries.length - deliveryRows.length;
 
   const deliveries: CampaignDetail["deliveries"] = event.rosterEntries.map((rosterEntry) => {
     const matchingDelivery = currentCampaign
-      ? rosterEntry.deliveries.find((d) => d.campaignId === currentCampaign.id) ?? rosterEntry.deliveries[0]
-      : rosterEntry.deliveries[0];
+      ? rosterEntry.deliveries.find((d) => d.campaignId === currentCampaign.id)
+      : undefined;
 
     if (matchingDelivery) {
-      if (matchingDelivery.status === DeliveryStatus.SENT) deliveredCount++;
-      else if (matchingDelivery.status === DeliveryStatus.SENDING || matchingDelivery.status === DeliveryStatus.QUEUED) sendingCount++;
-      else if (matchingDelivery.status === DeliveryStatus.FAILED || matchingDelivery.status === DeliveryStatus.BOUNCED) invalidEmailCount++;
-
       return {
         id: matchingDelivery.id,
         status: matchingDelivery.status,
@@ -375,7 +388,6 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
       };
     }
 
-    unsentCount++;
     return {
       id: rosterEntry.id,
       status: "NOT_SENT" as const,
@@ -414,18 +426,12 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
     startsAt: event.startsAt,
     campaignsCount: event.campaigns.length,
     totalStudents: event.rosterEntries.length,
-    deliveredCount,
-    sendingCount,
-    invalidEmailCount,
+    deliveredCount: counts.SENT,
+    sendingCount: counts.QUEUED + counts.SENDING,
+    invalidEmailCount: counts.FAILED + counts.BOUNCED,
     pendingCount: unsentCount,
     unsentCount,
-    counts: {
-      QUEUED: sendingCount,
-      SENDING: 0,
-      SENT: deliveredCount,
-      BOUNCED: 0,
-      FAILED: invalidEmailCount,
-    },
+    counts,
     deliveries,
     campaignsHistory,
   };

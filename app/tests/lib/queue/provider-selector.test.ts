@@ -15,6 +15,7 @@ import type { ClaimedQueueJob } from "@/lib/queue/claim-jobs";
 const job: ClaimedQueueJob = {
   id: "job-1",
   deliveryId: "delivery-1",
+  idempotencyKey: "delivery-idempotency-key",
   retryCount: 1,
   maxRetries: 3,
   scheduledAt: new Date("2026-09-30T10:00:00.000Z"),
