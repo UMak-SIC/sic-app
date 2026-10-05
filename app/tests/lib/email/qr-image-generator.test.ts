@@ -1,4 +1,6 @@
-import { createHash } from "node:crypto";
+import { execFile as execFileCallback } from "node:child_process";
+import { resolve } from "node:path";
+import { promisify } from "node:util";
 
 import jsQR from "jsqr";
 import { PNG } from "pngjs";
@@ -21,6 +23,7 @@ const STARTS_AT = new Date("2026-10-01T09:00:00.000Z");
 const ENDS_AT = new Date("2026-10-01T17:00:00.000Z");
 
 const originalSecret = process.env.QR_TICKET_SECRET;
+const execFile = promisify(execFileCallback);
 
 beforeEach(() => {
   process.env.QR_TICKET_SECRET = SECRET;
@@ -147,25 +150,91 @@ describe("renderQrTicketPassImage", () => {
     expect([...image.buffer.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
     expect(image.mediaType).toBe("image/png");
     expect(image.contentId).toBe(qrTicketCid(value));
-  });
 
-  test("embeds a font instead of relying on the serverless runtime", async () => {
-    const image = await renderQrTicketPassImage({
-      ticket: "test-ticket",
-      attendeeName: "Ada Lovelace",
-      studentId: "S-001",
-      eventName: "UMak SIC Summit",
-    });
-    const titlePixels = await sharp(image.buffer)
-      .extract({ left: 40, top: 30, width: 180, height: 32 })
-      .raw()
+    const passQr = await sharp(image.buffer)
+      .extract({ left: 614, top: 57, width: 170, height: 170 })
+      .png()
       .toBuffer();
 
-    // This title crop changes to the repeated tofu glyph when no font is
-    // available to librsvg in a serverless runtime.
-    expect(createHash("sha256").update(titlePixels).digest("hex")).toBe(
-      "b1df1eff1ec5cfd1cae62301970de48ada5686573a73c369dc2d838e4b39afff",
-    );
+    expect(decode(passQr)).toBe(value);
+  });
+
+  test("uses the bundled font with no Fontconfig configuration", async () => {
+    const modulePath = resolve(process.cwd(), "lib/email/qr-image-generator.ts");
+    const script = String.raw`
+      import("vite").then(async ({ createServer }) => {
+        const server = await createServer({
+          configFile: "vitest.config.mts",
+          appType: "custom",
+          server: { middlewareMode: true },
+        });
+        const { renderQrTicketPassImage } = await server.ssrLoadModule(process.argv[1]);
+        const sharp = (await import("sharp")).default;
+        const inkWidth = async (attendeeName) => {
+          const image = await renderQrTicketPassImage({
+            ticket: "font-regression-ticket",
+            attendeeName,
+            studentId: "S-001",
+            eventName: "UMak SIC Summit",
+          });
+          const { data, info } = await sharp(image.buffer)
+            .extract({ left: 40, top: 144, width: 500, height: 32 })
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+          let first = info.width;
+          let last = -1;
+          for (let row = 0; row < info.height; row += 1) {
+            for (let column = 0; column < info.width; column += 1) {
+              const offset = (row * info.width + column) * info.channels;
+              if (data[offset] < 100 && data[offset + 1] < 100) {
+                first = Math.min(first, column);
+                last = Math.max(last, column);
+              }
+            }
+          }
+          return last - first + 1;
+        };
+        const [narrow, wide] = await Promise.all([
+          inkWidth("iiiiiiii"),
+          inkWidth("WWWWWWWW"),
+        ]);
+        console.log(JSON.stringify({ narrow, wide }));
+        await server.close();
+      }).catch((error) => {
+        console.error(error);
+        process.exitCode = 1;
+      });
+    `;
+    const { stdout } = await execFile(process.execPath, ["-e", script, modulePath], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        FONTCONFIG_FILE: "/dev/null",
+        FONTCONFIG_PATH: "/tmp/qr-pass-no-fontconfig",
+      },
+      timeout: 30_000,
+    });
+    const { narrow, wide } = JSON.parse(stdout) as { narrow: number; wide: number };
+
+    // With tofu, both eight-character strings have the same .notdef width.
+    // This proves the real renderer loads Agrandir through `fontfile`, not a
+    // locally installed fallback font.
+    expect(wide).toBeGreaterThan(narrow * 1.5);
+  });
+
+  test("keeps the practice pass QR scannable but non-functional", async () => {
+    const image = await renderQrTicketPassImage({
+      ticket: "practice-email-layout-only",
+      attendeeName: "Practice recipient",
+      studentId: "PRACTICE-ONLY",
+      eventName: "Practice email",
+    });
+    const passQr = await sharp(image.buffer)
+      .extract({ left: 614, top: 57, width: 170, height: 170 })
+      .png()
+      .toBuffer();
+
+    expect(decode(passQr)).toBe("practice-email-layout-only");
   });
 });
 
