@@ -28,7 +28,7 @@ describe("sendTestEmail", () => {
     });
   });
 
-  it("can request a non-functional practice pass", async () => {
+  it("can request a non-functional practice pass image", async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json({ sent: true }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -36,10 +36,10 @@ describe("sendTestEmail", () => {
       to: "admin@umak.edu.ph",
       subject: "Event reminder",
       markdown: "Hello Andrea",
-      includeDummyTicket: true,
+      includePracticePass: true,
     });
 
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ includeDummyTicket: true });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ includePracticePass: true });
   });
 
   it("surfaces the server's plain-language error", async () => {
