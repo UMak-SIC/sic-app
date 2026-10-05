@@ -32,6 +32,7 @@ export default function CampaignPage() {
             subject: string;
             eventName: string;
             venue: string | null;
+            bannerUrl: string | null;
             startsAt: string;
             createdAt: string;
             campaignsCount?: number;
@@ -72,6 +73,7 @@ export default function CampaignPage() {
             subject: campaign.subject,
             eventName: campaign.eventName,
             venue: campaign.venue ?? undefined,
+            bannerUrl: campaign.bannerUrl ?? undefined,
             eventDate: new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(campaign.startsAt)),
             sentDate: new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(campaign.createdAt)),
             status,
@@ -211,11 +213,10 @@ export default function CampaignPage() {
 
           {/* 3. Visual Announcement Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredCampaigns.map((campaign, idx) => (
+            {filteredCampaigns.map((campaign) => (
               <CampaignAnnouncementCard
                 key={campaign.id}
                 campaign={campaign}
-                gradientIndex={idx}
                 onClick={() => handleOpenDetails(campaign)}
               />
             ))}

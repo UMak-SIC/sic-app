@@ -14,22 +14,12 @@ import { CampaignSummary } from "./campaign-types";
 interface CampaignAnnouncementCardProps {
   campaign: CampaignSummary;
   onClick: () => void;
-  gradientIndex?: number;
 }
-
-const CARD_GRADIENTS = [
-  "radial-gradient(120% 140% at 20% 10%, rgba(8,127,140,0.85), transparent 70%), linear-gradient(135deg, #093c44, #12333a)",
-  "radial-gradient(120% 140% at 80% 15%, rgba(41,163,136,0.8), transparent 70%), linear-gradient(135deg, #102a24, #174b40)",
-  "radial-gradient(120% 140% at 30% 85%, rgba(217,141,43,0.75), transparent 70%), linear-gradient(135deg, #2b2010, #3d2f16)",
-  "radial-gradient(120% 140% at 70% 80%, rgba(34,184,201,0.8), transparent 70%), linear-gradient(135deg, #132e34, #1b4750)",
-];
 
 export function CampaignAnnouncementCard({
   campaign,
   onClick,
-  gradientIndex = 0,
 }: CampaignAnnouncementCardProps) {
-  const gradient = CARD_GRADIENTS[gradientIndex % CARD_GRADIENTS.length];
   const percent =
     campaign.totalStudents > 0
       ? Math.round((campaign.deliveredCount / campaign.totalStudents) * 100)
@@ -46,10 +36,14 @@ export function CampaignAnnouncementCard({
       className="group relative flex flex-col justify-between overflow-hidden rounded-[16px] bg-card border border-line shadow-xs transition-all duration-250 hover:shadow-md hover:border-cyan/50 hover:-translate-y-0.5 cursor-pointer font-sans"
     >
       {/* Top Media Banner */}
-      <div
-        className="relative h-40 w-full p-3.5 flex flex-col justify-between overflow-hidden"
-        style={{ background: gradient }}
-      >
+      <div className="relative h-40 w-full p-3.5 flex flex-col justify-between overflow-hidden bg-cyan-muted">
+        {campaign.bannerUrl && (
+          <img
+            src={campaign.bannerUrl}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
         <div className="absolute inset-0 bg-black/15 pointer-events-none" />
 
         {/* Top Right Floating Status Badge */}
