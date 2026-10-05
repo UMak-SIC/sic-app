@@ -197,19 +197,18 @@ export async function submitCampaign(
       select: { id: true },
     });
 
-    const deliveries: { id: string }[] = [];
-    for (const rosterEntry of rosterEntries) {
-      deliveries.push(await transaction.emailDelivery.create({
-          data: {
-            eventId: event.id,
-            campaignId: campaign.id,
-            rosterEntryId: rosterEntry.id,
-            idempotencyKey: dependencies.generateDeliveryIdempotencyKey(),
-            queueJob: { create: {} },
-          },
-          select: { id: true },
-        }));
-    }
+    const deliveries = rosterEntries.map((rosterEntry) => ({
+      id: crypto.randomUUID(),
+      eventId: event.id,
+      campaignId: campaign.id,
+      rosterEntryId: rosterEntry.id,
+      idempotencyKey: dependencies.generateDeliveryIdempotencyKey(),
+    }));
+
+    await transaction.emailDelivery.createMany({ data: deliveries });
+    await transaction.queueJob.createMany({
+      data: deliveries.map(({ id: deliveryId }) => ({ deliveryId })),
+    });
 
     return { campaignId: campaign.id, queuedCount: deliveries.length };
     });
