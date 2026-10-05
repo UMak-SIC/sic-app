@@ -23,8 +23,8 @@ export interface AssetItem {
   uploadedAt: string;
   dimensions?: string;
   pageCount?: number;
-  sha256Hash: string;
-  url: string;
+  sha256Hash?: string;
+  url: string | null;
   previewUrl?: string;
   references: AssetReference[];
   downloadCount: number;
@@ -33,8 +33,8 @@ export interface AssetItem {
 export interface StorageKpis {
   totalBytesUsed: number;
   totalBytesFormatted: string;
-  storageQuotaBytes: number;
-  storageQuotaFormatted: string;
+  storageQuotaBytes?: number;
+  storageQuotaFormatted?: string;
   totalFilesCount: number;
   imageCount: number;
   documentCount: number;
