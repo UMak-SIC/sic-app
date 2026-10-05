@@ -32,6 +32,12 @@ export type AttendeeEventSummary = {
   attended: boolean;
 };
 
+export type OrganizedEventSummary = {
+  id: string;
+  name: string;
+  startsAt: Date;
+};
+
 export type AttendeeDirectoryItem = {
   id: string;
   name: string;
@@ -44,6 +50,7 @@ export type AttendeeDirectoryItem = {
   section: string | null;
   joinedDate: Date;
   events: AttendeeEventSummary[];
+  organizedEvents: OrganizedEventSummary[];
   totalEventsJoined: number;
   attendedEventsCount: number;
   /** Whole percent, 0 when the attendee is on no roster. */
@@ -142,6 +149,12 @@ export async function listAttendees({
             event: { select: { id: true, name: true, startsAt: true } },
           },
         },
+        organizedEvents: {
+          orderBy: { event: { startsAt: "desc" } },
+          select: {
+            event: { select: { id: true, name: true, startsAt: true } },
+          },
+        },
       },
     }),
     getPrismaClient().attendee.count({ where }),
@@ -170,6 +183,7 @@ export async function listAttendees({
           startsAt: entry.event.startsAt,
           attended: entry.status === RosterEntryStatus.ATTENDED,
         })),
+        organizedEvents: row.organizedEvents.map((entry) => entry.event),
         totalEventsJoined: row.rosterEntries.length,
         attendedEventsCount,
         // An attendee on no roster has a rate of 0, not a division by zero.

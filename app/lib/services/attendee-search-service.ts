@@ -19,6 +19,8 @@ type SearchRow = {
   section: string | null;
   created_at: Date;
   events: AttendeeEventSummary[];
+  // Optional while instances roll out the database function migration that adds it.
+  organized_events?: { id: string; name: string; startsAt: string }[];
   total_count: bigint;
 };
 
@@ -80,6 +82,10 @@ export async function searchGlobalAttendees({
       section: row.section,
       joinedDate: row.created_at,
       events: row.events.map((event) => ({ ...event, startsAt: new Date(event.startsAt) })),
+      organizedEvents: (row.organized_events ?? []).map((event) => ({
+        ...event,
+        startsAt: new Date(event.startsAt),
+      })),
       totalEventsJoined,
       attendedEventsCount,
       attendanceRate: totalEventsJoined === 0 ? 0 : Math.round((attendedEventsCount / totalEventsJoined) * 100),

@@ -24,6 +24,7 @@ beforeEach(() => {
       section: "BSIT-2A",
       created_at: new Date("2026-09-12T00:00:00.000Z"),
       events: [{ id: "event-1", name: "General Assembly", startsAt: "2026-10-17T00:00:00.000Z", attended: true }],
+      organized_events: [{ id: "event-2", name: "Student Leadership Summit", startsAt: "2026-10-24T00:00:00.000Z" }],
       total_count: BigInt(4),
     },
   ]);
@@ -50,6 +51,9 @@ test("maps the guarded search result into the directory shape", async () => {
     pagination: { page: 2, pageSize: 25, total: 4, totalPages: 1 },
   });
   expect(result.attendees[0].events[0].startsAt).toEqual(new Date("2026-10-17T00:00:00.000Z"));
+  expect(result.attendees[0].organizedEvents).toEqual([
+    { id: "event-2", name: "Student Leadership Summit", startsAt: new Date("2026-10-24T00:00:00.000Z") },
+  ]);
   // The courses actually on file, so the filter does not list a fixed set of three.
   expect(result.facets).toEqual({ courses: ["BSIT", "BSCS"] });
 });
@@ -69,6 +73,32 @@ test("the course list is not narrowed by the filters already in force", async ()
   expect(findMany).toHaveBeenCalledWith(
     expect.objectContaining({ where: { deletedAt: null, course: { not: null } } })
   );
+});
+
+test("keeps the directory available until the organizer-events migration is applied", async () => {
+  queryRaw.mockResolvedValue([
+    {
+      id: "6a5d30af-f299-4c8c-8de2-cbfa9d79d3df",
+      name: "Andrea Santos",
+      student_id: "2023-00182",
+      display_email: "andrea.santos@umak.edu.ph",
+      course: "BSIT",
+      program: null,
+      section: "BSIT-2A",
+      created_at: new Date("2026-09-12T00:00:00.000Z"),
+      events: [],
+      total_count: BigInt(1),
+    },
+  ]);
+
+  const result = await searchGlobalAttendees({
+    adminId: "admin-1",
+    attendedOnly: false,
+    page: 1,
+    pageSize: 25,
+  });
+
+  expect(result.attendees[0].organizedEvents).toEqual([]);
 });
 
 test("reports an empty search as one empty page", async () => {

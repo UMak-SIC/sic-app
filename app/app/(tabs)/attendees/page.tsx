@@ -425,6 +425,7 @@ export default function AttendeesPage() {
         program: null,
         section: null,
         assignedEvents: [],
+        organizedEvents: [],
         totalEventsJoined: 0,
         attendedEventsCount: 0,
         attendanceRate: 0,

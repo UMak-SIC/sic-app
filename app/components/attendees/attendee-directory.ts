@@ -39,6 +39,7 @@ type AttendeeDto = {
   section: string | null;
   joinedDate: string;
   events: { id: string; name: string; startsAt: string; attended: boolean }[];
+  organizedEvents: { id: string; name: string; startsAt: string }[];
   totalEventsJoined: number;
   attendedEventsCount: number;
   attendanceRate: number;
@@ -95,6 +96,11 @@ function toAttendeeItem(row: AttendeeDto, timeZone: string): AttendeeItem {
       title: event.name,
       date: formatDate(event.startsAt, timeZone, "short"),
       attended: event.attended,
+    })),
+    organizedEvents: row.organizedEvents.map((event) => ({
+      id: event.id,
+      title: event.name,
+      date: formatDate(event.startsAt, timeZone, "short"),
     })),
     // The API derives these from roster entries, so the directory keeps no copy of
     // the arithmetic.
