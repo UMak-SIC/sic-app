@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import QRCode from "qrcode";
@@ -44,12 +43,9 @@ const DEFAULT_ERROR_CORRECTION: "L" | "M" | "Q" | "H" = "M";
 const DEFAULT_MODULE_SIZE = 8;
 const DEFAULT_MARGIN = 4;
 
-// Serverless images, including Vercel's, do not guarantee any system fonts.
-// Embed this licensed project font so librsvg cannot replace every character
-// with a missing-glyph box when it rasterizes a pass.
-const PASS_FONT_DATA_URL = `data:font/otf;base64,${readFileSync(
-  join(process.cwd(), "fonts", "Agrandir-Regular.otf"),
-).toString("base64")}`;
+// `fontfile` makes Pango load this exact font for each text image. This avoids
+// SVG font discovery, which is unavailable in Vercel's fontless functions.
+const PASS_FONT_PATH = join(process.cwd(), "fonts", "Agrandir-Regular.otf");
 
 function requireTicket(ticket: string): string {
   const trimmed = ticket.trim();
@@ -136,14 +132,37 @@ export async function renderQrTicketImage(
   };
 }
 
-function escapeXml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
+function renderPassText({
+  text,
+  color,
+  size,
+  bold = false,
+}: {
+  text: string;
+  color: string;
+  size: number;
+  bold?: boolean;
+}): Promise<Buffer> {
+  const escapedText = text.replace(/[&<>"']/g, (character) => ({
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&apos;",
   })[character] ?? character);
+
+  return sharp({
+    text: {
+      text: `<span>${escapedText}</span>`,
+      font: `Agrandir${bold ? " Bold" : ""} ${size}`,
+      fontfile: PASS_FONT_PATH,
+      rgba: true,
+      dpi: 72,
+    },
+  })
+    .tint(color)
+    .png()
+    .toBuffer();
 }
 
 /** Renders a scan-safe QR into the recipient's downloadable boarding pass. */
@@ -159,13 +178,40 @@ export async function renderQrTicketPassImage({
   eventName: string;
 }): Promise<QrTicketImage> {
   const qr = await renderQrTicketImage(ticket);
-  const pass = Buffer.from(`<svg width="840" height="320" viewBox="0 0 840 320" xmlns="http://www.w3.org/2000/svg"><style>@font-face { font-family: SICPass; src: url('${PASS_FONT_DATA_URL}') format('opentype'); } text { font-family: SICPass; }</style><rect width="840" height="320" rx="16" fill="#fbfdfd"/><rect x="1" y="1" width="838" height="318" rx="15" fill="none" stroke="#cfe0e0" stroke-width="2"/><path d="M558 1V319" stroke="#cfe0e0" stroke-width="2" stroke-dasharray="5 6"/><text x="40" y="56" fill="#12333a" font-size="22" font-weight="700">UMak SIC Pass</text><text x="40" y="84" fill="#607579" font-size="15">${escapeXml(eventName)}</text><text x="40" y="132" fill="#607579" font-size="12" font-weight="700" letter-spacing="1.5">ATTENDEE NAME</text><text x="40" y="160" fill="#12333a" font-size="22" font-weight="700">${escapeXml(attendeeName)}</text><text x="40" y="204" fill="#607579" font-size="12" font-weight="700" letter-spacing="1.5">STUDENT ID NUMBER</text><text x="40" y="230" fill="#12333a" font-size="16" font-weight="700">${escapeXml(studentId)}</text><text x="40" y="278" fill="#607579" font-size="13">Present this pass at check-in.</text><rect x="600" y="43" width="198" height="198" rx="12" fill="#ffffff" stroke="#cfe0e0" stroke-width="2"/><text x="699" y="278" fill="#087f8c" font-size="13" font-weight="700" text-anchor="middle" letter-spacing="1.5">CHECK-IN PASS</text></svg>`);
+  const [
+    title,
+    renderedEventName,
+    attendeeLabel,
+    renderedAttendeeName,
+    studentLabel,
+    renderedStudentId,
+    footer,
+    checkInLabel,
+    qrImage,
+  ] = await Promise.all([
+    renderPassText({ text: "UMak SIC Pass", color: "#12333a", size: 22, bold: true }),
+    renderPassText({ text: eventName, color: "#607579", size: 15 }),
+    renderPassText({ text: "ATTENDEE NAME", color: "#607579", size: 12, bold: true }),
+    renderPassText({ text: attendeeName, color: "#12333a", size: 22, bold: true }),
+    renderPassText({ text: "STUDENT ID NUMBER", color: "#607579", size: 12, bold: true }),
+    renderPassText({ text: studentId, color: "#12333a", size: 16, bold: true }),
+    renderPassText({ text: "Present this pass at check-in.", color: "#607579", size: 13 }),
+    renderPassText({ text: "CHECK-IN PASS", color: "#087f8c", size: 13, bold: true }),
+    sharp(qr.buffer).resize(170, 170, { kernel: sharp.kernel.nearest }).png().toBuffer(),
+  ]);
+  const pass = Buffer.from(`<svg width="840" height="320" viewBox="0 0 840 320" xmlns="http://www.w3.org/2000/svg"><rect width="840" height="320" rx="16" fill="#fbfdfd"/><rect x="1" y="1" width="838" height="318" rx="15" fill="none" stroke="#cfe0e0" stroke-width="2"/><path d="M558 1V319" stroke="#cfe0e0" stroke-width="2" stroke-dasharray="5 6"/><rect x="600" y="43" width="198" height="198" rx="12" fill="#ffffff" stroke="#cfe0e0" stroke-width="2"/></svg>`);
   const image = await sharp(pass)
-    .composite([{
-      input: await sharp(qr.buffer).resize(170, 170, { kernel: sharp.kernel.nearest }).png().toBuffer(),
-      left: 614,
-      top: 57,
-    }])
+    .composite([
+      { input: title, left: 40, top: 40 },
+      { input: renderedEventName, left: 40, top: 72 },
+      { input: attendeeLabel, left: 40, top: 121 },
+      { input: renderedAttendeeName, left: 40, top: 144 },
+      { input: studentLabel, left: 40, top: 193 },
+      { input: renderedStudentId, left: 40, top: 218 },
+      { input: footer, left: 40, top: 268 },
+      { input: checkInLabel, left: 650, top: 268 },
+      { input: qrImage, left: 614, top: 57 },
+    ])
     .png()
     .toBuffer();
 
