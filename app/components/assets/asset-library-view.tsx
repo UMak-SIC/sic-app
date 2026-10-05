@@ -49,7 +49,8 @@ export function AssetLibraryView({
 
   const handleCopyLink = (e: React.MouseEvent, asset: AssetItem) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(window.location.origin + asset.url);
+    if (!asset.url) return;
+    navigator.clipboard.writeText(new URL(asset.url, window.location.origin).toString());
     setCopiedId(asset.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -382,6 +383,7 @@ export function AssetLibraryView({
                             variant="ghost"
                             size="sm"
                             onClick={(e) => handleCopyLink(e, asset)}
+                            disabled={!asset.url}
                             className="h-7 w-7 p-0 rounded-[4px] text-muted hover:text-ink cursor-pointer"
                             title="Copy Direct Link"
                           >

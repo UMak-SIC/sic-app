@@ -3,6 +3,7 @@ import "server-only";
 import { DeliveryStatus, EventStatus, Prisma, QueueJobStatus } from "@prisma/client";
 
 import { getPrismaClient } from "@/lib/prisma";
+import { publicImageUrl } from "@/lib/services/event-service";
 
 type CampaignAssetRole = "INLINE" | "ATTACHMENT";
 
@@ -36,6 +37,7 @@ export type CampaignListItem = {
   subject: string;
   eventName: string;
   venue: string | null;
+  bannerUrl: string | null;
   startsAt: Date;
   createdAt: Date;
   campaignsCount: number;
@@ -232,6 +234,12 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
       id: true,
       name: true,
       venue: true,
+      imageAsset: {
+        select: {
+          objectKey: true,
+          storageBucket: true,
+        },
+      },
       startsAt: true,
       createdAt: true,
       rosterEntries: {
@@ -279,6 +287,7 @@ export async function listCampaigns(): Promise<CampaignListItem[]> {
       subject,
       eventName: event.name,
       venue: event.venue,
+      bannerUrl: publicImageUrl(event.imageAsset),
       startsAt: event.startsAt,
       createdAt: latestCampaign ? latestCampaign.createdAt : event.createdAt,
       campaignsCount: event.campaigns.length,
@@ -317,6 +326,12 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
       id: true,
       name: true,
       venue: true,
+      imageAsset: {
+        select: {
+          objectKey: true,
+          storageBucket: true,
+        },
+      },
       startsAt: true,
       createdAt: true,
       campaigns: {
@@ -434,6 +449,7 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
     createdAt,
     eventName: event.name,
     venue: event.venue,
+    bannerUrl: publicImageUrl(event.imageAsset),
     startsAt: event.startsAt,
     campaignsCount: event.campaigns.length,
     totalStudents: event.rosterEntries.length,

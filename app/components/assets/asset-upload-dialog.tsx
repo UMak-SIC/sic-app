@@ -17,13 +17,12 @@ import {
   File,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { AssetItem } from "./asset-types";
 import { cn } from "@/lib/utils";
 
 interface AssetUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAssetUploaded: (newAsset: AssetItem) => void;
+  onAssetUploaded: () => void;
 }
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -88,52 +87,26 @@ export function AssetUploadDialog({
     }
   };
 
-  const handleStartUpload = () => {
+  const handleStartUpload = async () => {
     if (!selectedFile) return;
 
     setIsUploading(true);
+    setErrorMessage(null);
 
-    const sizeInMb = (selectedFile.size / (1024 * 1024)).toFixed(1);
-    const sizeFormatted =
-      selectedFile.size > 1024 * 1024
-        ? `${sizeInMb} MB`
-        : `${Math.round(selectedFile.size / 1024)} KB`;
+    try {
+      const formData = new FormData();
+      formData.set("file", selectedFile);
+      const response = await fetch("/api/assets/public/upload", { method: "POST", body: formData });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "We could not upload that file. Please try again.");
 
-    const isImage = selectedFile.type.startsWith("image/");
-    const format = selectedFile.name.endsWith(".png")
-      ? "png"
-      : selectedFile.name.endsWith(".webp")
-      ? "webp"
-      : selectedFile.name.endsWith(".pdf")
-      ? "pdf"
-      : "jpg";
-
-    setTimeout(() => {
-      const newAsset: AssetItem = {
-        id: "ast_" + Date.now(),
-        objectKey: `assets/${isImage ? "banners" : "documents"}/${selectedFile.name}`,
-        originalFilename: selectedFile.name,
-        mediaType: selectedFile.type,
-        format,
-        category: isImage ? "image" : "document",
-        byteSize: selectedFile.size,
-        fileSizeFormatted: sizeFormatted,
-        uploadedBy: "Charles Reyes",
-        uploadedAt: "Just now",
-        dimensions: isImage ? "1200 × 500 px" : undefined,
-        pageCount: isImage ? undefined : 1,
-        sha256Hash: "a7c8b9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8",
-        url: filePreviewUrl || "#",
-        previewUrl: filePreviewUrl || undefined,
-        references: [],
-        downloadCount: 0,
-      };
-
-      onAssetUploaded(newAsset);
-      setIsUploading(false);
+      onAssetUploaded();
       resetState();
       onOpenChange(false);
-    }, 700);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "We could not upload that file. Please try again.");
+      setIsUploading(false);
+    }
   };
 
   return (

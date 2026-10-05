@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { UserPlus, UploadSimple, Warning, Spinner } from "@phosphor-icons/react";
+import { CheckCircle, UserPlus, UploadSimple, Warning, XCircle, Spinner } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header";
 import { AttendeesInsightsCard } from "@/components/attendees/attendees-insights-card";
 import { AttendeesToolbar } from "@/components/attendees/attendees-toolbar";
@@ -30,6 +30,7 @@ import {
 const SEARCH_DEBOUNCE_MS = 300;
 
 type Pagination = { page: number; pageSize: number; total: number; totalPages: number };
+type Notice = { message: string; type: "success" | "warning" | "error" };
 
 const EMPTY_PAGINATION: Pagination = {
   page: 1,
@@ -48,12 +49,18 @@ export default function AttendeesPage() {
   const [eventIdFilter, setEventIdFilter] = React.useState("all");
   /** Courses the directory actually holds, from the API's facets. */
   const [courseOptions, setCourseOptions] = React.useState<string[]>([]);
+  const [programOptions, setProgramOptions] = React.useState<string[]>([]);
+  const [sectionOptions, setSectionOptions] = React.useState<string[]>([]);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [selectedAttendeesMap, setSelectedAttendeesMap] = React.useState<Map<string, AttendeeItem>>(
     () => new Map()
   );
-  const [notice, setNotice] = React.useState<string | null>(null);
+  const [notice, setNotice] = React.useState<Notice | null>(null);
   const [isExporting, setIsExporting] = React.useState(false);
+
+  const showNotice = (message: string, type: Notice["type"] = "warning") => {
+    setNotice({ message, type });
+  };
 
   /**
    * Which request the rows and any error on screen belong to.
@@ -176,6 +183,8 @@ export default function AttendeesPage() {
         setStudents(result.attendees);
         setPagination(result.pagination);
         setCourseOptions(result.courses);
+        setProgramOptions(result.programs);
+        setSectionOptions(result.sections);
         setLoadError(null);
         setLoadedKey(wantedKey);
       })
@@ -256,7 +265,7 @@ export default function AttendeesPage() {
    * changing a table the next load would overwrite.
    */
   const notSavedYet = (action: string) => {
-    setNotice(`${action} is not saved. Nothing on this page is connected to the registry for that yet.`);
+    showNotice(`${action} is not saved. Nothing on this page is connected to the registry for that yet.`);
   };
 
   /**
@@ -287,7 +296,7 @@ export default function AttendeesPage() {
         | null;
 
       if (!response.ok) {
-        setNotice(body?.error ?? "Those students could not be added. Try again.");
+        showNotice(body?.error ?? "Those students could not be added. Try again.", "error");
         return;
       }
 
@@ -301,14 +310,14 @@ export default function AttendeesPage() {
         unknown > 0 ? ` ${unknown} could not be found in the directory.` : "",
       ];
 
-      setNotice(parts.join(""));
+      showNotice(parts.join(""), "success");
       setSelectedIds([]);
       setSelectedAttendeesMap(new Map());
       // The rates and event badges are derived from the roster, so the directory
       // has to be re-read rather than patched locally.
       setReloadToken((token) => token + 1);
     } catch {
-      setNotice("The students could not be added. Check your connection and try again.");
+      showNotice("The students could not be added. Check your connection and try again.", "error");
     } finally {
       setIsAddingToEvent(false);
     }
@@ -330,10 +339,11 @@ export default function AttendeesPage() {
   const handleAttendeeSaved = ({ restored }: { restored: boolean }) => {
     setReloadToken((token) => token + 1);
     setAttendeeBeingEdited(null);
-    setNotice(
+    showNotice(
       restored
         ? "That student was added back to the directory, with the attendance they already had."
-        : "The student was saved."
+        : "The student was saved.",
+      "success"
     );
   };
 
@@ -355,7 +365,7 @@ export default function AttendeesPage() {
       parts.push(` ${alreadyRemoved} had already been removed.`);
     }
 
-    setNotice(parts.join(""));
+    showNotice(parts.join(""), "success");
   };
 
   const handleReorder = () => notSavedYet("Reordering");
@@ -391,22 +401,24 @@ export default function AttendeesPage() {
           : attendees;
 
       if (exportSource.length === 0) {
-        setNotice("There is nothing to export for these filters.");
+        showNotice("There is nothing to export for these filters.");
         return;
       }
 
       downloadAttendeeCsv(exportSource, describeExportScope(filters, selectedIds.length));
 
-      setNotice(
+      showNotice(
         `Exported ${exportSource.length} ${
           exportSource.length === 1 ? "student" : "students"
         }.`,
+        "success"
       );
     } catch (error) {
-      setNotice(
+      showNotice(
         error instanceof Error
           ? error.message
-          : "The list could not be exported. Try again."
+          : "The list could not be exported. Try again.",
+        "error"
       );
     } finally {
       setIsExporting(false);
@@ -425,6 +437,7 @@ export default function AttendeesPage() {
         program: null,
         section: null,
         assignedEvents: [],
+        organizedEvents: [],
         totalEventsJoined: 0,
         attendedEventsCount: 0,
         attendanceRate: 0,
@@ -464,10 +477,22 @@ export default function AttendeesPage() {
       {notice ? (
         <div
           role="status"
-          className="flex items-start gap-2.5 rounded-[6px] border border-amber-border bg-amber-soft px-3.5 py-3 text-xs text-ink"
+          className={`flex items-start gap-2.5 rounded-[6px] border px-3.5 py-3 text-xs text-ink ${
+            notice.type === "success"
+              ? "border-green-border bg-green-soft"
+              : notice.type === "error"
+                ? "border-red/30 bg-red-soft"
+                : "border-amber-border bg-amber-soft"
+          }`}
         >
-          <Warning size={16} weight="bold" className="mt-px shrink-0 text-amber" aria-hidden />
-          <span>{notice}</span>
+          {notice.type === "success" ? (
+            <CheckCircle size={16} weight="bold" className="mt-px shrink-0 text-green" aria-hidden />
+          ) : notice.type === "error" ? (
+            <XCircle size={16} weight="bold" className="mt-px shrink-0 text-red" aria-hidden />
+          ) : (
+            <Warning size={16} weight="bold" className="mt-px shrink-0 text-amber" aria-hidden />
+          )}
+          <span>{notice.message}</span>
           <button
             type="button"
             onClick={() => setNotice(null)}
@@ -552,7 +577,9 @@ export default function AttendeesPage() {
         <AttendeeFormDialog
           open
           onOpenChange={setIsAddOpen}
-          courseOptions={courseOptions}
+          departmentOptions={courseOptions}
+          programOptions={programOptions}
+          sectionOptions={sectionOptions}
           onSaved={handleAttendeeSaved}
         />
       ) : null}
@@ -564,7 +591,9 @@ export default function AttendeesPage() {
             if (!next) setAttendeeBeingEdited(null);
           }}
           attendee={attendeeBeingEdited}
-          courseOptions={courseOptions}
+          departmentOptions={courseOptions}
+          programOptions={programOptions}
+          sectionOptions={sectionOptions}
           onSaved={handleAttendeeSaved}
         />
       ) : null}
@@ -587,7 +616,7 @@ export default function AttendeesPage() {
           // The rates and event badges come from the roster, so the directory is
           // re-read rather than patched locally.
           setReloadToken((token) => token + 1);
-          setNotice("The list was imported.");
+          showNotice("The list was imported.", "success");
         }}
       />
 

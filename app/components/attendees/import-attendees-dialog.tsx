@@ -10,7 +10,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, Users, Trash, PencilSimple, Table as TableIcon } from "@phosphor-icons/react";
+import {
+  UserPlus,
+  Users,
+  Trash,
+  PencilSimple,
+  Table as TableIcon,
+  WarningCircle,
+} from "@phosphor-icons/react";
 import { AttendeeFileDropzone } from "./attendee-file-dropzone";
 import { AttendeeAlertStack, AlertItem } from "./attendee-alert-stack";
 import { ImportReview } from "./import-review";
@@ -574,6 +581,7 @@ export function ImportAttendeesDialog({
                           </button>
                         </div>
                       ))}
+
                     </div>
                   )}
                 </div>
@@ -583,6 +591,27 @@ export function ImportAttendeesDialog({
                   and the busy state are all announced rather than only the count. */}
               <div id="import-preview-status" role="status" className="pt-1 space-y-2">
                 <AttendeeAlertStack alerts={dynamicAlerts} />
+                {preview?.errors.length ? (
+                  <ul aria-label="Rows that cannot be added" className="space-y-1.5">
+                    {preview.errors.map((error) => (
+                      <li
+                        key={`${error.row}-${error.field}`}
+                        className="flex items-start gap-2 rounded-[6px] border border-red/30 bg-red-soft/30 px-3 py-2 text-xs"
+                      >
+                        <WarningCircle
+                          size={16}
+                          weight="bold"
+                          aria-hidden="true"
+                          className="mt-0.5 shrink-0 text-red"
+                        />
+                        <span className="leading-snug text-ink">
+                          <strong>Row {error.row}</strong> cannot be added: {importFieldLabel(error.field)}{" "}
+                          {error.message}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
                 {previewError ? (
                   <p className="rounded-[6px] border border-red-border bg-red-soft px-3 py-2 text-xs text-ink">
                     {previewError}
@@ -640,4 +669,18 @@ function initials(name: string | null): string {
       .slice(0, 2)
       .toUpperCase() || "?"
   );
+}
+
+function importFieldLabel(field: string): string {
+  const labels: Record<string, string> = {
+    email: "Email address",
+    studentId: "Student ID",
+    name: "Name",
+    course: "Course",
+    program: "Program",
+    section: "Section",
+    format: "File format",
+  };
+
+  return labels[field] ?? "Row";
 }

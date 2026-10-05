@@ -19,6 +19,8 @@ type SearchRow = {
   section: string | null;
   created_at: Date;
   events: AttendeeEventSummary[];
+  // Optional while instances roll out the database function migration that adds it.
+  organized_events?: { id: string; name: string; startsAt: string }[];
   total_count: bigint;
 };
 
@@ -80,6 +82,10 @@ export async function searchGlobalAttendees({
       section: row.section,
       joinedDate: row.created_at,
       events: row.events.map((event) => ({ ...event, startsAt: new Date(event.startsAt) })),
+      organizedEvents: (row.organized_events ?? []).map((event) => ({
+        ...event,
+        startsAt: new Date(event.startsAt),
+      })),
       totalEventsJoined,
       attendedEventsCount,
       attendanceRate: totalEventsJoined === 0 ? 0 : Math.round((attendedEventsCount / totalEventsJoined) * 100),
@@ -88,27 +94,49 @@ export async function searchGlobalAttendees({
   const total = rows.length === 0 ? 0 : Number(rows[0].total_count);
 
   /*
-   * The courses present, for the toolbar's filter.
+   * The values present, for the toolbar's filter and the attendee form.
    *
    * A second query rather than something derived from `rows`: this is how the
    * operator picks a filter, so it must not be narrowed by the filter already in
    * force, or the other values become unreachable. And it cannot come out of the
    * search function, which returns one page of students.
    */
-  const courseFacets = await getPrismaClient().attendee.findMany({
-    where: { deletedAt: null, course: { not: null } },
-    distinct: ["course"],
-    orderBy: { course: "asc" },
-    select: { course: true },
-  });
+  const [courseFacets, programFacets, sectionFacets] = await Promise.all([
+    getPrismaClient().attendee.findMany({
+      where: { deletedAt: null, course: { not: null } },
+      distinct: ["course"],
+      orderBy: { course: "asc" },
+      select: { course: true },
+    }),
+    getPrismaClient().attendee.findMany({
+      where: { deletedAt: null, program: { not: null } },
+      distinct: ["program"],
+      orderBy: { program: "asc" },
+      select: { program: true },
+    }),
+    getPrismaClient().attendee.findMany({
+      where: { deletedAt: null, section: { not: null } },
+      distinct: ["section"],
+      orderBy: { section: "asc" },
+      select: { section: true },
+    }),
+  ]);
+
+  const recordedValues = <T extends "course" | "program" | "section">(
+    rows: { [K in T]: string | null }[],
+    field: T,
+  ) =>
+    rows
+      .map((row) => row[field])
+      .filter((value): value is string => typeof value === "string" && value.trim() !== "");
 
   return {
     attendees,
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
     facets: {
-      courses: courseFacets
-        .map((row) => row.course)
-        .filter((value): value is string => typeof value === "string" && value.trim() !== ""),
+      courses: recordedValues(courseFacets, "course"),
+      programs: recordedValues(programFacets, "program"),
+      sections: recordedValues(sectionFacets, "section"),
     },
   };
 }
