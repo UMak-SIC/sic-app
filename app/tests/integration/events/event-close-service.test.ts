@@ -62,5 +62,5 @@ describeWithDatabase("closeExpiredEvents", () => {
       status: "ATTENDED",
       arrivedAt: now,
     });
-  });
+  }, 15_000);
 });

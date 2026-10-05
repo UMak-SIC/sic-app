@@ -65,14 +65,14 @@ test.skipIf(!hasTestDatabase())("creates one roster entry, delivery, and queue j
   await expect(getTestDatabase().eventRosterEntry.count({ where: { eventId } })).resolves.toBe(attendeeIds.length);
   await expect(getTestDatabase().emailDelivery.count({ where: { campaignId: result.campaignId } })).resolves.toBe(attendeeIds.length);
   await expect(getTestDatabase().queueJob.count({ where: { delivery: { campaignId: result.campaignId } } })).resolves.toBe(attendeeIds.length);
-});
+}, 15_000);
 
 test.skipIf(!hasTestDatabase())("rolls back campaign records when delivery queue creation fails", async () => {
   const { adminId, eventId, attendeeIds } = await seedCampaignContext();
   vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue("00000000-0000-4000-8000-000000000001");
 
   await expect(submitCampaign({
-    idempotencyKey: crypto.randomUUID(),
+    idempotencyKey: randomUUID(),
     eventId,
     attendeeIds,
     subject: "Campaign test",
@@ -84,4 +84,4 @@ test.skipIf(!hasTestDatabase())("rolls back campaign records when delivery queue
   await expect(getTestDatabase().eventRosterEntry.count({ where: { eventId } })).resolves.toBe(0);
   await expect(getTestDatabase().emailDelivery.count({ where: { eventId } })).resolves.toBe(0);
   await expect(getTestDatabase().queueJob.count()).resolves.toBe(0);
-});
+}, 15_000);

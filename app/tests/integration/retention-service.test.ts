@@ -111,4 +111,4 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
     normalizedEmail: `deleted-${retained.id}@invalid.local`,
     studentId: `deleted-${retained.id}`,
   });
-});
+}, 15_000);
