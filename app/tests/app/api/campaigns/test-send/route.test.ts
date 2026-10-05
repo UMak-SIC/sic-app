@@ -114,18 +114,24 @@ describe("POST /api/campaigns/test-send", () => {
     expect(message.html).not.toContain("script");
   });
 
-  it("adds a clearly non-functional practice pass when requested", async () => {
-    await POST(post({ to: "someone@example.com", markdown: "Hi", includeDummyTicket: true }));
+  it("attaches a clearly non-functional practice pass image when requested", async () => {
+    await POST(post({ to: "someone@example.com", markdown: "Hi", includePracticePass: true }));
 
-    const message = (await captured.deps?.resolveMessage({})) as { html: string };
+    const message = (await captured.deps?.resolveMessage({})) as {
+      html: string;
+      attachments?: { name: string; content: string }[];
+    };
 
-    expect(message.html).toContain("UMak SIC Pass");
-    expect(message.html).toContain("Present this pass at check-in.");
-    expect(message.html).toContain('aria-label="Check-in QR pass"');
+    expect(message.html).toContain("<p>Hi</p>");
+    expect(message.attachments).toHaveLength(1);
+    expect(message.attachments?.[0]).toMatchObject({ name: "practice-check-in-pass.png" });
+    expect(Buffer.from(message.attachments?.[0].content ?? "", "base64").subarray(0, 4)).toEqual(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    );
   });
 
   it("rejects a malformed practice-pass flag", async () => {
-    const res = await POST(post({ to: "someone@example.com", includeDummyTicket: "yes" }));
+    const res = await POST(post({ to: "someone@example.com", includePracticePass: "yes" }));
 
     expect(res.status).toBe(400);
     expect(dispatchEmail).not.toHaveBeenCalled();

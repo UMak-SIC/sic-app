@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { compileMarkdown } from "@/lib/email/markdown-compiler";
-import { DUMMY_QR_PASS_HTML } from "@/lib/email/dummy-qr-pass";
+import { renderQrTicketPassImage } from "@/lib/email/qr-image-generator";
 import { createProviderDispatch } from "@/lib/queue/providers";
 import type { OutboundMessage } from "@/lib/queue/providers/types";
 import { validateEmail } from "@/lib/validation/attendee-validation";
@@ -35,7 +35,7 @@ type TestSendBody = {
   to?: unknown;
   subject?: unknown;
   markdown?: unknown;
-  includeDummyTicket?: unknown;
+  includePracticePass?: unknown;
 };
 
 
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (body.includeDummyTicket !== undefined && typeof body.includeDummyTicket !== "boolean") {
+  if (body.includePracticePass !== undefined && typeof body.includePracticePass !== "boolean") {
     return NextResponse.json(
       { error: "That test email had something we could not read. Check it and try again." },
       { status: 400 }
@@ -96,9 +96,21 @@ export async function POST(request: Request) {
   const finalSubject = subject.trim() || DEFAULT_SUBJECT;
 
   let compiled: string;
+  let attachments: OutboundMessage["attachments"];
   try {
     compiled = compileMarkdown(markdown.trim() || "_(empty test message)_");
-    if (body.includeDummyTicket) compiled += DUMMY_QR_PASS_HTML;
+    if (body.includePracticePass) {
+      const pass = await renderQrTicketPassImage({
+        ticket: "practice-email-layout-only",
+        attendeeName: "Practice recipient",
+        studentId: "PRACTICE-ONLY",
+        eventName: "Practice email",
+      });
+      attachments = [{
+        name: "practice-check-in-pass.png",
+        content: Buffer.from(pass.buffer).toString("base64"),
+      }];
+    }
   } catch {
     // compileMarkdown needs the storage endpoint to pin image hosts to, and
     // throws without it. That is a deployment misconfiguration rather than
@@ -116,6 +128,7 @@ export async function POST(request: Request) {
     to: email.displayEmail,
     subject: finalSubject,
     html: compiled,
+    attachments,
   };
 
   const dispatch = createProviderDispatch({

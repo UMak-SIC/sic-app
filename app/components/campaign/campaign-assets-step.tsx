@@ -175,7 +175,7 @@ export function CampaignAssetsStep({
         to: testEmailAddress,
         subject,
         markdown: previewFormattedBody,
-        includeDummyTicket: true,
+        includePracticePass: true,
       });
       setIsSendingTest(false);
       setTestSentSuccess(true);
@@ -572,7 +572,7 @@ export function CampaignAssetsStep({
                   Send Practice Email
                 </h3>
                 <p className="text-xs text-muted font-sans mt-0.5">
-                  Choose one selected roster member, or use a dummy practice pass. Practice passes cannot check anyone in.
+                  Choose one selected roster member, or send a practice pass image. Practice passes cannot check anyone in.
                 </p>
               </div>
             </div>
@@ -653,7 +653,7 @@ export function CampaignAssetsStep({
                 </SelectTrigger>
                 <SelectContent className="bg-card border-line rounded-[8px]">
                   <SelectItem value={DUMMY_PRACTICE_RECIPIENT.id} className="text-xs">
-                    <span className="font-semibold text-ink">Use a dummy practice pass</span>
+                    <span className="font-semibold text-ink">Use a practice pass image</span>
                   </SelectItem>
                   {searchedRecipient && !practiceRecipients.some((recipient) => recipient.id === searchedRecipient.id) && (
                     <SelectItem value={searchedRecipient.id} className="text-xs">
@@ -672,7 +672,7 @@ export function CampaignAssetsStep({
                 </SelectContent>
               </Select>
               {practiceRecipients.length === 0 && (
-                <p className="text-[11px] text-muted">No roster members were selected. Choose the dummy practice pass or return to the roster.</p>
+                  <p className="text-[11px] text-muted">No roster members were selected. Choose the practice pass image or return to the roster.</p>
               )}
             </div>
 
@@ -680,7 +680,7 @@ export function CampaignAssetsStep({
             <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
               <div className="flex flex-1 flex-col gap-1 w-full">
                 <label className="text-[11px] font-semibold text-muted font-sans">
-                  {activeStudent.id === DUMMY_PRACTICE_RECIPIENT.id ? "Send dummy pass to:" : "Send to selected roster email:"}
+                  {activeStudent.id === DUMMY_PRACTICE_RECIPIENT.id ? "Send practice pass to:" : "Send to selected roster email:"}
                 </label>
                 <Input
                   value={testEmailAddress}
