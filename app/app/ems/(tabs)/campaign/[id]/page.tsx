@@ -252,7 +252,7 @@ export default function CampaignDetailPage() {
   };
 
   const handleSendNewAnnouncement = () => {
-    router.push(`/campaign/new?eventId=${campaign.eventId ?? campaign.id}`);
+    router.push(`/ems/campaign/new?eventId=${campaign.eventId ?? campaign.id}`);
   };
 
   return (

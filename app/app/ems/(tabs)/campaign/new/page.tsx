@@ -202,7 +202,7 @@ function NewCampaignContent() {
       setSubmitError(result.error ?? "We could not send this email. Please try again.");
       throw new Error(result.error);
     }
-    router.push(`/campaign/${result.campaignId}`);
+    router.push(`/ems/campaign/${result.campaignId}`);
   };
 
   return (
@@ -215,7 +215,7 @@ function NewCampaignContent() {
           <PageHeaderButton
             variant="outline"
             icon={<ArrowLeft size={16} weight="bold" />}
-            onClick={() => router.push("/campaign")}
+            onClick={() => router.push("/ems/campaign")}
           >
             All Announcements
           </PageHeaderButton>

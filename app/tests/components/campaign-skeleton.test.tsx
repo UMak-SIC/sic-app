@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { CampaignCatalogSkeleton } from "@/components/campaign/campaign-catalog-skeleton";
 import { CampaignDetailSkeleton } from "@/components/campaign/campaign-detail-skeleton";
 import { CampaignWizardSkeleton } from "@/components/campaign/campaign-wizard-skeleton";
-import CampaignLoading from "@/app/(tabs)/campaign/loading";
-import CampaignDetailLoading from "@/app/(tabs)/campaign/[id]/loading";
-import NewCampaignLoading from "@/app/(tabs)/campaign/new/loading";
+import CampaignLoading from "@/app/ems/(tabs)/campaign/loading";
+import CampaignDetailLoading from "@/app/ems/(tabs)/campaign/[id]/loading";
+import NewCampaignLoading from "@/app/ems/(tabs)/campaign/new/loading";
 
 describe("Campaign Skeleton Components", () => {
   it("renders CampaignCatalogSkeleton with accessible attributes", () => {

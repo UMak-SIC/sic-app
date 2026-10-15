@@ -16,7 +16,7 @@ export default function OverviewPage() {
 
   const handleCreateEvent = (newEvent: EventItem) => {
     setIsCreateOpen(false);
-    router.push(`/events/${newEvent.id}`);
+    router.push(`/ems/events/${newEvent.id}`);
   };
 
   return (

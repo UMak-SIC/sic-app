@@ -5,6 +5,7 @@ import {
   Megaphone,
   FolderOpen,
   GearSix,
+  ArrowsLeftRight,
   SignOut,
   type Icon,
 } from "@phosphor-icons/react";
@@ -28,7 +29,7 @@ export const sidebarNavSections: NavSection[] = [
     items: [
       {
         title: "Overview",
-        href: "/overview",
+        href: "/ems/overview",
         icon: SquaresFour,
         exact: true,
       },
@@ -39,12 +40,12 @@ export const sidebarNavSections: NavSection[] = [
     items: [
       {
         title: "Events",
-        href: "/events",
+        href: "/ems/events",
         icon: CalendarBlank,
       },
       {
         title: "Attendees",
-        href: "/attendees",
+        href: "/ems/attendees",
         icon: Users,
       },
     ],
@@ -54,12 +55,12 @@ export const sidebarNavSections: NavSection[] = [
     items: [
       {
         title: "Campaign",
-        href: "/campaign",
+        href: "/ems/campaign",
         icon: Megaphone,
       },
       {
         title: "Assets",
-        href: "/assets",
+        href: "/ems/assets",
         icon: FolderOpen,
       },
     ],
@@ -69,8 +70,14 @@ export const sidebarNavSections: NavSection[] = [
     items: [
       {
         title: "Settings",
-        href: "/settings",
+        href: "/ems/settings",
         icon: GearSix,
+      },
+      {
+        title: "Switch tool",
+        href: "/",
+        icon: ArrowsLeftRight,
+        exact: true,
       },
       {
         title: "Logout",
