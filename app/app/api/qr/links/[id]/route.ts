@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/lib/auth/require-admin";
+import { isUuid } from "@/lib/services/roster-service";
 import {
   deleteShortUrl,
   ShortUrlInputError,
@@ -50,9 +51,12 @@ export async function PATCH(
   const authorization = await requireAdmin();
   if (authorization instanceof Response) return authorization;
 
+  const { id } = await params;
+  if (!isUuid(id)) return Response.json({ error: "Link not found." }, { status: 404 });
+
   try {
     const link = await updateShortUrl(
-      (await params).id,
+      id,
       parseUpdateInput(await request.json()),
       authorization.adminId,
     );
@@ -72,7 +76,10 @@ export async function DELETE(
   const authorization = await requireAdmin();
   if (authorization instanceof Response) return authorization;
 
-  const deleted = await deleteShortUrl((await params).id, authorization.adminId);
+  const { id } = await params;
+  if (!isUuid(id)) return Response.json({ error: "Link not found." }, { status: 404 });
+
+  const deleted = await deleteShortUrl(id, authorization.adminId);
   if (!deleted) return Response.json({ error: "Link not found." }, { status: 404 });
   return new Response(null, { status: 204 });
 }
