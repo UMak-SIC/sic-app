@@ -15,3 +15,7 @@ mockup/
 # one missing.
 app/package-lock.json
 
+
+# One-time QR migration data (contains destinations and scan history)
+app/qr-export*.json
+app/qr-unmigrated-logos*.json
