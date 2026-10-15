@@ -22,6 +22,8 @@ const applicationTables = [
   "event_roster_entries",
   "campaigns",
   "events",
+  "short_url_visits",
+  "short_urls",
   "assets",
   "provider_daily_usage",
   "attendees",
