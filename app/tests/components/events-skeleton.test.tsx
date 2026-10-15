@@ -4,8 +4,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EventsTableSkeleton } from "@/components/events/events-table-skeleton";
 import { EventDetailSkeleton } from "@/components/events/event-detail-skeleton";
 import { EventPeopleTableSkeleton } from "@/components/events/event-people-table-skeleton";
-import EventsLoading from "@/app/(tabs)/events/loading";
-import EventDetailLoading from "@/app/(tabs)/events/[id]/loading";
+import EventsLoading from "@/app/ems/(tabs)/events/loading";
+import EventDetailLoading from "@/app/ems/(tabs)/events/[id]/loading";
 
 describe("Events Skeleton Components", () => {
   it("renders the base Skeleton primitive with data-slot and custom className", () => {

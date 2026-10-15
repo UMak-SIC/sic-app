@@ -24,7 +24,7 @@ test("answers a protected page with a redirect to the sign-in route", async ({
   request,
   baseURL,
 }) => {
-  const response = await request.get("/checkin", { maxRedirects: 0 });
+  const response = await request.get("/ems/checkin", { maxRedirects: 0 });
 
   expect(response.status()).toBe(307);
   expect((await redirectedTo(response, baseURL as string)).pathname).toBe(SIGN_IN);
@@ -32,7 +32,7 @@ test("answers a protected page with a redirect to the sign-in route", async ({
 
 test("guards event attendance the same way", async ({ request, baseURL }) => {
   const response = await request.get(
-    "/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance",
+    "/ems/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance",
     { maxRedirects: 0 },
   );
 
@@ -44,19 +44,18 @@ test("forwards the original query string to the sign-in route", async ({
   request,
   baseURL,
 }) => {
-  const response = await request.get("/checkin?event=123", { maxRedirects: 0 });
+  const response = await request.get("/ems/checkin?event=123", { maxRedirects: 0 });
 
   expect(response.status()).toBe(307);
   expect((await redirectedTo(response, baseURL as string)).search).toBe("?event=123");
 });
 
-test("puts the root URL behind sign-in, since it redirects to the overview", async ({
+test("puts the root URL behind sign-in, since it is the tool selector", async ({
   request,
   baseURL,
 }) => {
-  // app/app/page.tsx redirects "/" to /overview, so leaving the root reachable
-  // only moved the login wall one hop away. This app is an internal tool, so the
-  // whole surface sits behind sign-in.
+  // app/app/page.tsx is the tool selector, which only an admin should see. This
+  // app is an internal tool, so the whole surface sits behind sign-in.
   const response = await request.get("/", { maxRedirects: 0 });
 
   expect(response.status()).toBe(307);
@@ -74,12 +73,12 @@ test("guards the admin screens added after the original matcher", async ({
   // touching the proxy. Each is about to start showing real data, so this is
   // the guard for that exposure.
   for (const path of [
-    "/attendees",
-    "/assets",
-    "/campaign",
-    "/campaign/new",
-    "/overview",
-    "/settings",
+    "/ems/attendees",
+    "/ems/assets",
+    "/ems/campaign",
+    "/ems/campaign/new",
+    "/ems/overview",
+    "/ems/settings",
   ]) {
     const response = await request.get(path, { maxRedirects: 0 });
 
@@ -103,7 +102,7 @@ test("lands a browser on a sign-in page that renders", async ({ page }) => {
   // unauthenticated visitors to /auth/sign-in, which is not a route, so this
   // asserted the URL of a 404 and looked like it passed. Asserting the form
   // itself is what catches that class of bug.
-  const response = await page.goto("/checkin", { waitUntil: "commit" });
+  const response = await page.goto("/ems/checkin", { waitUntil: "commit" });
 
   expect(response?.status()).toBe(200);
   await expect(page).toHaveURL(new RegExp(SIGN_IN));

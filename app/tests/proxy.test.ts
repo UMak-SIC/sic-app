@@ -67,21 +67,23 @@ test("guards every administration page, not just check-in and events", async () 
 
   for (const path of [
     // The two the original allowlist covered.
-    "/checkin",
-    "/checkin/some-event",
-    "/events",
-    "/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
-    "/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance",
+    "/ems/checkin",
+    "/ems/checkin/some-event",
+    "/ems/events",
+    "/ems/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
+    "/ems/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance",
     // Added by the frontend merge. These answered 200 with no session while the
     // matcher was an allowlist, so this test is the regression guard for it.
-    "/attendees",
-    "/assets",
-    "/campaign",
-    "/campaign/new",
-    "/campaign/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
-    "/overview",
-    "/settings",
-    // The root redirects to /overview, so guarding it is what puts the whole app
+    "/ems/attendees",
+    "/ems/assets",
+    "/ems/campaign",
+    "/ems/campaign/new",
+    "/ems/campaign/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
+    "/ems/overview",
+    "/ems/settings",
+    // The QR Generator section.
+    "/qr",
+    // The root is the tool selector, so guarding it is what puts the whole app
     // behind sign-in rather than only the admin screens.
     "/",
   ]) {
@@ -136,7 +138,7 @@ test("excludes files by extension without opening a hole for page routes", async
   for (const path of [
     "/some.file/admin-page",
     "/v1.2/admin-page",
-    "/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance",
+    "/ems/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94/attendance",
   ]) {
     expect(
       config.matcher.some((pattern) => matches(pattern, path)),

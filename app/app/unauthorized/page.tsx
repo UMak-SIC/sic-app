@@ -13,8 +13,9 @@ import { SignOutButton } from "./sign-out-button";
 // This is a plain page route rather than Next's `unauthorized()` convention
 // file. That convention is experimental and answers 401, which is the wrong
 // status here: the visitor is signed in, they are simply not on the admins
-// allowlist, which is 403. `app/app/page.tsx` redirects "/" to /overview, so
-// this route is reachable on its own and is linked from the sign-in screen.
+// allowlist, which is 403. The tool selector at `app/app/page.tsx` is guarded
+// too, so this route is reachable on its own and is linked from the sign-in
+// screen.
 
 export default function UnauthorizedPage() {
   return (

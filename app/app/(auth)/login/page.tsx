@@ -61,11 +61,12 @@ export default function LoginPage() {
         return;
       }
 
-      // A session that is not on the administrators list is refused by the
-      // layout guard and lands on the access-denied page, so this is the right
-      // destination either way. refresh() is what makes the new session visible
-      // to the server components behind it.
-      router.replace("/overview");
+      // Signing in lands on the tool selector. A session that is not on the
+      // administrators list is refused by its guard and lands on the
+      // access-denied page, so this is the right destination either way.
+      // refresh() is what makes the new session visible to the server
+      // components behind it.
+      router.replace("/");
       router.refresh();
     } catch {
       setErrorMessage(

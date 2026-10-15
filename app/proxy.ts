@@ -51,9 +51,9 @@ export default proxy;
 // them answered 200 with no session. A deny-by-default matcher means the next
 // admin page added is protected without anyone having to remember this file.
 //
-// `/` is intentionally not excluded. app/app/page.tsx redirects it to
-// /overview, so excluding the root would only move the login wall one hop
-// away; this app is an internal tool and the whole surface sits behind sign-in.
+// `/` is intentionally not excluded. app/app/page.tsx is the tool selector,
+// which only an admin should see; this app is an internal tool and the whole
+// surface sits behind sign-in.
 export const config = {
   matcher: [
     "/((?!login|register|api|_next/static|_next/image|favicon.ico|.*[^/]*\\.[^/]*$).*)",

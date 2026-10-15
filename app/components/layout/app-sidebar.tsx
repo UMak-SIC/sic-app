@@ -33,7 +33,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         {/* Brand Logo & Name (Completely hidden when collapsed) */}
         {!collapsed && (
           <Link
-            href="/overview"
+            href="/ems/overview"
             className="flex items-center gap-3 overflow-hidden"
           >
             <div className="relative flex h-10 w-10 shrink-0 items-center justify-center">
@@ -92,7 +92,7 @@ export function MobileSidebarContent({
       {/* Brand Header */}
       <div className="flex h-18 items-center justify-between border-b border-line px-5">
         <Link
-          href="/overview"
+          href="/ems/overview"
           onClick={onClose}
           className="flex items-center gap-3 overflow-hidden"
         >

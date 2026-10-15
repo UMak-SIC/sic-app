@@ -100,7 +100,7 @@ export function OverviewEventsSection() {
   };
 
   const handleView = (event: DashboardEvent) => {
-    router.push(`/events/${event.id}`);
+    router.push(`/ems/events/${event.id}`);
   };
 
   const selectedEvent =

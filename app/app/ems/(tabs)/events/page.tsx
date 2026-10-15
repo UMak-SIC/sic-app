@@ -128,9 +128,9 @@ export default function EventsPage() {
             selectedIds={selectedIds}
             onToggleSelect={toggleSelection}
             onToggleSelectAll={toggleAllSelection}
-            onViewClick={(item) => router.push(`/events/${item.id}`)}
+            onViewClick={(item) => router.push(`/ems/events/${item.id}`)}
             onPeopleClick={(item) => setManagingPeople(events.find((event) => event.id === item.id) ?? null)}
-            onComposeClick={(item) => router.push(`/campaign/new?eventId=${item.id}`)}
+            onComposeClick={(item) => router.push(`/ems/campaign/new?eventId=${item.id}`)}
             onEditClick={(item) => {
               const event = events.find((candidate) => candidate.id === item.id);
               if (event) {
@@ -138,7 +138,7 @@ export default function EventsPage() {
                 setFormOpen(true);
               }
             }}
-            onCheckInClick={(item) => router.push(`/events/${item.id}`)}
+            onCheckInClick={(item) => router.push(`/ems/events/${item.id}`)}
             onExportClick={exportEvents}
           />
           <EventsPagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredEvents.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
