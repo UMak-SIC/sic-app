@@ -101,6 +101,8 @@ test("leaves the sign-in screens, API routes, and static assets reachable", asyn
     // A bounced visitor has to be able to sign in.
     "/login",
     "/register",
+    // Public short links record a scan without requiring an administrator session.
+    "/url/AbCdEfG",
     // API routes answer JSON 401/403 from their own requireAdmin() calls and
     // must not be turned into an HTML redirect.
     "/api/auth/sign-in/email",
@@ -127,6 +129,16 @@ test("leaves the sign-in screens, API routes, and static assets reachable", asyn
       `expected ${path} to be reachable`
     ).toBe(false);
   }
+});
+
+test("keeps only the short-link resolver public while the QR workspace stays protected", async () => {
+  const { config } = await import("@/proxy");
+
+  expect(config.matcher.some((pattern) => matches(pattern, "/url/AbCdEfG"))).toBe(false);
+  expect(config.matcher.some((pattern) => matches(pattern, "/qr"))).toBe(true);
+  expect(config.matcher.some((pattern) => matches(pattern, "/qr/settings"))).toBe(true);
+  expect(config.matcher.some((pattern) => matches(pattern, "/urls"))).toBe(true);
+  expect(config.matcher.some((pattern) => matches(pattern, "/url-admin"))).toBe(true);
 });
 
 test("excludes files by extension without opening a hole for page routes", async () => {
