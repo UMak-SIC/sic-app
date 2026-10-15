@@ -188,3 +188,42 @@ test("deletes only the signed-in administrator's link", async () => {
   expect(response.status).toBe(204);
   expect(deleteShortUrl).toHaveBeenCalledWith(link.id, "admin-id");
 });
+
+test("answers a malformed link id with 404 before querying the database", async () => {
+  // Prisma rejects a non-UUID value for a @db.Uuid column with P2023, which
+  // would otherwise escape the route as a 500.
+  const invalidUuid = Object.assign(new Error("Error creating UUID"), { code: "P2023" });
+  updateShortUrl.mockRejectedValue(invalidUuid);
+  setShortUrlStatus.mockRejectedValue(invalidUuid);
+  deleteShortUrl.mockRejectedValue(invalidUuid);
+  const malformed = { params: Promise.resolve({ id: "not-a-uuid" }) };
+
+  const responses = [
+    await PATCH(
+      new Request("https://sic.test/api/qr/links/not-a-uuid", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "Updated" }),
+      }),
+      malformed,
+    ),
+    await setStatus(
+      new Request("https://sic.test/api/qr/links/not-a-uuid/status", {
+        method: "POST",
+        body: JSON.stringify({ status: "DISABLED" }),
+      }),
+      malformed,
+    ),
+    await DELETE(
+      new Request("https://sic.test/api/qr/links/not-a-uuid", { method: "DELETE" }),
+      malformed,
+    ),
+  ];
+
+  for (const response of responses) {
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Link not found." });
+  }
+  expect(updateShortUrl).not.toHaveBeenCalled();
+  expect(setShortUrlStatus).not.toHaveBeenCalled();
+  expect(deleteShortUrl).not.toHaveBeenCalled();
+});
