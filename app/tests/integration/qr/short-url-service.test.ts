@@ -78,7 +78,7 @@ test.skipIf(!hasTestDatabase())("enforces the short-link persistence contract", 
     data: {
       code: "CdEfGhI",
       destination: "https://example.test/negative-count",
-      viewCount: -1n,
+      viewCount: BigInt(-1),
       createdById: adminId,
     },
   })).rejects.toThrow();
@@ -132,15 +132,15 @@ test.skipIf(!hasTestDatabase())("resolves an active short link exactly once and 
 
   expect(resolved).toEqual([{ destination: "https://example.test/destination" }]);
   await expect(database.shortUrl.findUniqueOrThrow({ where: { id: activeUrl.id } }))
-    .resolves.toMatchObject({ viewCount: 1n });
+    .resolves.toMatchObject({ viewCount: BigInt(1) });
   await expect(database.shortUrlVisit.count({ where: { shortUrlId: activeUrl.id } }))
     .resolves.toBe(1);
 
   await expect(resolveCode(disabledUrl.code)).resolves.toEqual([]);
   await expect(resolveCode(expiredUrl.code)).resolves.toEqual([]);
   await expect(database.shortUrl.findUniqueOrThrow({ where: { id: disabledUrl.id } }))
-    .resolves.toMatchObject({ viewCount: 0n });
+    .resolves.toMatchObject({ viewCount: BigInt(0) });
   await expect(database.shortUrl.findUniqueOrThrow({ where: { id: expiredUrl.id } }))
-    .resolves.toMatchObject({ viewCount: 0n });
+    .resolves.toMatchObject({ viewCount: BigInt(0) });
   await expect(database.shortUrlVisit.count()).resolves.toBe(1);
 });
