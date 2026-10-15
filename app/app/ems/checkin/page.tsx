@@ -1,17 +1,9 @@
-import { connection } from "next/server";
-import { redirect } from "next/navigation";
-
 import { QrScanner } from "@/components/scanner/QrScanner";
-import { requireAdmin } from "@/lib/auth/require-admin";
+import { requireAdminPage } from "@/lib/auth/require-admin-page";
 import { listEvents } from "@/lib/services/event-service";
 
 export default async function CheckInPage() {
-  await connection();
-
-  const authorization = await requireAdmin();
-  if (authorization instanceof Response) {
-    redirect(authorization.status === 401 ? "/login" : "/unauthorized");
-  }
+  await requireAdminPage();
 
   const events = await listEvents();
 

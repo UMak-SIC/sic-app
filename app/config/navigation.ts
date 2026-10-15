@@ -16,6 +16,8 @@ export interface NavItem {
   icon: Icon;
   badge?: string;
   exact?: boolean;
+  // Rendered as a button that runs the action instead of a link to href.
+  action?: "sign-out";
 }
 
 export interface NavSection {
@@ -83,6 +85,7 @@ export const sidebarNavSections: NavSection[] = [
         title: "Logout",
         href: "/login",
         icon: SignOut,
+        action: "sign-out",
       },
     ],
   },
