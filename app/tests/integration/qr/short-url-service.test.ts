@@ -62,7 +62,7 @@ test.skipIf(!hasTestDatabase())("enforces the short-link persistence contract", 
   })).rejects.toMatchObject({ code: "P2002" });
   await expect(database.shortUrl.create({
     data: {
-      code: "invalid",
+      code: "Inval1d",
       destination: "https://example.test/invalid-code",
       createdById: adminId,
     },
