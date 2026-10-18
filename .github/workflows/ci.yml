@@ -1,14 +1,19 @@
 name: CI
 
 on:
+  # Feature branches are tested through their pull request; a push run as
+  # well would double the Neon branches each push needs.
   push:
+    branches: [dev, main]
     paths:
       - "app/**"
       - ".github/workflows/ci.yml"
+      - ".github/scripts/**"
   pull_request:
     paths:
       - "app/**"
       - ".github/workflows/ci.yml"
+      - ".github/scripts/**"
 
 jobs:
   lint-and-build:
