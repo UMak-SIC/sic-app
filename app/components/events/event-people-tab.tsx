@@ -224,13 +224,13 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
       ) : (
         <div className="overflow-x-auto">
           <Table className="min-w-[820px]">
-            <TableHeader><TableRow className="bg-canvas/50 hover:bg-canvas/50"><TableHead className="pl-5 text-xs font-bold text-muted">Person</TableHead><TableHead className="text-xs font-bold text-muted">Student ID</TableHead><TableHead className="text-xs font-bold text-muted">Ticket</TableHead><TableHead className="text-xs font-bold text-muted">Attendance</TableHead><TableHead className="pr-5 text-right text-xs font-bold text-muted">Actions</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow className="bg-canvas/50 hover:bg-canvas/50"><TableHead className="pl-5 text-xs font-bold text-muted">Person</TableHead><TableHead className="text-xs font-bold text-muted">Student ID</TableHead><TableHead className="text-center text-xs font-bold text-muted">Ticket</TableHead><TableHead className="text-center text-xs font-bold text-muted">Attendance</TableHead><TableHead className="pr-5 text-right text-xs font-bold text-muted">Actions</TableHead></TableRow></TableHeader>
             <TableBody>{filteredPeople.map((person) => (
               <TableRow key={person.id} className="border-line-subtle hover:bg-canvas/40">
                 <TableCell className="py-3 pl-5"><div className="flex items-center gap-3"><ProfileCircle name={person.name} size="md" /><div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{person.name}</p><p className="truncate text-xs text-muted">{person.email}</p></div></div></TableCell>
                 <TableCell className="py-3 font-mono text-xs text-muted">{person.studentId}</TableCell>
-                <TableCell className="py-3">{person.ticketSentAt ? <TicketSentBadge /> : <TicketNotSentBadge />}</TableCell>
-                <TableCell className="py-3"><AttendanceStatusBadge status={person.attendanceStatus} /></TableCell>
+                <TableCell className="py-3 text-center">{person.ticketSentAt ? <TicketSentBadge /> : <TicketNotSentBadge />}</TableCell>
+                <TableCell className="py-3 text-center"><AttendanceStatusBadge status={person.attendanceStatus} /></TableCell>
                 <TableCell className="py-3 pr-5 text-right">
                   <Button
                     type="button"
