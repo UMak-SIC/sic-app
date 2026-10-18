@@ -80,15 +80,22 @@ function isIdSegment(segment: string): boolean {
   return false;
 }
 
+// Each tool lives under its own prefix (/ems, /qr). The prefix is part of every
+// href but is not shown as a crumb, since the sidebar already says which tool
+// the operator is in.
+const TOOL_PREFIXES = new Set(["ems", "qr"]);
+
 function getBreadcrumbs(pathname: string): BreadcrumbItem[] {
-  const segments = pathname.split("/").filter(Boolean);
+  const allSegments = pathname.split("/").filter(Boolean);
+  const prefix = TOOL_PREFIXES.has(allSegments[0]) ? `/${allSegments[0]}` : "";
+  const segments = prefix ? allSegments.slice(1) : allSegments;
 
   if (segments.length === 0 || (segments.length === 1 && segments[0] === "overview")) {
-    return [{ label: "Overview", href: "/overview", isCurrent: true }];
+    return [{ label: "Overview", href: "/ems/overview", isCurrent: true }];
   }
 
   const items: BreadcrumbItem[] = [];
-  let accumulatedPath = "";
+  let accumulatedPath = prefix;
 
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];

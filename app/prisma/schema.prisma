@@ -48,6 +48,11 @@ enum AssetBucket {
   PUBLIC_IMAGES  @map("public-images")
 }
 
+enum ShortUrlStatus {
+  ACTIVE   @map("active")
+  DISABLED @map("disabled")
+}
+
 model Admin {
   neonAuthUserId String   @id @map("neon_auth_user_id")
   // The initial migration adds CHECK (singleton) so the unique value permits one row.
@@ -58,6 +63,7 @@ model Admin {
   scannedRosterEntries EventRosterEntry[] @relation("RosterEntryScanner")
   createdCampaigns     Campaign[]         @relation("CampaignCreator")
   uploadedAssets       Asset[]            @relation("AssetUploader")
+  createdShortUrls     ShortUrl[]         @relation("ShortUrlCreator")
 
   @@map("admins")
 }
@@ -281,8 +287,48 @@ model Asset {
   eventImages    Event[]         @relation("EventImage")
   campaignAssets CampaignAsset[]
   deletionFailure AssetDeletionFailure?
+  shortUrlLogos  ShortUrl[]      @relation("ShortUrlLogo")
 
   @@map("assets")
+}
+
+/// An administrator-owned short link managed by the QR tool. The QR bitmap is
+/// generated from this durable configuration rather than stored as an asset.
+model ShortUrl {
+  id            String         @id @default(uuid()) @db.Uuid
+  code          String         @unique
+  name          String         @default("Untitled link")
+  destination   String
+  viewCount     BigInt         @default(0) @map("view_count")
+  status        ShortUrlStatus @default(ACTIVE)
+  expiresAt     DateTime?      @map("expires_at") @db.Timestamptz(6)
+  qrLogoAssetId String?        @map("qr_logo_asset_id") @db.Uuid
+  qrForeground  String         @default("#176b4f") @map("qr_foreground")
+  qrBackground  String         @default("#f9f9ee") @map("qr_background")
+  createdById   String         @map("created_by_admin_id")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy   Admin           @relation("ShortUrlCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
+  qrLogoAsset Asset?          @relation("ShortUrlLogo", fields: [qrLogoAssetId], references: [id], onDelete: Restrict)
+  visits      ShortUrlVisit[]
+
+  @@index([createdById, createdAt])
+  @@index([status, expiresAt])
+  @@map("short_urls")
+}
+
+/// Append-only scan history. Public resolution writes a row only when the
+/// corresponding short link is active and has not expired.
+model ShortUrlVisit {
+  id         BigInt   @id @default(autoincrement())
+  shortUrlId String   @map("short_url_id") @db.Uuid
+  visitedAt  DateTime @default(now()) @map("visited_at") @db.Timestamptz(6)
+
+  shortUrl ShortUrl @relation(fields: [shortUrlId], references: [id], onDelete: Cascade)
+
+  @@index([shortUrlId, visitedAt])
+  @@map("short_url_visits")
 }
 
 model AssetDeletionFailure {

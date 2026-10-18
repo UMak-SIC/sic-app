@@ -165,6 +165,32 @@ function renderPassText({
     .toBuffer();
 }
 
+const PASS_QR_SLOT = 170;
+
+// Squeezing the QR into the pass slot at a fractional pixels-per-module ratio
+// leaves modules of uneven width, which scanners cannot read. Shrink by a
+// whole factor instead, so every module stays the same size, and centre the
+// result on white within the slot.
+async function renderPassQr(qrBuffer: Uint8Array): Promise<Buffer> {
+  const { width = 0 } = await sharp(qrBuffer).metadata();
+  const modules = width / DEFAULT_MODULE_SIZE;
+  const moduleSize = Math.floor(PASS_QR_SLOT / modules);
+
+  if (moduleSize < 1) {
+    throw new Error("Ticket is too long to fit on the pass.");
+  }
+
+  const size = modules * moduleSize;
+  const before = Math.floor((PASS_QR_SLOT - size) / 2);
+  const after = PASS_QR_SLOT - size - before;
+
+  return sharp(qrBuffer)
+    .resize(size, size, { kernel: sharp.kernel.nearest })
+    .extend({ top: before, bottom: after, left: before, right: after, background: "#ffffff" })
+    .png()
+    .toBuffer();
+}
+
 /** Renders a scan-safe QR into the recipient's downloadable boarding pass. */
 export async function renderQrTicketPassImage({
   ticket,
@@ -197,7 +223,7 @@ export async function renderQrTicketPassImage({
     renderPassText({ text: studentId, color: "#12333a", size: 16, bold: true }),
     renderPassText({ text: "Present this pass at check-in.", color: "#607579", size: 13 }),
     renderPassText({ text: "CHECK-IN PASS", color: "#087f8c", size: 13, bold: true }),
-    sharp(qr.buffer).resize(170, 170, { kernel: sharp.kernel.nearest }).png().toBuffer(),
+    renderPassQr(qr.buffer),
   ]);
   const pass = Buffer.from(`<svg width="840" height="320" viewBox="0 0 840 320" xmlns="http://www.w3.org/2000/svg"><rect width="840" height="320" rx="16" fill="#fbfdfd"/><rect x="1" y="1" width="838" height="318" rx="15" fill="none" stroke="#cfe0e0" stroke-width="2"/><path d="M558 1V319" stroke="#cfe0e0" stroke-width="2" stroke-dasharray="5 6"/><rect x="600" y="43" width="198" height="198" rx="12" fill="#ffffff" stroke="#cfe0e0" stroke-width="2"/></svg>`);
   const image = await sharp(pass)
