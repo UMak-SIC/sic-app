@@ -100,9 +100,16 @@ export async function updateAttendanceRecord({
         : (existing.arrivedAt ?? new Date())
       : null;
 
+  // The event_roster_entries check constraint requires attended rows to carry
+  // an arrival time and a recorded admin, and non-attended rows to carry
+  // neither. Only stamp the editor when marking attendance.
   const result = await prisma.eventRosterEntry.updateMany({
     where: { id: rosterEntryId, eventId },
-    data: { status, arrivedAt: nextArrival, scannedByAdminId: updatedByAdminId },
+    data: {
+      status,
+      arrivedAt: nextArrival,
+      scannedByAdminId: status === "ATTENDED" ? updatedByAdminId : null,
+    },
   });
 
   // The record disappeared between the read and the write — treat it as
