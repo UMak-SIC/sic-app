@@ -19,14 +19,26 @@ set -euo pipefail
 api="https://console.neon.tech/api/v2/projects/${NEON_PROJECT_ID}"
 database_name="ci"
 
+# Prints the response body. On an HTTP error it prints Neon's message to
+# stderr and returns 3 for 422/423 (branch limit reached or project busy,
+# both worth waiting out) and 1 for anything else.
 neon() {
-  local method="$1" path="$2" body="${3:-}"
-  curl --silent --show-error --fail-with-body --retry 3 \
+  local method="$1" path="$2" body="${3:-}" response status
+  response=$(mktemp)
+  status=$(curl --silent --show-error --retry 3 \
+    --output "$response" --write-out "%{http_code}" \
     --request "$method" "${api}${path}" \
     --header "Authorization: Bearer ${NEON_API_KEY}" \
     --header "Accept: application/json" \
     --header "Content-Type: application/json" \
-    ${body:+--data "$body"}
+    ${body:+--data "$body"})
+  if [ "$status" -ge 400 ]; then
+    echo "Neon API ${method} ${path} returned HTTP ${status}: $(cat "$response")" >&2
+    rm -f "$response"
+    case "$status" in 422 | 423) return 3 ;; *) return 1 ;; esac
+  fi
+  cat "$response"
+  rm -f "$response"
 }
 
 wait_for_operations() {
@@ -52,9 +64,21 @@ wait_for_operations() {
 }
 
 create() {
-  local name="$1" created branch_id role password host pooler_host
-  created=$(neon POST "/branches" "$(jq -n --arg name "$name" \
-    '{branch: {name: $name}, endpoints: [{type: "read_write"}]}')")
+  local name="$1" created branch_id role password host pooler_host request attempt status
+  request=$(jq -n --arg name "$name" '{branch: {name: $name}, endpoints: [{type: "read_write"}]}')
+
+  # Concurrent runs can fill the project's branch limit; wait up to ten
+  # minutes for another run's cleanup to free a slot.
+  for attempt in $(seq 1 20); do
+    status=0
+    created=$(neon POST "/branches" "$request") || status=$?
+    [ "$status" -eq 0 ] && break
+    if [ "$status" -ne 3 ] || [ "$attempt" -eq 20 ]; then
+      exit 1
+    fi
+    echo "Waiting 30s for a free Neon branch slot (attempt ${attempt} of 20)."
+    sleep 30
+  done
 
   branch_id=$(jq -r '.branch.id' <<<"$created")
   echo "branch_id=${branch_id}" >>"$GITHUB_OUTPUT"
