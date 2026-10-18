@@ -66,6 +66,59 @@ export async function checkInRosterEntry({
   });
 }
 
+export type AttendanceRecord = { status: RosterEntryStatus; arrivedAt: Date | null };
+
+export async function updateAttendanceRecord({
+  eventId,
+  rosterEntryId,
+  status,
+  arrivedAt,
+  updatedByAdminId,
+}: {
+  eventId: string;
+  rosterEntryId: string;
+  status: RosterEntryStatus;
+  arrivedAt?: Date | null;
+  updatedByAdminId: string;
+}): Promise<AttendanceRecord | null> {
+  const prisma = getPrismaClient();
+
+  const existing = await prisma.eventRosterEntry.findUnique({
+    where: { eventId_id: { eventId, id: rosterEntryId } },
+    select: { status: true, arrivedAt: true },
+  });
+
+  if (!existing) return null;
+
+  // Arrival time only makes sense for someone who actually attended. Keep an
+  // already recorded arrival when re-marking attended, default to now when the
+  // person is newly marked attended, and clear it otherwise.
+  const nextArrival =
+    status === "ATTENDED"
+      ? arrivedAt !== undefined && arrivedAt !== null
+        ? arrivedAt
+        : (existing.arrivedAt ?? new Date())
+      : null;
+
+  // The event_roster_entries check constraint requires attended rows to carry
+  // an arrival time and a recorded admin, and non-attended rows to carry
+  // neither. Only stamp the editor when marking attendance.
+  const result = await prisma.eventRosterEntry.updateMany({
+    where: { id: rosterEntryId, eventId },
+    data: {
+      status,
+      arrivedAt: nextArrival,
+      scannedByAdminId: status === "ATTENDED" ? updatedByAdminId : null,
+    },
+  });
+
+  // The record disappeared between the read and the write — treat it as
+  // missing rather than reporting a save that never happened.
+  if (result.count === 0) return null;
+
+  return { status, arrivedAt: nextArrival };
+}
+
 export async function recordCheckIn({
   eventId,
   ticketTokenOrCode,
