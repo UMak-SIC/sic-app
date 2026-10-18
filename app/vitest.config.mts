@@ -11,6 +11,12 @@ const testDatabaseUrl =
   rootTestEnv.TEST_DATABASE_URL ??
   rootTestEnv.NEON_TEST_DATABASE_URL;
 
+// Without a URL every database test is skipped, which locally is a convenience
+// but in CI would report a green run that never touched the database.
+if (process.env.CI && !testDatabaseUrl) {
+  throw new Error("CI requires TEST_DATABASE_URL; database tests would be silently skipped.");
+}
+
 if (testDatabaseUrl && process.env.DATABASE_URL === testDatabaseUrl) {
   throw new Error("DATABASE_URL must not point to the TEST_DATABASE_URL database.");
 }
