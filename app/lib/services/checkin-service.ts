@@ -100,10 +100,14 @@ export async function updateAttendanceRecord({
         : (existing.arrivedAt ?? new Date())
       : null;
 
-  await prisma.eventRosterEntry.updateMany({
+  const result = await prisma.eventRosterEntry.updateMany({
     where: { id: rosterEntryId, eventId },
     data: { status, arrivedAt: nextArrival, scannedByAdminId: updatedByAdminId },
   });
+
+  // The record disappeared between the read and the write — treat it as
+  // missing rather than reporting a save that never happened.
+  if (result.count === 0) return null;
 
   return { status, arrivedAt: nextArrival };
 }
