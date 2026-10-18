@@ -11,13 +11,13 @@ const { updateMany, findFirst, findUnique, transaction, verifyQrTicket } = vi.ho
 vi.mock("@/lib/prisma", () => ({
   getPrismaClient: () => ({
     $transaction: transaction,
-    eventRosterEntry: { findFirst, findUnique },
+    eventRosterEntry: { findFirst, findUnique, updateMany },
   }),
 }));
 
 vi.mock("@/lib/security/qr-signer", () => ({ verifyQrTicket }));
 
-import { checkInRosterEntry, recordCheckIn } from "@/lib/services/checkin-service";
+import { checkInRosterEntry, recordCheckIn, updateAttendanceRecord } from "@/lib/services/checkin-service";
 
 beforeEach(() => {
   transaction.mockImplementation((callback) => callback({ eventRosterEntry: { updateMany, findUnique } }));
@@ -69,8 +69,100 @@ test("does not treat missing or non-pending entries as successful check-ins", as
   ).resolves.toEqual({ status: "unavailable" });
 });
 
-test("returns an expired ticket reason without looking up a roster entry", async () => {
-  verifyQrTicket.mockReturnValue({
+test("records an admin attendance edit with the requested arrival time", async () => {
+  const arrival = new Date("2026-10-01T10:05:00.000Z");
+  findUnique.mockResolvedValue({ status: "ATTENDED", arrivedAt: arrival });
+  updateMany.mockResolvedValue({ count: 1 });
+
+  await expect(
+    updateAttendanceRecord({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      status: "ATTENDED",
+      arrivedAt: arrival,
+      updatedByAdminId: "admin-id",
+    }),
+  ).resolves.toEqual({ status: "ATTENDED", arrivedAt: arrival });
+
+  expect(findUnique).toHaveBeenCalledWith({
+    where: { eventId_id: { eventId: "event-id", id: "entry-id" } },
+    select: { status: true, arrivedAt: true },
+  });
+  expect(updateMany).toHaveBeenCalledWith({
+    where: { id: "entry-id", eventId: "event-id" },
+    data: { status: "ATTENDED", arrivedAt: arrival, scannedByAdminId: "admin-id" },
+  });
+});
+
+test("keeps the recorded arrival time when re-marking someone attended", async () => {
+  const originalArrival = new Date("2026-10-01T09:50:00.000Z");
+  findUnique.mockResolvedValue({ status: "ATTENDED", arrivedAt: originalArrival });
+
+  await expect(
+    updateAttendanceRecord({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      status: "ATTENDED",
+      updatedByAdminId: "admin-id",
+    }),
+  ).resolves.toEqual({ status: "ATTENDED", arrivedAt: originalArrival });
+
+  expect(updateMany).toHaveBeenCalledWith(
+    expect.objectContaining({ data: { status: "ATTENDED", arrivedAt: originalArrival, scannedByAdminId: "admin-id" } }),
+  );
+});
+
+test("stamps a fresh arrival time when a pending record becomes attended", async () => {
+  findUnique.mockResolvedValue({ status: "PENDING", arrivedAt: null });
+
+  const result = await updateAttendanceRecord({
+    eventId: "event-id",
+    rosterEntryId: "entry-id",
+    status: "ATTENDED",
+    updatedByAdminId: "admin-id",
+  });
+
+  expect(result?.status).toBe("ATTENDED");
+  expect(result?.arrivedAt).toBeInstanceOf(Date);
+  expect(updateMany).toHaveBeenCalledWith(
+    expect.objectContaining({ data: expect.objectContaining({ status: "ATTENDED", scannedByAdminId: "admin-id" }) }),
+  );
+});
+
+test("clears the arrival time when the record moves away from attended", async () => {
+  findUnique.mockResolvedValue({ status: "ATTENDED", arrivedAt: new Date("2026-10-01T09:50:00.000Z") });
+
+  await expect(
+    updateAttendanceRecord({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      status: "PENDING",
+      updatedByAdminId: "admin-id",
+    }),
+  ).resolves.toEqual({ status: "PENDING", arrivedAt: null });
+
+  expect(updateMany).toHaveBeenCalledWith({
+    where: { id: "entry-id", eventId: "event-id" },
+    data: { status: "PENDING", arrivedAt: null, scannedByAdminId: "admin-id" },
+  });
+});
+
+test("refuses to edit a roster entry outside the event or missing entirely", async () => {
+  findUnique.mockResolvedValue(null);
+
+  await expect(
+    updateAttendanceRecord({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      status: "ABSENT",
+      updatedByAdminId: "admin-id",
+    }),
+  ).resolves.toBeNull();
+
+  expect(updateMany).not.toHaveBeenCalled();
+});
+
+test("returns an expired ticket reason without looking up a roster entry", async () => {  verifyQrTicket.mockReturnValue({
     valid: false,
     reason: "expired",
     message: "This QR ticket has expired.",
