@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { downloadLogo, LogoMigrationError } from "@/scripts/import-supabase-qr-data.mjs";
+import { downloadLogo, LogoMigrationError, parseStorageOrigin } from "@/scripts/import-supabase-qr-data.mjs";
 import { parseQrExport } from "@/scripts/lib/qr-export.mjs";
 
 const linkId = "4a5c4b1e-8a3e-4f43-9a51-1f5f2f0a6b10";
@@ -77,14 +77,17 @@ describe("parseQrExport", () => {
 });
 
 describe("downloadLogo", () => {
+  const origin = "https://project.supabase.co";
+  const logoAddress = `${origin}/storage/v1/object/public/qr-logos/owner/logo.png`;
+
   function imageResponse(body: Uint8Array<ArrayBuffer>, headers: Record<string, string> = {}) {
     return new Response(body, { headers: { "content-type": "image/png", ...headers } });
   }
 
-  test("downloads an image without following redirects", async () => {
+  test("downloads a public logo from the Supabase storage origin without following redirects", async () => {
     const fetchImpl = vi.fn(async () => imageResponse(new Uint8Array([1, 2, 3])));
 
-    await expect(downloadLogo("https://project.supabase.co/logo.png", fetchImpl)).resolves.toEqual({
+    await expect(downloadLogo(logoAddress, origin, fetchImpl)).resolves.toEqual({
       bytes: new Uint8Array([1, 2, 3]),
       mediaType: "image/png",
     });
@@ -93,16 +96,41 @@ describe("downloadLogo", () => {
 
   test.each([
     ["not a url", "not a valid URL"],
-    ["http://project.supabase.co/logo.png", "not HTTPS"],
+    ["http://project.supabase.co/storage/v1/object/public/qr-logos/logo.png", "not HTTPS"],
+    ["https://evil.test/storage/v1/object/public/qr-logos/logo.png", "not a public file"],
+    ["https://other.supabase.co/storage/v1/object/public/qr-logos/logo.png", "not a public file"],
+    ["https://project.supabase.co.evil.test/storage/v1/object/public/qr-logos/logo.png", "not a public file"],
+    ["https://project.supabase.co@evil.test/storage/v1/object/public/qr-logos/logo.png", "not a public file"],
+    ["https://user:pass@project.supabase.co/storage/v1/object/public/qr-logos/logo.png", "not a public file"],
+    ["https://project.supabase.co:8443/storage/v1/object/public/qr-logos/logo.png", "not a public file"],
+    ["https://project.supabase.co/logo.png", "not a public file"],
+    ["https://project.supabase.co/storage/v1/object/sign/qr-logos/logo.png", "not a public file"],
+    ["https://project.supabase.co/storage/v1/object/public/../../../auth/v1/user", "not a public file"],
   ])("rejects %s without a request", async (address, message) => {
     const fetchImpl = vi.fn();
 
-    await expect(downloadLogo(address, fetchImpl)).rejects.toThrow(message);
+    const attempt = downloadLogo(address, origin, fetchImpl);
+    await expect(attempt).rejects.toBeInstanceOf(LogoMigrationError);
+    await expect(attempt).rejects.toThrow(message);
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  test("rejects a response that was redirected to another host", async () => {
+    const redirected = imageResponse(new Uint8Array([1]));
+    Object.defineProperty(redirected, "redirected", { value: true });
+    Object.defineProperty(redirected, "url", { value: "https://evil.test/logo.png" });
+    const fetchImpl = vi.fn(async () => redirected);
+
+    await expect(downloadLogo(logoAddress, origin, fetchImpl)).rejects.toThrow("redirected");
+  });
+
+  test("reports a redirect refused by fetch as a migration failure", async () => {
+    const fetchImpl = vi.fn(async () => Promise.reject(new TypeError("fetch failed", { cause: "unexpected redirect" })));
+
+    await expect(downloadLogo(logoAddress, origin, fetchImpl)).rejects.toBeInstanceOf(LogoMigrationError);
+  });
+
   test("reports unreachable, missing, non-image, and oversized logos as migration failures", async () => {
-    const address = "https://project.supabase.co/logo.png";
     const oversized = new Uint8Array(10 * 1024 * 1024 + 1);
     const cases: Array<[() => Promise<Response>, string]> = [
       [async () => Promise.reject(new TypeError("fetch failed")), "could not be downloaded"],
@@ -113,9 +141,27 @@ describe("downloadLogo", () => {
     ];
 
     for (const [fetchImpl, message] of cases) {
-      const attempt = downloadLogo(address, fetchImpl);
+      const attempt = downloadLogo(logoAddress, origin, fetchImpl);
       await expect(attempt).rejects.toBeInstanceOf(LogoMigrationError);
       await expect(attempt).rejects.toThrow(message);
     }
+  });
+});
+
+describe("parseStorageOrigin", () => {
+  test("accepts a bare HTTPS origin", () => {
+    expect(parseStorageOrigin("https://project.supabase.co")).toBe("https://project.supabase.co");
+    expect(parseStorageOrigin("https://project.supabase.co/")).toBe("https://project.supabase.co");
+  });
+
+  test.each([
+    "",
+    "project.supabase.co",
+    "http://project.supabase.co",
+    "https://project.supabase.co/storage/v1",
+    "https://user@project.supabase.co",
+    "https://project.supabase.co?x=1",
+  ])("rejects %j", (value) => {
+    expect(() => parseStorageOrigin(value)).toThrow("SUPABASE_STORAGE_ORIGIN");
   });
 });

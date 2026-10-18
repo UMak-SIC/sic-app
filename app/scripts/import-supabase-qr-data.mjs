@@ -19,11 +19,32 @@ const LOGO_BUCKET = "public-images";
 
 export class LogoMigrationError extends Error {}
 
+const LOGO_PATH_PREFIX = "/storage/v1/object/public/";
+
 /**
- * Downloads one legacy logo with a timeout, a size cap, and no redirects so a
- * stored address cannot send the importer anywhere other than where it says.
+ * Reads SUPABASE_STORAGE_ORIGIN (for example https://<project-ref>.supabase.co)
+ * into the one origin logos may be downloaded from. Anything with a path,
+ * query, or credentials is refused so the value cannot be read two ways.
  */
-export async function downloadLogo(address, fetchImpl = fetch) {
+export function parseStorageOrigin(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("SUPABASE_STORAGE_ORIGIN is not a valid URL.");
+  }
+  if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("SUPABASE_STORAGE_ORIGIN must be an HTTPS origin such as https://<project-ref>.supabase.co.");
+  }
+  return url.origin;
+}
+
+/**
+ * Downloads one legacy logo with a timeout, a size cap, and no redirects. The
+ * legacy app let any signed-in user store any logo address, so only public
+ * objects on the legacy project's own storage origin are fetched.
+ */
+export async function downloadLogo(address, storageOrigin, fetchImpl = fetch) {
   let url;
   try {
     url = new URL(address);
@@ -33,6 +54,10 @@ export async function downloadLogo(address, fetchImpl = fetch) {
   if (url.protocol !== "https:") {
     throw new LogoMigrationError("The logo address is not HTTPS.");
   }
+  // URL normalizes "..", so the prefix check cannot be walked out of.
+  if (url.origin !== storageOrigin || url.username || url.password || !url.pathname.startsWith(LOGO_PATH_PREFIX)) {
+    throw new LogoMigrationError("The logo address is not a public file in the legacy Supabase storage.");
+  }
 
   let response;
   try {
@@ -41,6 +66,10 @@ export async function downloadLogo(address, fetchImpl = fetch) {
     throw new LogoMigrationError(
       error?.name === "TimeoutError" ? "The logo download timed out." : "The logo could not be downloaded.",
     );
+  }
+  // redirect: "error" already rejects; this also covers a fetch that followed one anyway.
+  if (response.redirected || (response.url && new URL(response.url).origin !== storageOrigin)) {
+    throw new LogoMigrationError("The logo download was redirected.");
   }
   if (!response.ok) {
     throw new LogoMigrationError(`The logo download returned HTTP ${response.status}.`);
@@ -201,7 +230,7 @@ export async function importQrExport({
   storage,
   exportData,
   adminId,
-  fetchLogo = downloadLogo,
+  fetchLogo,
   dryRun = false,
 }) {
   const admin = await prisma.admin.findUnique({ where: { neonAuthUserId: adminId }, select: { neonAuthUserId: true } });
@@ -292,8 +321,11 @@ async function main() {
   requireEnvironment([
     "DATABASE_URL",
     "QR_MIGRATION_ADMIN_ID",
-    ...(options.dryRun ? [] : ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL_S3", "AWS_REGION"]),
+    ...(options.dryRun
+      ? []
+      : ["SUPABASE_STORAGE_ORIGIN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ENDPOINT_URL_S3", "AWS_REGION"]),
   ]);
+  const storageOrigin = options.dryRun ? undefined : parseStorageOrigin(process.env.SUPABASE_STORAGE_ORIGIN);
 
   const exportData = await readQrExport(options.exportPath);
   const prisma = createPrismaClient();
@@ -315,6 +347,7 @@ async function main() {
       storage,
       exportData,
       adminId: process.env.QR_MIGRATION_ADMIN_ID,
+      fetchLogo: (address) => downloadLogo(address, storageOrigin),
       dryRun: options.dryRun,
     });
     const { unmigratedLogos, ...counts } = report;

@@ -37,10 +37,11 @@ The `pnpm qr:import` and `pnpm qr:verify` scripts run the same files.
 | `SUPABASE_DB_URL` | export (`psql`) | Direct (port 5432) connection for the legacy project. Operator-held, never in Vercel. |
 | `DATABASE_URL` | import, verify | The target Neon database. |
 | `QR_MIGRATION_ADMIN_ID` | import | Neon Auth user id of the SIC administrator; imported links are assigned to them. Must already exist in `admins`. |
+| `SUPABASE_STORAGE_ORIGIN` | import (not `--dry-run`) | The legacy project's origin, e.g. `https://<project-ref>.supabase.co`. Logos are only downloaded from `<origin>/storage/v1/object/public/`. |
 | `AWS_*` storage values | import (not `--dry-run`) | Same Neon Object Storage values the app uses. |
 
-Remove `SUPABASE_DB_URL` and `QR_MIGRATION_ADMIN_ID` from your shell and env
-files once the cutover is signed off.
+Remove `SUPABASE_DB_URL`, `QR_MIGRATION_ADMIN_ID`, and `SUPABASE_STORAGE_ORIGIN`
+from your shell and env files once the cutover is signed off.
 
 ### Behavior worth knowing
 
@@ -56,12 +57,13 @@ files once the cutover is signed off.
   safe. The exception is scans that the legacy resolver recorded since the last
   run: those are added to the existing link and its scan count goes up by the
   same amount. Each scan is compared as a (link, timestamp) pair.
-- **Logos** are downloaded (HTTPS only, no redirects, 15 s timeout, 10 MiB cap)
+- **Logos** are downloaded only from public objects on `SUPABASE_STORAGE_ORIGIN`
+  (exact protocol, host, and port; no redirects, 15 s timeout, 10 MiB cap)
   and checked with the same Sharp rules as dashboard uploads. They are saved as
   WebP in `public-images` and get a new `Asset` row. A logo that cannot be
-  retrieved is written to the unmigrated-logo report
-  (`qr-unmigrated-logos.json` by default), and its link is imported **without**
-  a logo. A Supabase URL is never kept. If the link write fails, the uploaded
+  retrieved, or whose address points anywhere else, is written to the
+  unmigrated-logo report (`qr-unmigrated-logos.json` by default), and its link
+  is imported **without** a logo. A Supabase URL is never kept. If the link write fails, the uploaded
   logos are removed again.
 - **Verify** compares, inside Postgres and to the microsecond: link count, each
   link's code, name, destination, status, expiry, colors and creation time,
