@@ -9,7 +9,7 @@ export default function EventCheckinRedirectPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   React.useEffect(() => {
-    router.replace(`/events/${id}`);
+    router.replace(`/ems/events/${id}`);
   }, [id, router]);
 
   return null;

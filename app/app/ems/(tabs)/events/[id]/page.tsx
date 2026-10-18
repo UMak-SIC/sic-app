@@ -132,7 +132,7 @@ export default function EventDetailPage() {
                 {selectedPeople} {selectedPeople === 1 ? "person" : "people"} selected
               </span>
             </div>
-            <button type="button" onClick={() => router.push("/events")} className="inline-flex cursor-pointer items-center gap-1 rounded-[6px] bg-ink/55 px-2.5 py-1.5 text-xs font-semibold text-paper backdrop-blur transition-colors hover:bg-ink/80">
+            <button type="button" onClick={() => router.push("/ems/events")} className="inline-flex cursor-pointer items-center gap-1 rounded-[6px] bg-ink/55 px-2.5 py-1.5 text-xs font-semibold text-paper backdrop-blur transition-colors hover:bg-ink/80">
               <ArrowLeft size={13} weight="bold" aria-hidden="true" />
               <span>All Events</span>
             </button>
@@ -159,7 +159,7 @@ export default function EventDetailPage() {
               <span>Manage People</span>
             </Button>
             <Button asChild className="h-9 cursor-pointer gap-1.5 rounded-[6px] bg-cyan px-4 text-xs font-semibold text-white shadow-xs hover:bg-cyan-hover">
-              <Link href={`/campaign/new?eventId=${event.id}`}><PaperPlaneTilt size={15} weight="bold" aria-hidden="true" />Compose Email</Link>
+              <Link href={`/ems/campaign/new?eventId=${event.id}`}><PaperPlaneTilt size={15} weight="bold" aria-hidden="true" />Compose Email</Link>
             </Button>
             {event.status === "DRAFT" && <>
               <Button type="button" variant="outline" onClick={() => setEditing(true)} className="h-9 cursor-pointer gap-1.5 rounded-[6px] border-line px-3.5 text-xs font-semibold hover:bg-canvas">

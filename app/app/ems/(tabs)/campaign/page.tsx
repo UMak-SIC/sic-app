@@ -138,9 +138,9 @@ export default function CampaignPage() {
 
   const handleOpenDetails = (campaign: CampaignSummary) => {
     if (campaign.status === "no_campaigns") {
-      router.push(`/campaign/new?eventId=${campaign.eventId ?? campaign.id}`);
+      router.push(`/ems/campaign/new?eventId=${campaign.eventId ?? campaign.id}`);
     } else {
-      router.push(`/campaign/${campaign.id}`);
+      router.push(`/ems/campaign/${campaign.id}`);
     }
   };
 
@@ -153,7 +153,7 @@ export default function CampaignPage() {
         action={
           <PageHeaderButton
             icon={<Plus size={18} weight="bold" className="text-white" />}
-            onClick={() => router.push("/campaign/new")}
+            onClick={() => router.push("/ems/campaign/new")}
           >
             Send New Email
           </PageHeaderButton>

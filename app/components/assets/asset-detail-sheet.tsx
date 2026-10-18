@@ -285,7 +285,7 @@ export function AssetDetailSheet({
             </Button>
 
             <Link
-              href="/campaign/new"
+              href="/ems/campaign/new"
               className="inline-flex items-center justify-center bg-cyan hover:bg-cyan-hover text-white text-xs font-semibold rounded-[6px] h-9 px-3.5 gap-1.5 cursor-pointer shadow-xs transition-colors"
             >
               <EnvelopeSimple size={14} weight="bold" />

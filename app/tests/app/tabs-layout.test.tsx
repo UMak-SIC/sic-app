@@ -35,7 +35,7 @@ beforeEach(() => {
 });
 
 async function renderLayout() {
-  const { default: DashboardLayout } = await import("@/app/(tabs)/layout");
+  const { default: DashboardLayout } = await import("@/app/ems/(tabs)/layout");
 
   return DashboardLayout({ children: "page-content" } as never);
 }
