@@ -10,7 +10,7 @@ import { expect, test } from "@playwright/test";
 test.skip(
   "shows a useful recovery path when the browser denies camera access",
   async ({ page }) => {
-    await page.goto("/checkin");
+    await page.goto("/ems/checkin");
 
     await page.getByRole("button", { name: "Open camera" }).click();
 
