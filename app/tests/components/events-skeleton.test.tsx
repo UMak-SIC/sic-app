@@ -42,10 +42,12 @@ describe("Events Skeleton Components", () => {
     const el = EventPeopleTableSkeleton({ rowCount: 3 });
     expect(isValidElement(el)).toBe(true);
 
-    const table = (el.props as { children: React.ReactElement }).children;
-    const [header, body] = (table.props as { children: [React.ReactElement, React.ReactElement] }).children;
-    const headerRow = (header.props as { children: React.ReactElement }).children;
-    const heads = (headerRow.props as { children: React.ReactElement[] }).children;
+    type ColumnNode = React.ReactElement<{ children?: React.ReactNode; className?: string }>;
+
+    const table = (el.props as { children: ColumnNode }).children;
+    const [header, body] = (table.props as { children: [ColumnNode, ColumnNode] }).children;
+    const headerRow = (header.props as { children: ColumnNode }).children;
+    const heads = (headerRow.props as { children: ColumnNode[] }).children;
 
     // Ticket column header (index 2) and Attendance column header (index 3)
     expect(heads[2].props.children).toBe("Ticket");
@@ -54,9 +56,9 @@ describe("Events Skeleton Components", () => {
     expect(heads[3].props.className).toContain("text-center");
 
     // Cells in rows
-    const rows = (body.props as { children: React.ReactElement[] }).children;
+    const rows = (body.props as { children: ColumnNode[] }).children;
     expect(rows).toHaveLength(3);
-    const firstRowCells = (rows[0].props as { children: React.ReactElement[] }).children;
+    const firstRowCells = (rows[0].props as { children: ColumnNode[] }).children;
     expect(firstRowCells[2].props.className).toContain("text-center");
     expect(firstRowCells[3].props.className).toContain("text-center");
   });
