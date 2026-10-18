@@ -137,8 +137,18 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: editingStatus, arrivedAt: arrivalSeconds }),
       });
-      const payload = await response.json() as { entry?: { attendanceStatus: AttendanceStatus; attendedAt: string | null }; error?: string };
-      if (!response.ok || !payload.entry) throw new Error(payload.error ?? "This record could not be saved. Try again.");
+      // A failed request can answer with a message, or with nothing readable
+      // — fall back to a friendly line instead of a parse error either way.
+      const rawBody = await response.text();
+      let payload: { entry?: { attendanceStatus: AttendanceStatus; attendedAt: string | null }; error?: string } = {};
+      try {
+        payload = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        // Unreadable body — the friendly message below still applies.
+      }
+      if (!response.ok || !payload.entry) {
+        throw new Error(payload.error ?? "This record could not be saved right now. Try again.");
+      }
 
       const entry = payload.entry;
       setPeople((current) => current.map((person) =>

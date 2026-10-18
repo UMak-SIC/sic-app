@@ -73,6 +73,24 @@ test("answers a missing person with a 404", async () => {
   await expect(response.json()).resolves.toEqual({ error: "Person not found for this event." });
 });
 
+test("saves still answer with a message when the database rejects them", async () => {
+  requireAdmin.mockResolvedValue({ adminId: "admin-id" });
+  updateAttendanceRecord.mockRejectedValue(new Error("record_lock_corrupt"));
+
+  const request = new Request("https://sic.test", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "ATTENDED" }),
+  });
+
+  const response = await PATCH(request, routeContext());
+
+  expect(response.status).toBe(500);
+  await expect(response.json()).resolves.toEqual({
+    error: "This record could not be saved right now. Try again.",
+  });
+});
+
 test("rejects record values other than attended, absent, or not recorded", async () => {
   requireAdmin.mockResolvedValue({ adminId: "admin-id" });
 

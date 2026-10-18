@@ -45,13 +45,22 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     arrivedAt = null;
   }
 
-  const record: AttendanceRecord | null = await updateAttendanceRecord({
-    eventId,
-    rosterEntryId,
-    status,
-    arrivedAt,
-    updatedByAdminId: authorization.adminId,
-  });
+  let record: AttendanceRecord | null;
+  try {
+    record = await updateAttendanceRecord({
+      eventId,
+      rosterEntryId,
+      status,
+      arrivedAt,
+      updatedByAdminId: authorization.adminId,
+    });
+  } catch {
+    // A failed save must still answer with a message the client can read.
+    return Response.json(
+      { error: "This record could not be saved right now. Try again." },
+      { status: 500 },
+    );
+  }
 
   if (!record) return Response.json({ error: "Person not found for this event." }, { status: 404 });
 
