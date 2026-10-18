@@ -29,7 +29,7 @@ export function proxy(request: NextRequest) {
 export default proxy;
 
 // The matcher excludes only what has to stay reachable: the two auth screens
-// (so a bounced visitor can sign in), the auth handler and the rest of /api
+// (so a bounced visitor can sign in), the public short-link resolver, the auth handler and the rest of /api
 // (API routes carry their own requireAdmin() and must keep answering JSON
 // 401/403 rather than an HTML 307), and static assets.
 //
@@ -56,6 +56,6 @@ export default proxy;
 // surface sits behind sign-in.
 export const config = {
   matcher: [
-    "/((?!login|register|api|_next/static|_next/image|favicon.ico|.*[^/]*\\.[^/]*$).*)",
+    "/((?!login|register|url(?:/|$)|api|_next/static|_next/image|favicon.ico|.*[^/]*\\.[^/]*$).*)",
   ],
 };
