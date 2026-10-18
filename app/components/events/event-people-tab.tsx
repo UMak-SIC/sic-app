@@ -98,9 +98,20 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
     setEditError("");
     try {
       const attended = editingStatus === "ATTENDED";
-      const arrivalSeconds = attended && editingDate && editingTime
-        ? new Date(`${editingDate}T${editingTime}`).toISOString()
-        : null;
+      // Leave the arrival blank to keep the recorded arrival (or stamp "now"
+      // for someone newly marked attended) — omit it so the API decides.
+      const arrivalSeconds = (() => {
+        if (!attended) return null as string | null;
+        if (!editingDate && !editingTime) return undefined;
+        if (!editingDate || !editingTime) {
+          throw new Error("Fill in both the arrival date and time, or leave both blank.");
+        }
+        const arrival = new Date(`${editingDate}T${editingTime}`);
+        if (Number.isNaN(arrival.getTime())) {
+          throw new Error("Check the arrival date and time, then try again.");
+        }
+        return arrival.toISOString();
+      })();
       const response = await fetch(`/api/events/${eventId}/people/status/${editing.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -293,8 +304,8 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
               <Button
                 type="button"
                 onClick={() => void saveEdit()}
-                disabled={saving || (editingStatus === "ATTENDED" && (!editingDate || !editingTime))}
                 className="h-9 rounded-[6px] bg-cyan text-xs font-semibold text-white hover:bg-cyan-hover"
+                disabled={saving}
               >
                 {saving ? "Saving..." : "Save record"}
               </Button>
