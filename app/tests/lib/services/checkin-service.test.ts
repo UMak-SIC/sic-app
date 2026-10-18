@@ -21,6 +21,7 @@ import { checkInRosterEntry, recordCheckIn, updateAttendanceRecord } from "@/lib
 
 beforeEach(() => {
   transaction.mockImplementation((callback) => callback({ eventRosterEntry: { updateMany, findUnique } }));
+  updateMany.mockResolvedValue({ count: 1 });
 });
 
 afterEach(() => vi.resetAllMocks());
@@ -162,7 +163,22 @@ test("refuses to edit a roster entry outside the event or missing entirely", asy
   expect(updateMany).not.toHaveBeenCalled();
 });
 
-test("returns an expired ticket reason without looking up a roster entry", async () => {  verifyQrTicket.mockReturnValue({
+test("reports a missing record when the entry disappears before the save", async () => {
+  findUnique.mockResolvedValue({ status: "PENDING", arrivedAt: null });
+  updateMany.mockResolvedValue({ count: 0 });
+
+  await expect(
+    updateAttendanceRecord({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      status: "ATTENDED",
+      updatedByAdminId: "admin-id",
+    }),
+  ).resolves.toBeNull();
+});
+
+test("returns an expired ticket reason without looking up a roster entry", async () => {
+  verifyQrTicket.mockReturnValue({
     valid: false,
     reason: "expired",
     message: "This QR ticket has expired.",
