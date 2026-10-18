@@ -12,11 +12,12 @@ on:
 
 jobs:
   lint-and-build:
-    # Integration tests truncate a single shared Neon database before and after
-    # every test, so no two CI runs may access it at the same time.
+    # Each run tests against its own throwaway Neon branch, so runs no longer
+    # queue behind each other. A newer push to the same ref replaces the
+    # older run; its branch is still deleted by the always() cleanup step.
     concurrency:
-      group: sic-shared-test-database
-      cancel-in-progress: false
+      group: ci-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,9 +45,34 @@ jobs:
           cache-dependency-path: app/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+
+      # Branch off the default Neon branch and create an empty "ci" database
+      # on it, so tests never touch production, staging, or another run.
+      - name: Create throwaway Neon test database
+        id: neon
+        working-directory: .
         env:
-          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL || secrets.NEON_TEST_DATABASE_URL }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+        run: .github/scripts/neon-ci-database.sh create "ci-${{ github.run_id }}-${{ github.run_attempt }}"
+
+      - name: Apply migrations to the test database
+        run: pnpm exec prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.MIGRATE_DATABASE_URL }}
+
+      - run: pnpm test
+
+      # Unit and integration tests are the only users of the database, so the
+      # branch is removed as soon as they finish, pass or fail.
+      - name: Delete throwaway Neon test database
+        if: always() && steps.neon.outputs.branch_id != ''
+        working-directory: .
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+        run: .github/scripts/neon-ci-database.sh delete "${{ steps.neon.outputs.branch_id }}"
+
       - name: Reject browser-exposed service credentials
         run: |
           if rg -n --glob '!app/api/**' --glob '*.{ts,tsx}' 'NEXT_PUBLIC_(AWS|NEON_AUTH|BREVO|RETENTION_CRON_SECRET|QR_TICKET_SECRET)|process\.env\.(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|NEON_AUTH_COOKIE_SECRET|BREVO|RETENTION_CRON_SECRET|QR_TICKET_SECRET)' app; then
