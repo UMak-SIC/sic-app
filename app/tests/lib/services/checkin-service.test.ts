@@ -130,7 +130,7 @@ test("stamps a fresh arrival time when a pending record becomes attended", async
   );
 });
 
-test("clears the arrival time when the record moves away from attended", async () => {
+test("clears the arrival time and editor when the record moves away from attended", async () => {
   findUnique.mockResolvedValue({ status: "ATTENDED", arrivedAt: new Date("2026-10-01T09:50:00.000Z") });
 
   await expect(
@@ -142,10 +142,28 @@ test("clears the arrival time when the record moves away from attended", async (
     }),
   ).resolves.toEqual({ status: "PENDING", arrivedAt: null });
 
+  // The event_roster_entries check constraint requires non-attended rows to
+  // carry neither an arrival time nor a recorded admin.
   expect(updateMany).toHaveBeenCalledWith({
     where: { id: "entry-id", eventId: "event-id" },
-    data: { status: "PENDING", arrivedAt: null, scannedByAdminId: "admin-id" },
+    data: { status: "PENDING", arrivedAt: null, scannedByAdminId: null },
   });
+});
+
+test("stamps the editing admin only when marking someone attended", async () => {
+  findUnique.mockResolvedValue({ status: "PENDING", arrivedAt: null });
+  updateMany.mockResolvedValue({ count: 1 });
+
+  await updateAttendanceRecord({
+    eventId: "event-id",
+    rosterEntryId: "entry-id",
+    status: "ABSENT",
+    updatedByAdminId: "editor-admin-id",
+  });
+
+  expect(updateMany).toHaveBeenCalledWith(
+    expect.objectContaining({ data: { status: "ABSENT", arrivedAt: null, scannedByAdminId: null } }),
+  );
 });
 
 test("refuses to edit a roster entry outside the event or missing entirely", async () => {
