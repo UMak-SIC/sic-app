@@ -140,17 +140,39 @@ async function migrateLogo({ address, adminId, prisma, storage, fetchLogo, creat
   return asset.id;
 }
 
-async function removeUploadedLogos(prisma, storage, created) {
+/**
+ * Undoes this run's logo uploads after `error` stopped the import and returns
+ * the error to throw. Every uploaded file is attempted even if the asset rows
+ * cannot be deleted, and `error` stays the primary failure: it is returned
+ * as-is, or first in an AggregateError (and its cause) if the row delete failed.
+ */
+export async function removeUploadedLogos(prisma, storage, created, error) {
   const assetIds = created.map((upload) => upload.assetId).filter(Boolean);
-  if (assetIds.length > 0) await prisma.asset.deleteMany({ where: { id: { in: assetIds } } });
+  let rowError;
+  if (assetIds.length > 0) {
+    try {
+      await prisma.asset.deleteMany({ where: { id: { in: assetIds } } });
+    } catch (deleteError) {
+      rowError = deleteError;
+    }
+  }
 
   for (const upload of created) {
     try {
       await storage.send(new DeleteObjectCommand({ Bucket: LOGO_BUCKET, Key: upload.objectKey }));
-    } catch (error) {
-      console.error(`Could not remove uploaded logo ${upload.objectKey}; delete it manually.`, error);
+    } catch (deleteError) {
+      console.error(`Could not remove uploaded logo ${upload.objectKey}; delete it manually.`, deleteError);
     }
   }
+
+  if (rowError) {
+    return new AggregateError(
+      [error, rowError],
+      `The import failed, and its logo asset rows could not be removed; delete them manually: ${assetIds.join(", ")}`,
+      { cause: error },
+    );
+  }
+  return error;
 }
 
 async function findCodeConflicts(prisma, links) {
@@ -271,8 +293,7 @@ export async function importQrExport({
       logoAssetIds.set(address, await migrateLogo({ address, adminId, prisma, storage, fetchLogo, created }));
     } catch (error) {
       if (!(error instanceof LogoMigrationError)) {
-        await removeUploadedLogos(prisma, storage, created);
-        throw error;
+        throw await removeUploadedLogos(prisma, storage, created, error);
       }
       logoFailures.set(address, error.message);
     }
@@ -287,8 +308,7 @@ export async function importQrExport({
   try {
     [result] = await prisma.$queryRaw(writeSql(links, exportData.visits, adminId));
   } catch (error) {
-    await removeUploadedLogos(prisma, storage, created);
-    throw error;
+    throw await removeUploadedLogos(prisma, storage, created, error);
   }
 
   const unmigratedLogos = newLinks

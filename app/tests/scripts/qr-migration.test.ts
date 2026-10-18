@@ -1,6 +1,12 @@
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { describe, expect, test, vi } from "vitest";
 
-import { downloadLogo, LogoMigrationError, parseStorageOrigin } from "@/scripts/import-supabase-qr-data.mjs";
+import {
+  downloadLogo,
+  LogoMigrationError,
+  parseStorageOrigin,
+  removeUploadedLogos,
+} from "@/scripts/import-supabase-qr-data.mjs";
 import { parseQrExport } from "@/scripts/lib/qr-export.mjs";
 
 const linkId = "4a5c4b1e-8a3e-4f43-9a51-1f5f2f0a6b10";
@@ -163,5 +169,57 @@ describe("parseStorageOrigin", () => {
     "https://project.supabase.co?x=1",
   ])("rejects %j", (value) => {
     expect(() => parseStorageOrigin(value)).toThrow("SUPABASE_STORAGE_ORIGIN");
+  });
+});
+
+describe("removeUploadedLogos", () => {
+  const created = [
+    { assetId: "asset-1", objectKey: "assets/one.webp" },
+    { assetId: null, objectKey: "assets/two.webp" },
+  ];
+
+  function fakes(deleteMany: () => Promise<unknown>) {
+    const prisma = { asset: { deleteMany: vi.fn(deleteMany) } };
+    const storage = { send: vi.fn(async (command: unknown) => command) };
+    return { prisma, storage };
+  }
+
+  function removedKeys(storage: { send: { mock: { calls: unknown[][] } } }) {
+    return storage.send.mock.calls.map(([command]) => (command as DeleteObjectCommand).input.Key);
+  }
+
+  test("removes the rows and every file and returns the original error", async () => {
+    const { prisma, storage } = fakes(async () => ({ count: 1 }));
+    const original = new Error("write failed");
+
+    await expect(removeUploadedLogos(prisma, storage, created, original)).resolves.toBe(original);
+    expect(prisma.asset.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ["asset-1"] } } });
+    expect(removedKeys(storage)).toEqual(["assets/one.webp", "assets/two.webp"]);
+  });
+
+  test("still removes every file when the row delete fails, keeping the original error first", async () => {
+    const rowError = new Error("connection lost");
+    const { prisma, storage } = fakes(async () => Promise.reject(rowError));
+    const original = new Error("write failed");
+
+    const returned = await removeUploadedLogos(prisma, storage, created, original);
+
+    expect(removedKeys(storage)).toEqual(["assets/one.webp", "assets/two.webp"]);
+    expect(returned).toBeInstanceOf(AggregateError);
+    expect((returned as AggregateError).errors).toEqual([original, rowError]);
+    expect((returned as AggregateError).cause).toBe(original);
+    expect((returned as AggregateError).message).toContain("asset-1");
+  });
+
+  test("keeps going when a file cannot be removed", async () => {
+    const { prisma, storage } = fakes(async () => ({ count: 1 }));
+    storage.send.mockRejectedValueOnce(new Error("storage down"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const original = new Error("write failed");
+
+    await expect(removeUploadedLogos(prisma, storage, created, original)).resolves.toBe(original);
+    expect(removedKeys(storage)).toEqual(["assets/one.webp", "assets/two.webp"]);
+    expect(log).toHaveBeenCalledWith(expect.stringContaining("assets/one.webp"), expect.any(Error));
+    log.mockRestore();
   });
 });
