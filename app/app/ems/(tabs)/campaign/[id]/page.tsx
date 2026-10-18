@@ -23,6 +23,7 @@ import { KpiCardRow, type KpiItem } from "@/components/campaign/campaign-kpi-row
 import { CampaignDeliveryTable } from "@/components/campaign/campaign-delivery-table";
 import { CampaignDetailSkeleton } from "@/components/campaign/campaign-detail-skeleton";
 import type { StudentRecipient } from "@/components/campaign/campaign-types";
+import { attendanceStatusLabel } from "@/components/attendance/attendance-status-badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -170,8 +171,6 @@ export default function CampaignDetailPage() {
   const exportCsv = () => {
     if (!campaign) return;
     const headers = ["Student Name", "Student ID", "Email Address", "Course", "Delivery Status", "Attendance", "Delivered Timestamp", "Delivery Notes"];
-    const attendanceLabel = (status: Delivery["attendanceStatus"] | undefined) =>
-      status === "ATTENDED" ? "Attended" : status === "ABSENT" ? "Absent" : "Not recorded";
     const escape = (value: string | null | undefined) => `"${(value ?? "").replaceAll('"', '""')}"`;
     const rows = campaign.deliveries.map((delivery) => [
       escape(delivery.attendee.name),
@@ -179,7 +178,7 @@ export default function CampaignDetailPage() {
       escape(delivery.attendee.email),
       escape(delivery.attendee.course),
       escape(recipientStatus(delivery.status)),
-      escape(attendanceLabel(delivery.attendanceStatus)),
+      escape(attendanceStatusLabel(delivery.attendanceStatus)),
       escape(delivery.sentAt ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(delivery.sentAt)) : "Pending"),
       escape(delivery.failureMessage ?? delivery.lastAttempt?.errorMessage),
     ]);
