@@ -10,6 +10,7 @@ import { EventsTableSkeleton } from "@/components/events/events-table-skeleton";
 import { EventsToolbar } from "@/components/events/events-toolbar";
 import { EventFormDialog, type EditableEvent } from "@/components/events/event-form-dialog";
 import { EventPeopleDialog } from "@/components/events/event-people-dialog";
+import { downloadExport } from "@/lib/exports";
 
 type Event = EditableEvent & {
   status: "DRAFT" | "PUBLISHED" | "CLOSED";
@@ -50,6 +51,8 @@ export default function EventsPage() {
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [page, setPage] = React.useState(1);
+  const [exporting, setExporting] = React.useState(false);
+  const [notice, setNotice] = React.useState("");
   const deferredQuery = React.useDeferredValue(query);
 
   const loadEvents = React.useEffectEvent(async () => {
@@ -89,19 +92,25 @@ export default function EventsPage() {
     setSelectedIds((ids) => allSelected ? ids.filter((id) => !pageIds.includes(id)) : [...new Set([...ids, ...pageIds])]);
   }
 
-  function exportEvents() {
-    const targetEvents = selectedIds.length > 0 ? filteredEvents.filter((event) => selectedIds.includes(event.id)) : filteredEvents;
-    const rows = targetEvents.map((event) => {
-      const item = toTableEvent(event, timezone);
-      return [item.title, item.venue, item.date, item.time, item.status, item.registeredCount]
-        .map((value) => `"${String(value).replaceAll("\"", "\"\"")}"`).join(",");
-    });
-    const blob = new Blob([["Event,Venue,Date,Time,Status,People", ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "umak-sic-events.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
+  async function exportEvents(event?: EventItem) {
+    if (exporting) return;
+    const ids = event ? [event.id] : selectedIds.length ? selectedIds : filteredEvents.map((item) => item.id);
+    if (!ids.length) {
+      setNotice("There are no events to export.");
+      return;
+    }
+    setExporting(true);
+    setNotice("Preparing your export...");
+    setError("");
+    try {
+      await downloadExport("/api/events/export", "umak-sic-events.csv", ids);
+      setNotice("Events and participant details exported.");
+    } catch (error) {
+      setNotice("");
+      setError(error instanceof Error ? error.message : "The events could not be exported. Try again.");
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -112,6 +121,7 @@ export default function EventsPage() {
         action={<PageHeaderButton icon={<Plus size={18} weight="bold" />} onClick={() => { setEditing(undefined); setFormOpen(true); }}>Create event</PageHeaderButton>}
       />
       {error && <p role="alert" className="rounded-[6px] bg-red-soft px-4 py-3 text-sm text-red">{error}</p>}
+      {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
       {loading ? <EventsTableSkeleton /> : (
         <div className="flex flex-col gap-3.5">
           <EventsToolbar
@@ -121,7 +131,8 @@ export default function EventsPage() {
             onStatusFilterChange={(value) => { setStatusFilter(value); setPage(1); }}
             selectedCount={selectedIds.length}
             onClearSelection={() => setSelectedIds([])}
-            onExportSelected={exportEvents}
+            onExportSelected={() => void exportEvents()}
+            isExporting={exporting}
           />
           <EventsTable
             events={tableEvents}
