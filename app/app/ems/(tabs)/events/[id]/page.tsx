@@ -180,7 +180,7 @@ export default function EventDetailPage() {
 
       <KpiCardRow items={kpiItems} />
 
-      <EventPeopleTab eventId={event.id} />
+      <EventPeopleTab eventId={event.id} eventName={event.name} />
 
       <EventFormDialog open={editing} onOpenChange={setEditing} event={event} timezone={timezone} onSaved={loadEvent} />
       <EventPeopleDialog
