@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle, Clock, MagnifyingGlass, Ticket, UsersThree, XCircle } from "@phosphor-icons/react";
+import { CheckCircle, Clock, DownloadSimple, MagnifyingGlass, Ticket, UsersThree, XCircle } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
+import { downloadExport } from "@/lib/exports";
 import { ProfileCircle } from "@/components/attendees/profile-circle";
 import { EventPeopleTableSkeleton } from "@/components/events/event-people-table-skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +19,29 @@ type Person = {
   ticketSentAt: string | null;
 };
 
-export function EventPeopleTab({ eventId }: { eventId: string }) {
+export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventName: string }) {
   const [people, setPeople] = React.useState<Person[]>([]);
   const [search, setSearch] = React.useState("");
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  const [exporting, setExporting] = React.useState(false);
+  const [exportError, setExportError] = React.useState("");
+  const [notice, setNotice] = React.useState("");
+
+  async function exportPeople() {
+    if (exporting) return;
+    setExporting(true);
+    setExportError("");
+    setNotice("");
+    try {
+      await downloadExport(`/api/events/${eventId}/attendance/export`, `${eventName.replace(/[\x00-\x1f\x7f"\\/]/g, "_")}-participants.csv`);
+      setNotice("All event participants and attendance details exported.");
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "The list could not be exported. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const loadPeople = React.useEffectEvent(async () => {
     setLoading(true);
@@ -47,23 +67,32 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
 
   return (
     <section className="animate-in fade-in duration-150 overflow-hidden rounded-[12px] border border-line bg-card shadow-xs">
-      <div className="flex flex-col gap-3 border-b border-line-subtle p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+      <div className="flex flex-col gap-3 border-b border-line-subtle p-4 sm:p-5 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h2 className="font-display text-xl font-bold text-ink">People</h2>
           <p className="mt-1 text-xs text-muted">Everyone invited to this event and their ticket and attendance status.</p>
         </div>
-        <div className="relative w-full sm:w-72">
-          <MagnifyingGlass size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
-          <input
-            type="search"
-            aria-label="Search invited people"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search name, student ID, or email"
-            className="h-9 w-full rounded-[6px] border border-line bg-card pl-9 pr-3 text-xs text-ink placeholder:text-muted-light focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
-          />
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center xl:w-auto">
+          <div className="relative min-w-0 flex-1 xl:w-72">
+            <MagnifyingGlass size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search invited people"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name, student ID, or email"
+              className="h-9 w-full rounded-[6px] border border-line bg-card pl-9 pr-3 text-xs text-ink placeholder:text-muted-light focus:border-cyan focus:outline-none focus:ring-2 focus:ring-cyan/20"
+            />
+          </div>
+          <Button type="button" variant="outline" disabled={exporting || loading || !!error || people.length === 0} onClick={() => void exportPeople()} aria-busy={exporting} className="h-9 shrink-0 cursor-pointer gap-2 whitespace-nowrap rounded-[6px] border-line bg-paper font-sans text-xs font-semibold text-ink hover:bg-canvas [&_svg]:size-5">
+            <DownloadSimple size={20} weight="bold" aria-hidden="true" />
+            {exporting ? "Exporting..." : "Export all participants"}
+          </Button>
         </div>
       </div>
+
+      {exportError && <p role="alert" className="m-4 rounded-[6px] bg-red-soft px-3 py-2 text-xs text-red">{exportError}</p>}
+      {notice && <p role="status" className="px-4 pt-3 text-xs text-muted">{notice}</p>}
 
       {loading ? (
         <EventPeopleTableSkeleton rowCount={5} />

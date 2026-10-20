@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { downloadExport } from "@/lib/exports";
 import { CheckCircle, UserPlus, UploadSimple, Warning, XCircle, Spinner } from "@phosphor-icons/react";
 import { PageHeader, PageHeaderButton } from "@/components/dashboard/page-header";
 import { AttendeesInsightsCard } from "@/components/attendees/attendees-insights-card";
@@ -17,7 +18,6 @@ import { AddToEventDialog, type AvailableEvent } from "@/components/attendees/ad
 import {
   DEFAULT_PAGE_SIZE,
   describeExportScope,
-  downloadAttendeeCsv,
   fetchAllAttendees,
   fetchAttendeeDirectory,
   fetchAvailableEvents,
@@ -405,7 +405,7 @@ export default function AttendeesPage() {
         return;
       }
 
-      downloadAttendeeCsv(exportSource, describeExportScope(filters, selectedIds.length));
+      await downloadExport("/api/attendees/export", `student_directory_${describeExportScope(filters, selectedIds.length)}_${new Date().toISOString().slice(0, 10)}.csv`, exportSource.map((student) => student.id));
 
       showNotice(
         `Exported ${exportSource.length} ${

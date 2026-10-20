@@ -25,6 +25,7 @@ interface EventsToolbarProps {
   selectedCount: number;
   onClearSelection: () => void;
   onExportSelected: () => void;
+  isExporting?: boolean;
   className?: string;
 }
 
@@ -36,6 +37,7 @@ export function EventsToolbar({
   selectedCount,
   onClearSelection,
   onExportSelected,
+  isExporting = false,
   className,
 }: EventsToolbarProps) {
   return (
@@ -102,10 +104,12 @@ export function EventsToolbar({
               variant="ghost"
               size="sm"
               onClick={onExportSelected}
+              disabled={isExporting}
+              aria-busy={isExporting}
               className="h-7 px-2 text-xs font-semibold text-ink hover:bg-white/60 cursor-pointer"
             >
               <DownloadSimple size={15} weight="bold" className="mr-1" />
-              Export
+              {isExporting ? "Exporting..." : "Export"}
             </Button>
             <Button
               variant="ghost"
@@ -122,10 +126,12 @@ export function EventsToolbar({
             variant="outline"
             size="sm"
             onClick={onExportSelected}
+            disabled={isExporting}
+            aria-busy={isExporting}
             className="h-10 rounded-[6px] border-line px-4 text-sm font-sans font-semibold text-ink hover:bg-canvas cursor-pointer"
           >
             <DownloadSimple size={16} weight="bold" className="mr-2" />
-            Export CSV
+            {isExporting ? "Exporting..." : "Export CSV"}
           </Button>
         )}
       </div>
