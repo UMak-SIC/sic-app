@@ -216,7 +216,11 @@ test("attendedOnly keeps only people marked present at least once", async () => 
   // present at an event that has not happened.
   expect(findMany.mock.calls[0][0].where).toEqual({
     deletedAt: null,
-    rosterEntries: { some: { status: RosterEntryStatus.ATTENDED } },
+    rosterEntries: {
+      some: {
+        status: { in: [RosterEntryStatus.ATTENDED, RosterEntryStatus.LATE] },
+      },
+    },
   });
   expect(count.mock.calls[0][0].where).toEqual(findMany.mock.calls[0][0].where);
 });
