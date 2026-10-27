@@ -15,6 +15,7 @@ enum EventStatus {
 enum RosterEntryStatus {
   PENDING  @map("pending")
   ATTENDED @map("attended")
+  LATE     @map("late")
   ABSENT   @map("absent")
 }
 
