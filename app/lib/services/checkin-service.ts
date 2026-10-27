@@ -6,7 +6,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { type QrTicketRejection, verifyQrTicket } from "@/lib/security/qr-signer";
 
 export type CheckInResult =
-  | { status: "checked_in"; arrivedAt: Date }
+  | { status: "checked_in"; arrivedAt: Date; isLate?: boolean }
   | { status: "duplicate"; arrivedAt: Date }
   | { status: "unavailable" };
 
@@ -15,6 +15,7 @@ export interface CheckInResponse {
   message: string;
   reason?: QrTicketRejection;
   arrivedAt?: Date | string;
+  isLate?: boolean;
   attendee?: {
     id?: string;
     name: string;
@@ -36,6 +37,19 @@ export async function checkInRosterEntry({
   arrivedAt?: Date;
 }): Promise<CheckInResult> {
   return getPrismaClient().$transaction(async (transaction) => {
+    const event = transaction.event
+      ? await transaction.event.findUnique({
+          where: { id: eventId },
+          select: { startsAt: true },
+        })
+      : null;
+
+    const isLate = event?.startsAt
+      ? arrivedAt.getTime() > new Date(event.startsAt).getTime() + 15 * 60 * 1000
+      : false;
+
+    const nextStatus = isLate ? RosterEntryStatus.LATE : RosterEntryStatus.ATTENDED;
+
     const transition = await transaction.eventRosterEntry.updateMany({
       where: {
         id: rosterEntryId,
@@ -43,14 +57,14 @@ export async function checkInRosterEntry({
         status: RosterEntryStatus.PENDING,
       },
       data: {
-        status: RosterEntryStatus.ATTENDED,
+        status: nextStatus,
         arrivedAt,
         scannedByAdminId,
       },
     });
 
     if (transition.count === 1) {
-      return { status: "checked_in", arrivedAt };
+      return { status: "checked_in", arrivedAt, isLate };
     }
 
     const rosterEntry = await transaction.eventRosterEntry.findUnique({
@@ -58,7 +72,11 @@ export async function checkInRosterEntry({
       select: { status: true, arrivedAt: true },
     });
 
-    if (rosterEntry?.status === RosterEntryStatus.ATTENDED && rosterEntry.arrivedAt) {
+    if (
+      (rosterEntry?.status === RosterEntryStatus.ATTENDED ||
+        rosterEntry?.status === RosterEntryStatus.LATE) &&
+      rosterEntry.arrivedAt
+    ) {
       return { status: "duplicate", arrivedAt: rosterEntry.arrivedAt };
     }
 
@@ -91,10 +109,11 @@ export async function updateAttendanceRecord({
   if (!existing) return null;
 
   // Arrival time only makes sense for someone who actually attended. Keep an
-  // already recorded arrival when re-marking attended, default to now when the
-  // person is newly marked attended, and clear it otherwise.
+  // already recorded arrival when re-marking attended/late, default to now when the
+  // person is newly marked attended/late, and clear it otherwise.
+  const isPresent = status === "ATTENDED" || status === "LATE";
   const nextArrival =
-    status === "ATTENDED"
+    isPresent
       ? arrivedAt !== undefined && arrivedAt !== null
         ? arrivedAt
         : (existing.arrivedAt ?? new Date())
@@ -102,13 +121,13 @@ export async function updateAttendanceRecord({
 
   // The event_roster_entries check constraint requires attended rows to carry
   // an arrival time and a recorded admin, and non-attended rows to carry
-  // neither. Only stamp the editor when marking attendance.
+  // neither. Only stamp the editor when marking attendance (attended or late).
   const result = await prisma.eventRosterEntry.updateMany({
     where: { id: rosterEntryId, eventId },
     data: {
       status,
       arrivedAt: nextArrival,
-      scannedByAdminId: status === "ATTENDED" ? updatedByAdminId : null,
+      scannedByAdminId: isPresent ? updatedByAdminId : null,
     },
   });
 
@@ -190,10 +209,12 @@ export async function recordCheckIn({
     : undefined;
 
   if (checkInResult.status === "checked_in") {
+    const statusText = checkInResult.isLate ? "Checked in (Late)" : "Checked in successfully";
     return {
       status: "success",
-      message: `Checked in successfully: ${entry?.attendee.name ?? "Attendee"}.`,
+      message: `${statusText}: ${entry?.attendee.name ?? "Attendee"}.`,
       arrivedAt: checkInResult.arrivedAt,
+      isLate: checkInResult.isLate,
       attendee: attendeeInfo,
     };
   }

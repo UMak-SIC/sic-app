@@ -25,6 +25,7 @@ import {
   DownloadSimple,
   CheckCircle,
   Clock,
+  ClockAfternoon,
   XCircle,
   X,
   DotsThreeVertical,
@@ -36,7 +37,7 @@ import {
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
-export type EventAttendeeStatus = "attended" | "pending" | "absent";
+export type EventAttendeeStatus = "attended" | "late" | "pending" | "absent";
 export type EventCollege = "CCIS" | "CBFS" | "CT" | "CAL" | "Other";
 export type EventCourse = "BSIT" | "BSCS" | "BSINS" | "BSBA" | "BSOA" | "BET" | "ABComm";
 
@@ -191,6 +192,26 @@ export function EventRoster({
     );
   };
 
+  // Change attendee status
+  const handleMarkStatus = (attendeeId: string, status: EventAttendeeStatus) => {
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    setRoster((prev) =>
+      prev.map((att) =>
+        att.id === attendeeId
+          ? {
+              ...att,
+              status,
+              checkedInAt:
+                status === "attended" || status === "late"
+                  ? att.checkedInAt ?? formattedTime
+                  : undefined,
+            }
+          : att
+      )
+    );
+  };
+
   // Toggle selection
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
@@ -239,6 +260,7 @@ export function EventRoster({
   });
 
   const attendedCount = roster.filter((r) => r.status === "attended").length;
+  const lateCount = roster.filter((r) => r.status === "late").length;
   const pendingCount = roster.filter((r) => r.status === "pending").length;
   const absentCount = roster.filter((r) => r.status === "absent").length;
 
@@ -346,6 +368,18 @@ export function EventRoster({
             )}
           >
             Attended ({attendedCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("late")}
+            className={cn(
+              "rounded-full px-3 py-1 font-sans text-xs font-semibold transition-colors cursor-pointer",
+              statusFilter === "late"
+                ? "bg-amber text-white"
+                : "text-muted hover:text-amber hover:bg-amber-soft"
+            )}
+          >
+            Late ({lateCount})
           </button>
           <button
             type="button"
@@ -535,6 +569,11 @@ export function EventRoster({
                           <CheckCircle size={13} weight="bold" />
                           Attended
                         </span>
+                      ) : student.status === "late" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-border bg-amber-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-amber">
+                          <ClockAfternoon size={13} weight="bold" />
+                          Late
+                        </span>
                       ) : student.status === "pending" ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-amber-border bg-amber-soft px-2.5 py-0.5 font-sans text-xs font-semibold text-amber">
                           <Clock size={13} weight="bold" />
@@ -572,7 +611,7 @@ export function EventRoster({
                             disabled
                             className="h-7 px-2 font-sans text-xs text-muted font-medium"
                           >
-                            Attended
+                            {student.status === "late" ? "Late" : "Attended"}
                           </Button>
                         )}
 
@@ -597,7 +636,25 @@ export function EventRoster({
                               Resend email
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="cursor-pointer text-red focus:text-red focus:bg-red-soft">
+                            <DropdownMenuItem
+                              onClick={() => handleMarkStatus(student.id, "attended")}
+                              className="cursor-pointer"
+                            >
+                              <CheckCircle size={14} className="mr-2 text-green" />
+                              Mark as attended
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleMarkStatus(student.id, "late")}
+                              className="cursor-pointer"
+                            >
+                              <ClockAfternoon size={14} className="mr-2 text-amber" />
+                              Mark as late
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleMarkStatus(student.id, "absent")}
+                              className="cursor-pointer text-red focus:text-red focus:bg-red-soft"
+                            >
+                              <XCircle size={14} className="mr-2 text-red" />
                               Mark as absent
                             </DropdownMenuItem>
                           </DropdownMenuContent>

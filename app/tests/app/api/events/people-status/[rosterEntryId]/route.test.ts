@@ -104,7 +104,7 @@ test("rejects record values other than attended, absent, or not recorded", async
 
   expect(response.status).toBe(400);
   await expect(response.json()).resolves.toEqual({
-    error: "Choose a valid attendance record: attended, absent, or not recorded.",
+    error: "Choose a valid attendance record: attended, late, absent, or not recorded.",
   });
   expect(updateAttendanceRecord).not.toHaveBeenCalled();
 });

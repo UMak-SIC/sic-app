@@ -125,7 +125,13 @@ export async function listAttendees({
     deletedAt: null,
     ...(term ? searchFilter(term) : {}),
     ...(attendedOnly
-      ? { rosterEntries: { some: { status: RosterEntryStatus.ATTENDED } } }
+      ? {
+          rosterEntries: {
+            some: {
+              status: { in: [RosterEntryStatus.ATTENDED, RosterEntryStatus.LATE] },
+            },
+          },
+        }
       : {}),
   };
 
@@ -165,7 +171,9 @@ export async function listAttendees({
   return {
     attendees: rows.map((row) => {
       const attendedEventsCount = row.rosterEntries.filter(
-        (entry) => entry.status === RosterEntryStatus.ATTENDED,
+        (entry) =>
+          entry.status === RosterEntryStatus.ATTENDED ||
+          entry.status === RosterEntryStatus.LATE,
       ).length;
 
       return {
@@ -183,7 +191,9 @@ export async function listAttendees({
           id: entry.event.id,
           name: entry.event.name,
           startsAt: entry.event.startsAt,
-          attended: entry.status === RosterEntryStatus.ATTENDED,
+          attended:
+            entry.status === RosterEntryStatus.ATTENDED ||
+            entry.status === RosterEntryStatus.LATE,
         })),
         organizedEvents: row.organizedEvents.map((entry) => entry.event),
         totalEventsJoined: row.rosterEntries.length,

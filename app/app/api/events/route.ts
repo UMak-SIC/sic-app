@@ -43,7 +43,9 @@ export async function GET() {
   const serializedEvents = events.map(({ rosterEntries, ...event }) => ({
     ...event,
     bannerUrl: publicImageUrl(event.imageAsset),
-    attendedCount: rosterEntries.filter((entry) => entry.status === "ATTENDED").length,
+    attendedCount: rosterEntries.filter(
+      (entry) => entry.status === "ATTENDED" || entry.status === "LATE",
+    ).length,
   }));
 
   return Response.json({ events: serializedEvents, timezone: getOrganizationTimezone() });

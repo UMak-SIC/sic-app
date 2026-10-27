@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { MagnifyingGlass, PencilSimpleLine, Ticket, UsersThree } from "@phosphor-icons/react";
+import { MagnifyingGlass, PencilSimpleLine, Ticket, UsersThree, WarningCircle } from "@phosphor-icons/react";
 import { ProfileCircle } from "@/components/attendees/profile-circle";
 import {
   AttendanceStatusBadge,
@@ -27,17 +27,18 @@ type Person = {
   name: string;
   studentId: string;
   email: string;
-  attendanceStatus: "PENDING" | "ATTENDED" | "ABSENT";
+  attendanceStatus: AttendanceStatus;
   attendedAt: string | null;
   ticketSentAt: string | null;
 };
 
-const ATTENDANCE_FILTERS = ["ALL", "ATTENDED", "ABSENT", "PENDING"] as const;
+const ATTENDANCE_FILTERS = ["ALL", "ATTENDED", "LATE", "ABSENT", "PENDING"] as const;
 type AttendanceFilter = (typeof ATTENDANCE_FILTERS)[number];
 
 const FILTER_LABELS: Record<AttendanceFilter, string> = {
   ALL: "All",
   ATTENDED: "Attended",
+  LATE: "Late",
   ABSENT: "Absent",
   PENDING: "Not recorded",
 };
@@ -97,9 +98,9 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
     setSaving(true);
     setEditError("");
     try {
-      const attended = editingStatus === "ATTENDED";
+      const attended = editingStatus === "ATTENDED" || editingStatus === "LATE";
       // Leave the arrival blank to keep the recorded arrival (or stamp "now"
-      // for someone newly marked attended) — omit it so the API decides.
+      // for someone newly marked attended/late) — omit it so the API decides.
       const arrivalSeconds = (() => {
         if (!attended) return null as string | null;
         if (!editingDate && !editingTime) return undefined;
@@ -271,7 +272,19 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
               </Select>
             </div>
 
-            {editingStatus === "ATTENDED" && (
+            {editing?.attendedAt && (editingStatus === "ABSENT" || editingStatus === "PENDING") && (
+              <div className="flex items-start gap-2.5 rounded-[8px] border border-amber-border bg-amber-soft p-3 text-xs text-amber">
+                <WarningCircle size={18} weight="bold" className="mt-0.5 shrink-0 text-amber" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold text-ink">Clearing arrival time</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-ink/80">
+                    This student has a recorded arrival time of {new Intl.DateTimeFormat("en-US", { timeStyle: "short" }).format(new Date(editing.attendedAt))}. Saving this record as {attendanceStatusLabel(editingStatus)} will clear their arrival timestamp from the official attendance log.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {(editingStatus === "ATTENDED" || editingStatus === "LATE") && (
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="attendance-arrival-date" className="text-xs font-semibold text-ink">Arrived at</label>
                 <div className="flex items-center gap-2">
@@ -323,6 +336,7 @@ export function EventPeopleTab({ eventId }: { eventId: string }) {
           </div>
         </DialogContent>
       </Dialog>
+
     </section>
   );
 }

@@ -7,7 +7,7 @@ export type AttendanceEntry = {
   name: string;
   email: string;
   studentId: string;
-  status: "pending" | "attended" | "absent";
+  status: "pending" | "attended" | "late" | "absent";
   arrivedAt: Date | null;
 };
 
@@ -47,7 +47,7 @@ export async function getEventAttendance(eventId: string, search?: string) {
   if (!event) return null;
 
   const attendedCount = await getPrismaClient().eventRosterEntry.count({
-    where: { eventId, status: "ATTENDED" },
+    where: { eventId, status: { in: ["ATTENDED", "LATE"] } },
   });
 
   return {
