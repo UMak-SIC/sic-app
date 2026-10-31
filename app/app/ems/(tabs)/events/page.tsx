@@ -103,7 +103,7 @@ export default function EventsPage() {
     setNotice("Preparing your export...");
     setError("");
     try {
-      await downloadExport("/api/events/export", "umak-sic-events.csv", ids);
+      await downloadExport(`/api/events/${ids[0]}/export`, "umak-sic-events.csv", ids);
       setNotice("Events and participant details exported.");
     } catch (error) {
       setNotice("");

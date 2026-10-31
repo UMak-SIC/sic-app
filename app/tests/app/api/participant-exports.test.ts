@@ -5,7 +5,7 @@ const { requireAdmin, exportEvents, exportParticipants, exportEventParticipants 
 }));
 vi.mock("@/lib/auth/require-admin", () => ({ requireAdmin }));
 vi.mock("@/lib/services/participant-export-service", () => ({ exportEvents, exportParticipants, exportEventParticipants }));
-import { POST as events } from "@/app/api/events/export/route";
+import { POST as events } from "@/app/api/events/[id]/export/route";
 import { POST as people } from "@/app/api/attendees/export/route";
 import { GET as attendance } from "@/app/api/events/[id]/attendance/export/route";
 
