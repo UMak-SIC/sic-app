@@ -66,6 +66,71 @@ export async function checkInRosterEntry({
   });
 }
 
+export type AttendanceRecord = { status: RosterEntryStatus; arrivedAt: Date | null };
+
+export async function updateAttendanceRecord({
+  eventId,
+  rosterEntryId,
+  status,
+  arrivedAt,
+  updatedByAdminId,
+}: {
+  eventId: string;
+  rosterEntryId: string;
+  status: RosterEntryStatus;
+  arrivedAt?: Date | null;
+  updatedByAdminId: string;
+}): Promise<AttendanceRecord | null> {
+  const prisma = getPrismaClient();
+
+  const existing = await prisma.eventRosterEntry.findUnique({
+    where: { eventId_id: { eventId, id: rosterEntryId } },
+    select: { status: true, arrivedAt: true, scannedByAdminId: true },
+  });
+
+  if (!existing) return null;
+
+  // Arrival time only makes sense for someone who actually attended. Keep an
+  // already recorded arrival when re-marking attended, default to now when the
+  // person is newly marked attended, and clear it otherwise.
+  const nextArrival =
+    status === "ATTENDED"
+      ? arrivedAt !== undefined && arrivedAt !== null
+        ? arrivedAt
+        : (existing.arrivedAt ?? new Date())
+      : null;
+
+  // The event_roster_entries check constraint requires attended rows to carry
+  // an arrival time and a recorded admin, and non-attended rows to carry
+  // neither. Keep the original scanner when correcting an attended record, and
+  // only stamp the editor when someone is newly marked attended.
+  const nextScanner =
+    status === "ATTENDED"
+      ? (existing.status === "ATTENDED" ? existing.scannedByAdminId : null) ?? updatedByAdminId
+      : null;
+
+  const result = await prisma.eventRosterEntry.updateMany({
+    where: { id: rosterEntryId, eventId },
+    data: { status, arrivedAt: nextArrival, scannedByAdminId: nextScanner },
+  });
+
+  // The record disappeared between the read and the write — treat it as
+  // missing rather than reporting a save that never happened.
+  if (result.count === 0) return null;
+
+  // There is no audit table yet, so log the previous values; clearing a record
+  // otherwise loses the original scan time and scanner for good.
+  console.info("[attendance] Admin edited an attendance record.", {
+    eventId,
+    rosterEntryId,
+    editedByAdminId: updatedByAdminId,
+    previous: { status: existing.status, arrivedAt: existing.arrivedAt, scannedByAdminId: existing.scannedByAdminId },
+    next: { status, arrivedAt: nextArrival, scannedByAdminId: nextScanner },
+  });
+
+  return { status, arrivedAt: nextArrival };
+}
+
 export async function recordCheckIn({
   eventId,
   ticketTokenOrCode,

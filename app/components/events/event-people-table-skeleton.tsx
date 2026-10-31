@@ -27,10 +27,10 @@ export function EventPeopleTableSkeleton({
             <TableHead className="text-xs font-bold text-muted w-[25%]">
               Student ID
             </TableHead>
-            <TableHead className="text-xs font-bold text-muted w-[20%]">
+            <TableHead className="text-center text-xs font-bold text-muted w-[20%]">
               Ticket
             </TableHead>
-            <TableHead className="pr-5 text-xs font-bold text-muted w-[20%]">
+            <TableHead className="text-center pr-5 text-xs font-bold text-muted w-[20%]">
               Attendance
             </TableHead>
           </TableRow>
@@ -58,13 +58,13 @@ export function EventPeopleTableSkeleton({
               </TableCell>
 
               {/* Ticket status pill */}
-              <TableCell className="py-3">
-                <Skeleton className="h-5 w-20 rounded-full" />
+              <TableCell className="py-3 text-center">
+                <Skeleton className="h-5 w-20 rounded-full mx-auto" />
               </TableCell>
 
               {/* Attendance status pill */}
-              <TableCell className="py-3 pr-5">
-                <Skeleton className="h-5 w-24 rounded-full" />
+              <TableCell className="py-3 pr-5 text-center">
+                <Skeleton className="h-5 w-24 rounded-full mx-auto" />
               </TableCell>
             </TableRow>
           ))}

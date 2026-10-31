@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DeliveryStatus, EventStatus, Prisma, QueueJobStatus } from "@prisma/client";
+import { DeliveryStatus, EventStatus, Prisma, QueueJobStatus, RosterEntryStatus } from "@prisma/client";
 
 import { getPrismaClient } from "@/lib/prisma";
 import { publicImageUrl } from "@/lib/services/event-service";
@@ -67,6 +67,8 @@ export type CampaignDetail = CampaignListItem & {
     providerMessageId: string | null;
     failureMessage: string | null;
     sentAt: Date | null;
+    attendanceStatus: RosterEntryStatus;
+    attendedAt: Date | null;
     attendee: {
       id: string;
       name: string;
@@ -348,6 +350,8 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
         orderBy: { attendee: { name: "asc" } },
         select: {
           id: true,
+          status: true,
+          arrivedAt: true,
           attendee: {
             select: { id: true, name: true, studentId: true, displayEmail: true, course: true, program: true },
           },
@@ -400,6 +404,8 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
         providerMessageId: matchingDelivery.providerMessageId,
         failureMessage: matchingDelivery.failureMessage,
         sentAt: matchingDelivery.sentAt,
+        attendanceStatus: rosterEntry.status,
+        attendedAt: rosterEntry.arrivedAt,
         attendee: {
           id: rosterEntry.attendee.id,
           name: rosterEntry.attendee.name,
@@ -420,6 +426,8 @@ export async function getCampaignDetail(targetId: string): Promise<CampaignDetai
       providerMessageId: null,
       failureMessage: null,
       sentAt: null,
+      attendanceStatus: rosterEntry.status,
+      attendedAt: rosterEntry.arrivedAt,
       attendee: {
         id: rosterEntry.attendee.id,
         name: rosterEntry.attendee.name,
