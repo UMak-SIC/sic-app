@@ -38,6 +38,31 @@ describe("Events Skeleton Components", () => {
     expect(el.props["aria-label"]).toBe("Loading invited people");
   });
 
+  it("renders EventPeopleTableSkeleton with centered ticket and attendance columns", () => {
+    const el = EventPeopleTableSkeleton({ rowCount: 3 });
+    expect(isValidElement(el)).toBe(true);
+
+    type ColumnNode = React.ReactElement<{ children?: React.ReactNode; className?: string }>;
+
+    const table = (el.props as { children: ColumnNode }).children;
+    const [header, body] = (table.props as { children: [ColumnNode, ColumnNode] }).children;
+    const headerRow = (header.props as { children: ColumnNode }).children;
+    const heads = (headerRow.props as { children: ColumnNode[] }).children;
+
+    // Ticket column header (index 2) and Attendance column header (index 3)
+    expect(heads[2].props.children).toBe("Ticket");
+    expect(heads[2].props.className).toContain("text-center");
+    expect(heads[3].props.children).toBe("Attendance");
+    expect(heads[3].props.className).toContain("text-center");
+
+    // Cells in rows
+    const rows = (body.props as { children: ColumnNode[] }).children;
+    expect(rows).toHaveLength(3);
+    const firstRowCells = (rows[0].props as { children: ColumnNode[] }).children;
+    expect(firstRowCells[2].props.className).toContain("text-center");
+    expect(firstRowCells[3].props.className).toContain("text-center");
+  });
+
   it("renders route-level streaming loading boundary for /events", () => {
     const el = EventsLoading();
     expect(isValidElement(el)).toBe(true);

@@ -23,6 +23,7 @@ import { KpiCardRow, type KpiItem } from "@/components/campaign/campaign-kpi-row
 import { CampaignDeliveryTable } from "@/components/campaign/campaign-delivery-table";
 import { CampaignDetailSkeleton } from "@/components/campaign/campaign-detail-skeleton";
 import type { StudentRecipient } from "@/components/campaign/campaign-types";
+import { attendanceStatusLabel } from "@/components/attendance/attendance-status-badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,8 @@ type Delivery = {
   providerMessageId: string | null;
   failureMessage: string | null;
   sentAt: string | null;
+  attendanceStatus: "PENDING" | "ATTENDED" | "ABSENT";
+  attendedAt: string | null;
   queueJob: { status: "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | "DEAD_LETTER"; retryCount: number; scheduledAt: string } | null;
   attendee: { id: string; name: string; studentId: string; email: string; course: string | null; program: string | null };
   lastAttempt: { provider: string; providerMessageId: string | null; errorMessage: string | null; attemptedAt: string } | null;
@@ -87,6 +90,7 @@ export default function CampaignDetailPage() {
   const [activeTab, setActiveTab] = React.useState<CampaignSubTab>("recipients");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<"all" | StudentRecipient["deliveryStatus"]>("all");
+  const [attendanceFilter, setAttendanceFilter] = React.useState<"all" | "attended" | "notAttended">("all");
   const [selectedRecipientIds, setSelectedRecipientIds] = React.useState<string[]>([]);
 
   const refresh = React.useCallback(async () => {
@@ -166,7 +170,7 @@ export default function CampaignDetailPage() {
 
   const exportCsv = () => {
     if (!campaign) return;
-    const headers = ["Student Name", "Student ID", "Email Address", "Course", "Delivery Status", "Delivered Timestamp", "Delivery Notes"];
+    const headers = ["Student Name", "Student ID", "Email Address", "Course", "Delivery Status", "Attendance", "Delivered Timestamp", "Delivery Notes"];
     const escape = (value: string | null | undefined) => `"${(value ?? "").replaceAll('"', '""')}"`;
     const rows = campaign.deliveries.map((delivery) => [
       escape(delivery.attendee.name),
@@ -174,6 +178,7 @@ export default function CampaignDetailPage() {
       escape(delivery.attendee.email),
       escape(delivery.attendee.course),
       escape(recipientStatus(delivery.status)),
+      escape(attendanceStatusLabel(delivery.attendanceStatus)),
       escape(delivery.sentAt ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(delivery.sentAt)) : "Pending"),
       escape(delivery.failureMessage ?? delivery.lastAttempt?.errorMessage),
     ]);
@@ -202,6 +207,8 @@ export default function CampaignDetailPage() {
     course: delivery.attendee.course ?? undefined,
     program: delivery.attendee.program ?? undefined,
     deliveryStatus: recipientStatus(delivery.status),
+    attendanceStatus: delivery.attendanceStatus,
+    attendedAt: delivery.attendedAt ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(delivery.attendedAt)) : undefined,
     deliveredAt: delivery.sentAt ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(delivery.sentAt)) : undefined,
     scheduledAt: delivery.queueJob?.scheduledAt ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(delivery.queueJob.scheduledAt)) : undefined,
     isSending: delivery.status === "SENDING",
@@ -221,7 +228,11 @@ export default function CampaignDetailPage() {
   const filteredRecipients = recipients.filter((recipient) => {
     const query = searchQuery.trim().toLowerCase();
     const matchesQuery = !query || recipient.name.toLowerCase().includes(query) || recipient.studentId.toLowerCase().includes(query) || recipient.email.toLowerCase().includes(query);
-    return matchesQuery && (statusFilter === "all" || recipient.deliveryStatus === statusFilter);
+    const matchesStatus = statusFilter === "all" || recipient.deliveryStatus === statusFilter;
+    const matchesAttendance = attendanceFilter === "all"
+      || (attendanceFilter === "attended" && recipient.attendanceStatus === "ATTENDED")
+      || (attendanceFilter === "notAttended" && recipient.attendanceStatus !== "ATTENDED");
+    return matchesQuery && matchesStatus && matchesAttendance;
   });
 
   const selectedRecipients = recipients.filter((recipient) => selectedRecipientIds.includes(recipient.id));
@@ -435,6 +446,26 @@ export default function CampaignDetailPage() {
                   </button>
                 );
               })}
+            </div>
+          </div>
+          <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+            <span className="text-xs font-semibold text-muted">Attendance record</span>
+            <div className="inline-flex w-full overflow-x-auto rounded-[9px] border border-line bg-canvas/60 p-0.5 text-xs sm:w-auto">
+              {([
+                ["all", () => recipients.length, "All"],
+                ["attended", () => recipients.filter((recipient) => recipient.attendanceStatus === "ATTENDED").length, "Attended"],
+                ["notAttended", () => recipients.filter((recipient) => recipient.attendanceStatus !== "ATTENDED").length, "Not Attended"],
+              ] as const).map(([filter, count, label]) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setAttendanceFilter(filter)}
+                  aria-pressed={attendanceFilter === filter}
+                  className={cn("shrink-0 rounded-[6px] px-3 py-1.5 font-medium transition-colors cursor-pointer", attendanceFilter === filter ? "bg-card font-bold text-ink shadow-xs" : "text-muted hover:text-ink")}
+                >
+                  {label} ({count()})
+                </button>
+              ))}
             </div>
           </div>
 
