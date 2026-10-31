@@ -87,12 +87,55 @@ test("records an admin attendance edit with the requested arrival time", async (
 
   expect(findUnique).toHaveBeenCalledWith({
     where: { eventId_id: { eventId: "event-id", id: "entry-id" } },
-    select: { status: true, arrivedAt: true },
+    select: { status: true, arrivedAt: true, scannedByAdminId: true },
   });
   expect(updateMany).toHaveBeenCalledWith({
     where: { id: "entry-id", eventId: "event-id" },
     data: { status: "ATTENDED", arrivedAt: arrival, scannedByAdminId: "admin-id" },
   });
+});
+
+test("keeps the original scanner when correcting an attended record", async () => {
+  const corrected = new Date("2026-10-01T10:05:00.000Z");
+  findUnique.mockResolvedValue({
+    status: "ATTENDED",
+    arrivedAt: new Date("2026-10-01T09:50:00.000Z"),
+    scannedByAdminId: "scanner-admin-id",
+  });
+
+  await updateAttendanceRecord({
+    eventId: "event-id",
+    rosterEntryId: "entry-id",
+    status: "ATTENDED",
+    arrivedAt: corrected,
+    updatedByAdminId: "editor-admin-id",
+  });
+
+  expect(updateMany).toHaveBeenCalledWith(
+    expect.objectContaining({ data: { status: "ATTENDED", arrivedAt: corrected, scannedByAdminId: "scanner-admin-id" } }),
+  );
+});
+
+test("logs the previous values so a cleared record can be recovered", async () => {
+  const info = vi.spyOn(console, "info").mockImplementation(() => {});
+  const originalArrival = new Date("2026-10-01T09:50:00.000Z");
+  findUnique.mockResolvedValue({ status: "ATTENDED", arrivedAt: originalArrival, scannedByAdminId: "scanner-admin-id" });
+
+  await updateAttendanceRecord({
+    eventId: "event-id",
+    rosterEntryId: "entry-id",
+    status: "ABSENT",
+    updatedByAdminId: "editor-admin-id",
+  });
+
+  expect(info).toHaveBeenCalledWith("[attendance] Admin edited an attendance record.", {
+    eventId: "event-id",
+    rosterEntryId: "entry-id",
+    editedByAdminId: "editor-admin-id",
+    previous: { status: "ATTENDED", arrivedAt: originalArrival, scannedByAdminId: "scanner-admin-id" },
+    next: { status: "ABSENT", arrivedAt: null, scannedByAdminId: null },
+  });
+  info.mockRestore();
 });
 
 test("keeps the recorded arrival time when re-marking someone attended", async () => {
