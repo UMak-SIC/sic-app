@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ProfileCircle } from "@/components/attendees/profile-circle";
+import { AttendanceStatusBadge } from "@/components/attendance/attendance-status-badge";
 import { StudentRecipient } from "./campaign-types";
 import {
   DotsThreeVertical,
@@ -312,7 +313,7 @@ export function CampaignDeliveryTable({
       )}
     >
       <div className="overflow-x-auto w-full">
-        <Table className="min-w-[740px] table-fixed">
+        <Table className="min-w-[860px] table-fixed">
           <TableHeader>
           <TableRow className="bg-canvas/50 hover:bg-canvas/50 border-b border-line">
             {/* Checkbox & Reorder Header */}
@@ -336,37 +337,42 @@ export function CampaignDeliveryTable({
             </TableHead>
 
             {/* Student Column */}
-            <TableHead className="w-[24%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[20%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Student Recipient
             </TableHead>
 
             {/* Course Column */}
-            <TableHead className="w-[12%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[9%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Course
             </TableHead>
 
+            {/* Attendance Record Column */}
+            <TableHead className="w-[13%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+              Attendance
+            </TableHead>
+
             {/* Separated Column 1: Provider with Logo */}
-            <TableHead className="w-[14%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[12%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Provider
             </TableHead>
 
             {/* Separated Column 2: Date & Time */}
-            <TableHead className="w-[15%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[12%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Date & Time
             </TableHead>
 
             {/* Delivery Status Column */}
-            <TableHead className="w-[13%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[12%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Status
             </TableHead>
 
             {/* Ticket Pass Column */}
-            <TableHead className="w-[10%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
+            <TableHead className="w-[11%] font-sans font-bold text-xs uppercase tracking-wider text-muted">
               Ticket Pass
             </TableHead>
 
             {/* Row Actions Header */}
-            <TableHead className="w-[12%] font-sans font-bold text-xs uppercase tracking-wider text-muted text-right pr-4">
+            <TableHead className="w-[11%] font-sans font-bold text-xs uppercase tracking-wider text-muted text-right pr-4">
               Action
             </TableHead>
           </TableRow>
@@ -485,6 +491,24 @@ export function CampaignDeliveryTable({
                     >
                       {student.course || "BSIT"}
                     </Badge>
+                  </div>
+                </TableCell>
+
+                {/* Attendance Record Column */}
+                <TableCell
+                  className="py-3.5"
+                  onPointerEnter={() => setHoverIndex(null)}
+                >
+                  <div className="flex flex-col items-start gap-1">
+                    <AttendanceStatusBadge
+                      status={student.attendanceStatus ?? "PENDING"}
+                      className="shadow-none"
+                    />
+                    {student.attendanceStatus === "ATTENDED" && student.attendedAt && (
+                      <span className="text-[10.5px] text-muted font-sans truncate max-w-[140px]">
+                        Arrived {student.attendedAt}
+                      </span>
+                    )}
                   </div>
                 </TableCell>
 

@@ -1,11 +1,15 @@
 export type CampaignStatus = "draft" | "sending" | "sent" | "needs_attention" | "no_campaigns";
 
+import type { AttendanceStatus } from "@/components/attendance/attendance-status-badge";
+
 export interface StudentRecipient {
   id: string;
   name: string;
   studentId: string;
   email: string;
   deliveryStatus: "delivered" | "sending" | "invalid_email" | "already_received" | "pending";
+  attendanceStatus?: AttendanceStatus;
+  attendedAt?: string;
   deliveredAt?: string;
   scheduledAt?: string;
   isSending?: boolean;
