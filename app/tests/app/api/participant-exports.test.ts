@@ -5,12 +5,13 @@ const { requireAdmin, exportEvents, exportParticipants, exportEventParticipants 
 }));
 vi.mock("@/lib/auth/require-admin", () => ({ requireAdmin }));
 vi.mock("@/lib/services/participant-export-service", () => ({ exportEvents, exportParticipants, exportEventParticipants }));
-import { POST as events } from "@/app/api/events/[id]/export/route";
+import { POST as eventsRoute } from "@/app/api/events/[id]/export/route";
 import { POST as people } from "@/app/api/attendees/export/route";
 import { GET as attendance } from "@/app/api/events/[id]/attendance/export/route";
 
 const id = "9fdcd48a-170a-4af7-862e-a511ad9d7b94";
 const request = (body: unknown) => new Request("https://sic.test/api/export", { method: "POST", body: JSON.stringify(body) });
+const events = (req: Request, pathId = id) => eventsRoute(req, { params: Promise.resolve({ id: pathId }) });
 beforeEach(() => requireAdmin.mockResolvedValue({ adminId: "admin-1" }));
 afterEach(() => vi.resetAllMocks());
 
@@ -34,6 +35,12 @@ test("exports exactly the requested events and deduplicates selections", async (
   expect(exportEvents).toHaveBeenCalledWith([id]);
   expect(await response.text()).toBe("event csv");
   expect(response.headers.get("Content-Disposition")).toContain("umak-sic-events.csv");
+});
+
+test("rejects an event export whose path event is not in the selection", async () => {
+  const response = await events(request({ ids: [id] }), "2b7c3e4f-0a1d-4c5e-9f8a-7b6c5d4e3f21");
+  expect(response.status).toBe(400);
+  expect(exportEvents).not.toHaveBeenCalled();
 });
 
 test("exports exactly the requested directory students and their history", async () => {
