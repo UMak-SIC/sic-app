@@ -103,6 +103,12 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
 
   React.useEffect(() => { void Promise.resolve().then(loadPeople); }, [eventId]);
 
+  React.useEffect(() => {
+    if (!savedMessage) return;
+    const timer = window.setTimeout(() => setSavedMessage(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [savedMessage]);
+
   const openEdit = React.useEffectEvent((person: Person) => {
     setEditing(person);
     setEditingStatus(person.attendanceStatus);
@@ -158,7 +164,6 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
       ));
       setSavedMessage(`Record saved for ${editing.name}.`);
       setEditing(null);
-      window.setTimeout(() => setSavedMessage(""), 4000);
     } catch (saveFailure) {
       setEditError(saveFailure instanceof Error ? saveFailure.message : "This record could not be saved. Try again.");
     } finally {
