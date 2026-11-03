@@ -15,6 +15,24 @@ import type { DeliveryAttemptResult } from "@/lib/queue/delivery-logger";
 export const runtime = "nodejs";
 
 /**
+ * A run must finish within five minutes. Vercel stops the function here, so
+ * claiming stops earlier (`CLAIM_WINDOW_MS`) to let the last batch finish.
+ */
+export const maxDuration = 300;
+
+/** Stop claiming new batches after this, leaving a minute for the batch in flight. */
+const CLAIM_WINDOW_MS = 240_000;
+
+/** One run can drain a full day of Brevo's free-plan allowance. */
+const MAX_LIMIT = 300;
+
+/**
+ * Sends in flight at once. Each one holds a pooled database connection while it
+ * reserves quota and records the attempt, and the Neon pool defaults to ten.
+ */
+const CONCURRENCY = 5;
+
+/**
  * Drains the delivery queue (TSK-0705, TSK-0706 and TSK-0707 completion).
  *
  * `/api/internal/queue-jobs` only *enqueues*; nothing called
@@ -26,9 +44,9 @@ export const runtime = "nodejs";
  * uses, because this is called by a scheduler or a platform cron rather than by
  * a browser.
  *
- * `limit` is clamped to the same 1..100 range `claimQueueJobs` enforces, so a
- * caller cannot ask for an unbounded batch and hold the delivery table's locks
- * for a long time.
+ * `limit` is the total for the run, 1..300, and defaults to 300 so a bare cron
+ * call drains the day's allowance. Jobs are claimed in small batches, each with
+ * its own lease, so no lock is held for the whole run.
  */
 
 /**
@@ -79,7 +97,7 @@ export async function POST(request: Request): Promise<Response> {
   // cannot tell those two apart, so the text is read directly.
   const raw = await request.text().catch(() => "");
 
-  let limit = 10;
+  let limit = MAX_LIMIT;
   let workerId = "queue-worker";
 
   if (raw.trim().length > 0) {
@@ -96,10 +114,10 @@ export async function POST(request: Request): Promise<Response> {
         typeof payload.limit !== "number" ||
         !Number.isInteger(payload.limit) ||
         payload.limit < 1 ||
-        payload.limit > 100
+        payload.limit > MAX_LIMIT
       ) {
         return Response.json(
-          { error: "limit must be an integer between 1 and 100." },
+          { error: `limit must be an integer between 1 and ${MAX_LIMIT}.` },
           { status: 400 }
         );
       }
@@ -133,16 +151,20 @@ export async function POST(request: Request): Promise<Response> {
         retried: 0,
         deadLettered: 0,
         held: 0,
-         reason: "The daily email allowance has been used. Work stays queued.",
+        reason: "The daily email allowance has been used. Work stays queued.",
       },
       { status: 200 }
     );
   }
 
+  const claimDeadline = Date.now() + CLAIM_WINDOW_MS;
+
   try {
     const result = await processQueueJobs({
       workerId,
       limit,
+      concurrency: CONCURRENCY,
+      claimDeadline,
       selectProvider: selectProviderForJob,
       dispatch: withQuotaReconciliation(
         createProviderDispatch({ resolveMessage: createDeliveryMessageResolver() })
@@ -151,9 +173,9 @@ export async function POST(request: Request): Promise<Response> {
 
     return Response.json(result, { status: 200 });
   } catch (error) {
-    console.error("[queue-worker] Unable to select an email provider.", error);
+    console.error("[queue-worker] The run stopped early.", error);
     return Response.json(
-      { error: "The email could not be prepared for sending. It has returned to the queue." },
+      { error: "The queue run stopped early. Unsent emails stay queued for the next run." },
       { status: 500 },
     );
   }
