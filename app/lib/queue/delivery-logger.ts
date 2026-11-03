@@ -14,6 +14,16 @@ export type DeliveryAttemptResult = {
   errorMessage?: string;
 };
 
+/**
+ * How long a failed send waits before it can be claimed again.
+ *
+ * It is longer than a worker run's claim window, so a failure is never retried
+ * within the run that failed it. It is no longer than the gap between the
+ * nightly cron runs minus a run's length, so the next run picks it up. See
+ * `docs/cron-job-org.md`.
+ */
+export const RETRY_DELAY_MS = 5 * 60 * 1000;
+
 type RecordDeliveryAttemptInput = DeliveryAttemptResult & {
   queueJobId: string;
   workerId: string;
@@ -108,6 +118,7 @@ export async function recordDeliveryAttempt({
       data: {
         status: deadLettered ? QueueJobStatus.DEAD_LETTER : QueueJobStatus.QUEUED,
         retryCount,
+        ...(deadLettered ? {} : { scheduledAt: new Date(Date.now() + RETRY_DELAY_MS) }),
         lockedAt: null,
         lockExpiresAt: null,
         lockedBy: null,

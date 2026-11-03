@@ -36,7 +36,7 @@ vi.mock("@/lib/queue/quota-manager", () => ({
   releaseProviderReservation: (input: unknown) => releaseProviderReservation(input),
 }));
 
-import { POST } from "@/app/api/internal/queue-worker/route";
+import { maxDuration, POST } from "@/app/api/internal/queue-worker/route";
 
 /** The adapter dispatch the route wraps; each test controls its outcome. */
 const adapterDispatch = vi.fn();
@@ -85,13 +85,27 @@ describe("POST /api/internal/queue-worker", () => {
     expect(hasProviderCapacity).not.toHaveBeenCalled();
   });
 
+  it("caps a run at five minutes", () => {
+    expect(maxDuration).toBe(300);
+  });
+
+  it("stops claiming a minute before the run's ceiling and sends five at once", async () => {
+    const before = Date.now();
+    await POST(post());
+
+    const { claimDeadline, concurrency } = processQueueJobs.mock.calls[0][0];
+    expect(concurrency).toBe(5);
+    expect(claimDeadline).toBeGreaterThanOrEqual(before + 240_000);
+    expect(claimDeadline).toBeLessThanOrEqual(Date.now() + 240_000);
+  });
+
   it("drains a default batch when no body is sent", async () => {
     const res = await POST(post());
 
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ claimed: 2, completed: 2, held: 0 });
     expect(processQueueJobs).toHaveBeenCalledWith(
-      expect.objectContaining({ limit: 10, workerId: "queue-worker" })
+      expect.objectContaining({ limit: 300, workerId: "queue-worker" })
     );
   });
 
@@ -121,8 +135,8 @@ describe("POST /api/internal/queue-worker", () => {
     );
   });
 
-  it("rejects a limit outside the range claimQueueJobs allows", async () => {
-    for (const limit of [0, 101, 2.5, "5"]) {
+  it("rejects a limit outside 1..300", async () => {
+    for (const limit of [0, 301, 2.5, "5"]) {
       const res = await POST(post(JSON.stringify({ limit })));
 
       expect(res.status, `limit ${String(limit)} should be rejected`).toBe(400);
