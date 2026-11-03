@@ -38,9 +38,29 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    setupFiles: ["./tests/setup.ts"],
-    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    fileParallelism: false,
-    maxWorkers: 1,
+    projects: [
+      {
+        // Pure tests never open a database connection, so they run across all
+        // available workers with no per-test cleanup.
+        extends: true,
+        test: {
+          name: "unit",
+          include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
+          exclude: ["tests/integration/**", "tests/e2e/**"],
+        },
+      },
+      {
+        // Database tests share one database and truncate it around every test,
+        // so they must run one file at a time.
+        extends: true,
+        test: {
+          name: "integration",
+          include: ["tests/integration/**/*.test.ts"],
+          setupFiles: ["./tests/setup.ts"],
+          fileParallelism: false,
+          maxWorkers: 1,
+        },
+      },
+    ],
   },
 });
