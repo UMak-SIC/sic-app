@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 test("dispatches claimed jobs and records successful attempts", async () => {
-  claimQueueJobs.mockResolvedValue([claimedJob]);
+  claimQueueJobs.mockResolvedValueOnce([claimedJob]).mockResolvedValue([]);
   recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
   const selectProvider = vi.fn().mockResolvedValue(EmailProvider.BREVO);
   const dispatch = vi.fn().mockResolvedValue({
@@ -44,7 +44,8 @@ test("dispatches claimed jobs and records successful attempts", async () => {
     held: 0,
   });
 
-  expect(claimQueueJobs).toHaveBeenCalledWith({ workerId: "worker-a", limit: 10 });
+  // One slot claims two at a time, so a long run never outlives its leases.
+  expect(claimQueueJobs).toHaveBeenNthCalledWith(1, { workerId: "worker-a", limit: 2 });
   expect(selectProvider).toHaveBeenCalledWith(claimedJob);
   expect(dispatch).toHaveBeenCalledWith(claimedJob, EmailProvider.BREVO);
   expect(recordDeliveryAttempt).toHaveBeenCalledWith({
@@ -165,4 +166,122 @@ test("does not release a claim for a job that was dispatched", async () => {
   await processQueueJobs({ workerId: "worker-a", selectProvider, dispatch });
 
   expect(releaseClaimedJob).not.toHaveBeenCalled();
+});
+
+function jobs(count: number, prefix = "job") {
+  return Array.from({ length: count }, (_, index) => ({ ...claimedJob, id: `${prefix}-${index}` }));
+}
+
+const sendsSucceed = () => ({
+  selectProvider: vi.fn().mockResolvedValue(EmailProvider.BREVO),
+  dispatch: vi.fn().mockResolvedValue({ succeeded: true, httpStatus: 201 }),
+});
+
+test("keeps claiming batches until the run's limit is reached", async () => {
+  claimQueueJobs.mockImplementation(async ({ limit }: { limit: number }) => jobs(limit));
+  recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
+
+  const result = await processQueueJobs({ workerId: "worker-a", limit: 25, concurrency: 5, ...sendsSucceed() });
+
+  expect(result).toMatchObject({ claimed: 25, completed: 25 });
+  // Batches of ten (five slots x two), then the five that remain.
+  expect(claimQueueJobs.mock.calls.map(([input]) => input.limit)).toEqual([10, 10, 5]);
+});
+
+test("stops when the queue is empty", async () => {
+  claimQueueJobs.mockResolvedValueOnce(jobs(3)).mockResolvedValue([]);
+  recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
+
+  const result = await processQueueJobs({ workerId: "worker-a", limit: 300, concurrency: 5, ...sendsSucceed() });
+
+  expect(result).toMatchObject({ claimed: 3, completed: 3 });
+  expect(claimQueueJobs).toHaveBeenCalledTimes(2);
+});
+
+test("claims nothing more once the deadline has passed", async () => {
+  claimQueueJobs.mockImplementation(async ({ limit }: { limit: number }) => jobs(limit));
+  recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
+  const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+
+  try {
+    const { selectProvider, dispatch } = sendsSucceed();
+    // The deadline passes while the first batch is being sent.
+    dispatch.mockImplementation(async () => {
+      now.mockReturnValue(2_000);
+      return { succeeded: true, httpStatus: 201 };
+    });
+
+    const result = await processQueueJobs({
+      workerId: "worker-a",
+      limit: 300,
+      concurrency: 5,
+      claimDeadline: 1_500,
+      selectProvider,
+      dispatch,
+    });
+
+    expect(claimQueueJobs).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ claimed: 10, completed: 10 });
+  } finally {
+    now.mockRestore();
+  }
+});
+
+test("stops claiming once the daily quota is spent", async () => {
+  claimQueueJobs.mockImplementation(async ({ limit }: { limit: number }) => jobs(limit));
+  recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
+  const selectProvider = vi.fn().mockResolvedValueOnce(EmailProvider.BREVO).mockResolvedValue(null);
+  const dispatch = vi.fn().mockResolvedValue({ succeeded: true, httpStatus: 201 });
+
+  const result = await processQueueJobs({ workerId: "worker-a", limit: 300, concurrency: 1, selectProvider, dispatch });
+
+  // Claiming again would only pick the released jobs back up and hold them again.
+  expect(claimQueueJobs).toHaveBeenCalledTimes(1);
+  expect(result).toMatchObject({ claimed: 2, completed: 1, held: 1 });
+});
+
+test("never has more sends in flight than the concurrency allows", async () => {
+  claimQueueJobs.mockResolvedValueOnce(jobs(10)).mockResolvedValue([]);
+  recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
+  let inFlight = 0;
+  let peak = 0;
+  const dispatch = vi.fn().mockImplementation(async () => {
+    inFlight += 1;
+    peak = Math.max(peak, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    inFlight -= 1;
+    return { succeeded: true, httpStatus: 201 };
+  });
+
+  await processQueueJobs({
+    workerId: "worker-a",
+    limit: 10,
+    concurrency: 3,
+    selectProvider: vi.fn().mockResolvedValue(EmailProvider.BREVO),
+    dispatch,
+  });
+
+  expect(peak).toBe(3);
+  expect(dispatch).toHaveBeenCalledTimes(10);
+});
+
+test("lets sends already in flight finish before re-throwing a failure", async () => {
+  claimQueueJobs.mockResolvedValue(jobs(2));
+  recordDeliveryAttempt.mockResolvedValue({ deadLettered: false });
+  const selectProvider = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Quota lookup failed"))
+    .mockResolvedValue(EmailProvider.BREVO);
+  const dispatch = vi.fn().mockImplementation(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    return { succeeded: true, httpStatus: 201 };
+  });
+
+  await expect(
+    processQueueJobs({ workerId: "worker-a", limit: 2, concurrency: 2, selectProvider, dispatch }),
+  ).rejects.toThrow("Quota lookup failed");
+
+  // The other slot's send was recorded rather than abandoned mid-flight.
+  expect(recordDeliveryAttempt).toHaveBeenCalledTimes(1);
+  expect(claimQueueJobs).toHaveBeenCalledTimes(1);
 });

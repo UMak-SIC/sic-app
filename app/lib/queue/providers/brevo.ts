@@ -24,6 +24,13 @@ import {
 
 const BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email";
 
+/**
+ * A worker run has a hard five-minute ceiling. Without a timeout, one hung
+ * request would hold its slot until Vercel killed the whole run. A timed-out
+ * send is recorded as a failure and retried by the next run.
+ */
+const BREVO_TIMEOUT_MS = 20_000;
+
 function validateMessage(message: { to: string; fromEmail: string; subject: string; html: string }): void {
   if (!message.to.trim()) {
     throw new Error("The message has no recipient address.");
@@ -93,6 +100,7 @@ export async function dispatchViaBrevo(
         "X-Sib-Idempotency": job.idempotencyKey,
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(BREVO_TIMEOUT_MS),
     });
   } catch (error) {
     return toFailure(error);
