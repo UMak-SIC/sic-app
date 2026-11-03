@@ -6,7 +6,7 @@ vi.mock("@/lib/prisma", () => ({ getPrismaClient }));
 
 import { EmailProvider } from "@prisma/client";
 
-import { recordDeliveryAttempt } from "@/lib/queue/delivery-logger";
+import { RETRY_DELAY_MS, recordDeliveryAttempt } from "@/lib/queue/delivery-logger";
 
 const deliveryAttempt = { aggregate: vi.fn(), create: vi.fn() };
 const emailDelivery = { update: vi.fn() };
@@ -112,12 +112,31 @@ test("returns a failed delivery to the queue while retries remain", async () => 
     data: {
       status: "QUEUED",
       retryCount: 3,
+      scheduledAt: expect.any(Date),
       lockedAt: null,
       lockExpiresAt: null,
       lockedBy: null,
       lastError: "Provider unavailable",
     },
   });
+});
+
+test("holds a failed send back for five minutes so the same run does not retry it", async () => {
+  queueJob.findFirst.mockResolvedValue({ deliveryId: "delivery-id", retryCount: 0, maxRetries: 3 });
+  const before = Date.now();
+
+  await recordDeliveryAttempt({
+    queueJobId: "queue-job-id",
+    workerId: "worker-a",
+    provider: EmailProvider.BREVO,
+    succeeded: false,
+    httpStatus: 503,
+  });
+
+  const { scheduledAt } = queueJob.update.mock.calls[0][0].data;
+  expect(scheduledAt.getTime()).toBeGreaterThanOrEqual(before + RETRY_DELAY_MS);
+  expect(scheduledAt.getTime()).toBeLessThanOrEqual(Date.now() + RETRY_DELAY_MS);
+  expect(RETRY_DELAY_MS).toBe(5 * 60 * 1000);
 });
 
 test("continues delivery attempt numbering after a manual requeue", async () => {

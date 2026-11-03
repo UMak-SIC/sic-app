@@ -23,7 +23,7 @@ const adapters: Record<EmailProvider, ProviderAdapter> = {
  *
  * `processQueueJobs` takes `dispatch` by injection and calls it with the job and
  * the provider the queue reserved, so the returned function takes
- * exactly those two arguments. Nothing wires this up yet; it exists so the worker
+ * exactly those two arguments. It exists so the worker
  * and the test-send route share one entry point rather than each switching on the
  * provider themselves.
  */
