@@ -1,19 +1,15 @@
 name: CI
 
 on:
-  # Feature branches are tested through their pull request; a push run as
-  # well would double the Neon branches each push needs.
-  push:
-    branches: [dev, main]
-    paths:
-      - "app/**"
-      - ".github/workflows/ci.yml"
-      - ".github/scripts/**"
+  # Only pull requests into dev are tested. Promotion PRs (dev -> staging ->
+  # main) carry commits that already passed here, so re-running them adds
+  # nothing. Branch protection keeps this safe: dev requires PR branches to be
+  # up to date, and staging/main only accept promotion PRs.
+  #
+  # There is no paths filter: lint-and-build is a required check, and a
+  # filtered-out run never reports, which would block docs-only PRs forever.
   pull_request:
-    paths:
-      - "app/**"
-      - ".github/workflows/ci.yml"
-      - ".github/scripts/**"
+    branches: [dev]
 
 jobs:
   lint-and-build:
@@ -84,6 +80,35 @@ jobs:
             exit 1
           fi
       - run: pnpm lint
+
+      # next build reuses compiled output from .next/cache. The key changes
+      # whenever dependencies or source change; restore-keys falls back to the
+      # newest cache for the same lockfile so most of it is still reused.
+      - uses: actions/cache@v4
+        with:
+          path: app/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('app/pnpm-lock.yaml') }}-${{ hashFiles('app/**/*.ts', 'app/**/*.tsx', 'app/**/*.css', '!app/node_modules/**', '!app/.next/**') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('app/pnpm-lock.yaml') }}-
+
       - run: pnpm build
-      - run: pnpm exec playwright install --with-deps chromium
+
+      # The browser download is cached per Playwright version. The OS
+      # libraries it needs live outside the cache, so they are always installed.
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+
       - run: pnpm test:e2e
