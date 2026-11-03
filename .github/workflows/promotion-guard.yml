@@ -1,0 +1,38 @@
+name: Promotion guard
+
+# staging and main only accept promotion PRs: dev -> staging and
+# staging -> main. Branch protection requires this check on both branches.
+#
+# "edited" reruns the check when a PR's base branch is changed; otherwise a
+# pass for dev -> staging would still count after retargeting it to main.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches: [staging, main]
+
+permissions: {}
+
+jobs:
+  promotion-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only dev -> staging and staging -> main
+        # Branch names come from the PR author, so they are passed as
+        # environment variables instead of being expanded into the script.
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          THIS_REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REPO" != "$THIS_REPO" ]; then
+            echo "::error::Promotion PRs must come from ${THIS_REPO}, not a fork."
+            exit 1
+          fi
+          case "${BASE_REF}:${HEAD_REF}" in
+            staging:dev | main:staging) echo "Valid promotion: ${HEAD_REF} -> ${BASE_REF}." ;;
+            *)
+              echo "::error::${BASE_REF} only accepts PRs from its promotion branch, not ${HEAD_REF}."
+              exit 1
+              ;;
+          esac
