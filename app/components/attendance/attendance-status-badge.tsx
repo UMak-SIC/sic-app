@@ -1,10 +1,10 @@
 import * as React from "react";
-import { CheckCircle, Clock, XCircle } from "@phosphor-icons/react";
+import { CheckCircle, Clock, ClockAfternoon, XCircle } from "@phosphor-icons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type AttendanceStatus = "PENDING" | "ATTENDED" | "ABSENT";
+export type AttendanceStatus = "PENDING" | "ATTENDED" | "LATE" | "ABSENT";
 
 const ATTENDANCE_BADGES: Record<
   AttendanceStatus,
@@ -14,6 +14,11 @@ const ATTENDANCE_BADGES: Record<
     label: "Attended",
     icon: CheckCircle,
     badgeClass: "border-green-border bg-green-soft text-green",
+  },
+  LATE: {
+    label: "Late",
+    icon: ClockAfternoon,
+    badgeClass: "border-amber-border bg-amber-soft text-amber",
   },
   ABSENT: {
     label: "Absent",

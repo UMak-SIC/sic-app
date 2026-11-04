@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const { updateMany, findFirst, findUnique, transaction, verifyQrTicket } = vi.hoisted(() => ({
+const { updateMany, findFirst, findUnique, eventFindUnique, transaction, verifyQrTicket } = vi.hoisted(() => ({
   updateMany: vi.fn(),
   findFirst: vi.fn(),
   findUnique: vi.fn(),
+  eventFindUnique: vi.fn(),
   transaction: vi.fn(),
   verifyQrTicket: vi.fn(),
 }));
@@ -11,6 +12,7 @@ const { updateMany, findFirst, findUnique, transaction, verifyQrTicket } = vi.ho
 vi.mock("@/lib/prisma", () => ({
   getPrismaClient: () => ({
     $transaction: transaction,
+    event: { findUnique: eventFindUnique },
     eventRosterEntry: { findFirst, findUnique, updateMany },
   }),
 }));
@@ -20,8 +22,14 @@ vi.mock("@/lib/security/qr-signer", () => ({ verifyQrTicket }));
 import { checkInRosterEntry, recordCheckIn, updateAttendanceRecord } from "@/lib/services/checkin-service";
 
 beforeEach(() => {
-  transaction.mockImplementation((callback) => callback({ eventRosterEntry: { updateMany, findUnique } }));
+  transaction.mockImplementation((callback) =>
+    callback({
+      event: { findUnique: eventFindUnique },
+      eventRosterEntry: { updateMany, findUnique },
+    }),
+  );
   updateMany.mockResolvedValue({ count: 1 });
+  eventFindUnique.mockResolvedValue(null);
 });
 
 afterEach(() => vi.resetAllMocks());
@@ -37,13 +45,34 @@ test("marks a pending event roster entry attended atomically", async () => {
       scannedByAdminId: "admin-id",
       arrivedAt,
     }),
-  ).resolves.toEqual({ status: "checked_in", arrivedAt });
+  ).resolves.toEqual({ status: "checked_in", arrivedAt, isLate: false });
 
   expect(updateMany).toHaveBeenCalledWith({
     where: { id: "entry-id", eventId: "event-id", status: "PENDING" },
     data: { status: "ATTENDED", arrivedAt, scannedByAdminId: "admin-id" },
   });
   expect(findUnique).not.toHaveBeenCalled();
+});
+
+test("marks a pending event roster entry late if arriving past 15 minutes", async () => {
+  const startsAt = new Date("2026-10-01T09:00:00.000Z");
+  const arrivedAt = new Date("2026-10-01T09:20:00.000Z");
+  eventFindUnique.mockResolvedValue({ startsAt });
+  updateMany.mockResolvedValue({ count: 1 });
+
+  await expect(
+    checkInRosterEntry({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      scannedByAdminId: "admin-id",
+      arrivedAt,
+    }),
+  ).resolves.toEqual({ status: "checked_in", arrivedAt, isLate: true });
+
+  expect(updateMany).toHaveBeenCalledWith({
+    where: { id: "entry-id", eventId: "event-id", status: "PENDING" },
+    data: { status: "LATE", arrivedAt, scannedByAdminId: "admin-id" },
+  });
 });
 
 test("reports the original arrival time when an attended ticket is scanned again", async () => {

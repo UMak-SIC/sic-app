@@ -51,9 +51,14 @@ test.skipIf(!hasTestDatabase())("allows one concurrent check-in and returns the 
     await database.eventRosterEntry.create({ data: { id: rosterEntryId, eventId, attendeeId } });
   });
 
+  // Pin the arrival to a time inside the check-in grace window so the recorded
+  // status stays ATTENDED regardless of when the suite runs. The event started
+  // in the past, so the wall clock would otherwise classify the scan as late.
+  const arrival = new Date("2026-10-01T08:05:00.000Z");
+
   const [firstResult, secondResult] = await Promise.all([
-    checkInRosterEntry({ eventId, rosterEntryId, scannedByAdminId: adminId }),
-    checkInRosterEntry({ eventId, rosterEntryId, scannedByAdminId: adminId }),
+    checkInRosterEntry({ eventId, rosterEntryId, scannedByAdminId: adminId, arrivedAt: arrival }),
+    checkInRosterEntry({ eventId, rosterEntryId, scannedByAdminId: adminId, arrivedAt: arrival }),
   ]);
 
   expect([firstResult.status, secondResult.status].sort()).toEqual(["checked_in", "duplicate"]);
