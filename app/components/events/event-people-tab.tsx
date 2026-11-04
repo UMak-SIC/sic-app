@@ -304,7 +304,7 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
             </div>
 
             {editing?.attendedAt && (editingStatus === "ABSENT" || editingStatus === "PENDING") && (
-              <div className="flex items-start gap-2.5 rounded-[8px] border border-amber-border bg-amber-soft p-3 text-xs text-amber">
+              <div className="flex items-start gap-2.5 rounded-[9px] border border-amber-border bg-amber-soft p-3 text-xs text-amber">
                 <WarningCircle size={18} weight="bold" className="mt-0.5 shrink-0 text-amber" aria-hidden="true" />
                 <div>
                   <p className="font-semibold text-ink">Clearing arrival time</p>
