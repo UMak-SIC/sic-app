@@ -24,6 +24,7 @@ import {
   Fingerprint,
 } from "@phosphor-icons/react";
 import { AssetItem } from "./asset-types";
+import { DeleteAssetDialog } from "./delete-asset-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ export function AssetDetailSheet({
   onDeleteAsset,
 }: AssetDetailSheetProps) {
   const [copied, setCopied] = React.useState(false);
-  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
 
   if (!asset) return null;
 
@@ -52,17 +53,6 @@ export function AssetDetailSheet({
     navigator.clipboard.writeText(new URL(asset.url, window.location.origin).toString());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDelete = () => {
-    if (isLocked) return;
-    if (!confirmDelete) {
-      setConfirmDelete(true);
-      return;
-    }
-    onDeleteAsset?.(asset.id);
-    setConfirmDelete(false);
-    onOpenChange(false);
   };
 
   return (
@@ -238,32 +228,11 @@ export function AssetDetailSheet({
               <LockKey size={13} className="text-amber" />
               <span>Deletion locked while in use</span>
             </div>
-          ) : confirmDelete ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-red">Confirm delete?</span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleDelete}
-                className="bg-red hover:bg-red-hover text-white text-xs font-semibold rounded-[6px] h-8 px-3"
-              >
-                Yes, Delete
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmDelete(false)}
-                className="text-xs rounded-[6px] h-8 px-2"
-              >
-                Cancel
-              </Button>
-            </div>
           ) : (
             <Button
               type="button"
               variant="outline"
-              onClick={handleDelete}
+              onClick={() => setDeleteDialogOpen(true)}
               className="text-xs font-semibold text-red hover:bg-red-soft hover:border-red rounded-[6px] h-9 gap-1.5 cursor-pointer self-start sm:self-auto"
             >
               <Trash size={14} />
@@ -303,6 +272,18 @@ export function AssetDetailSheet({
           </div>
         </div>
       </DialogContent>
+
+      <DeleteAssetDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        asset={asset}
+        isDeleting={false}
+        onConfirm={() => {
+          onDeleteAsset?.(asset.id);
+          setDeleteDialogOpen(false);
+          onOpenChange(false);
+        }}
+      />
     </Dialog>
   );
 }

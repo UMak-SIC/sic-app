@@ -40,6 +40,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local QR test artifacts (generated scratch assets, not shipped tooling)
+public/test-qr-*.png
+public/test-tickets.html
+scripts/generate-test-qrs.mjs
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
