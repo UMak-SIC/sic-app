@@ -175,6 +175,14 @@ export async function recordCheckIn({
   const prisma = getPrismaClient();
 
   if (!targetRosterEntryId) {
+    // The roster id column is a UUID: comparing it against anything else (a
+    // pasted URL, a random scanned code) makes the database reject the whole
+    // query, so the roster is only searched by id when the input looks like
+    // one. Everything else resolves by student number or returns invalid.
+    const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      ticketTokenOrCode,
+    );
+
     const found = await prisma.eventRosterEntry.findFirst({
       where: {
         eventId,
@@ -183,7 +191,7 @@ export async function recordCheckIn({
         // record that they were on the list.
         attendee: { deletedAt: null },
         OR: [
-          { id: ticketTokenOrCode },
+          ...(looksLikeUuid ? [{ id: ticketTokenOrCode }] : []),
           { attendee: { studentId: ticketTokenOrCode } },
         ],
       },

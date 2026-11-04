@@ -324,7 +324,66 @@ test("falls back to a student ID only when the input is not a QR ticket", async 
     where: {
       eventId: "event-id",
       attendee: { deletedAt: null },
-      OR: [{ id: "student-id" }, { attendee: { studentId: "student-id" } }],
+      OR: [{ attendee: { studentId: "student-id" } }],
+    },
+    select: { id: true },
+  });
+});
+
+test("searches the roster by id as well when the input looks like a UUID", async () => {
+  verifyQrTicket.mockReturnValue({
+    valid: false,
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+  findFirst.mockResolvedValue(null);
+
+  const rosterId = "9f3cd6b0-1111-4222-8333-444455556666";
+  await expect(
+    recordCheckIn({ eventId: "event-id", ticketTokenOrCode: rosterId, adminId: "admin-id" }),
+  ).resolves.toEqual({
+    status: "invalid",
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      eventId: "event-id",
+      attendee: { deletedAt: null },
+      OR: [{ id: rosterId }, { attendee: { studentId: rosterId } }],
+    },
+    select: { id: true },
+  });
+});
+
+test("keeps a scanned non-ticket code away from the roster id column", async () => {
+  verifyQrTicket.mockReturnValue({
+    valid: false,
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+  findFirst.mockResolvedValue(null);
+
+  // A random scanned code (here, a URL) is not a UUID and would make the
+  // database reject a comparison against the UUID id column outright.
+  await expect(
+    recordCheckIn({
+      eventId: "event-id",
+      ticketTokenOrCode: "https://example.com/rsvp",
+      adminId: "admin-id",
+    }),
+  ).resolves.toEqual({
+    status: "invalid",
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      eventId: "event-id",
+      attendee: { deletedAt: null },
+      OR: [{ attendee: { studentId: "https://example.com/rsvp" } }],
     },
     select: { id: true },
   });
