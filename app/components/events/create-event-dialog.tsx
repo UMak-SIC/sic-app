@@ -15,6 +15,9 @@ import { EventSchedulePicker } from "./event-schedule-picker";
 import { EventItem } from "./events-table";
 import { AssetPickerDialog } from "@/components/assets/asset-picker-dialog";
 import { AssetItem } from "@/components/assets/asset-types";
+import { TypeableCombobox } from "@/components/ui/typeable-combobox";
+import { UMAK_VENUES } from "@/config/venues";
+import { cn } from "@/lib/utils";
 import { MapPin, FloppyDisk, PaperPlaneTilt, CircleNotch } from "@phosphor-icons/react";
 
 export type EditableEvent = {
@@ -317,11 +320,23 @@ export function CreateEventDialog({
 
                   {/* Event Name Input */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-ink">
-                      Event Name<span className="text-[#2da482] ml-0.5">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="event-name" className="text-xs font-semibold text-ink">
+                        Event Name<span className="text-[#2da482] ml-0.5">*</span>
+                      </Label>
+                      <span
+                        className={cn(
+                          "text-[11px] font-sans transition-colors",
+                          eventName.length >= 90 ? "text-amber font-semibold" : "text-muted",
+                        )}
+                      >
+                        {eventName.length}/100
+                      </span>
+                    </div>
                     <Input
+                      id="event-name"
                       type="text"
+                      maxLength={100}
                       value={eventName}
                       onChange={(e) => setEventName(e.target.value)}
                       placeholder="Create Enterprise applications on the cloud"
@@ -331,10 +346,22 @@ export function CreateEventDialog({
 
                   {/* Event Description Input */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-ink">
-                      Description
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="event-description" className="text-xs font-semibold text-ink">
+                        Description
+                      </Label>
+                      <span
+                        className={cn(
+                          "text-[11px] font-sans transition-colors",
+                          description.length >= 900 ? "text-amber font-semibold" : "text-muted",
+                        )}
+                      >
+                        {description.length}/1000
+                      </span>
+                    </div>
                     <Textarea
+                      id="event-description"
+                      maxLength={1000}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Tell attendees what this event is about, learning objectives, and agenda..."
@@ -342,18 +369,19 @@ export function CreateEventDialog({
                     />
                   </div>
 
-                  {/* Venue Input (Under Description) */}
+                  {/* Venue Combobox (Under Description) */}
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-ink flex items-center gap-1">
+                    <Label htmlFor="event-venue" className="text-xs font-semibold text-ink flex items-center gap-1">
                       <MapPin size={13} className="text-[#2da482]" />
                       <span>Venue</span>
                     </Label>
-                    <Input
-                      type="text"
+                    <TypeableCombobox
+                      id="event-venue"
                       value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      placeholder="e.g., Grand Amphitheater, Bldg 2 Room 304, or Online"
-                      className="h-10 rounded-xl bg-card border-line px-3.5 text-sm font-medium focus-visible:ring-2 focus-visible:ring-[#2da482]/20"
+                      onChange={setVenue}
+                      options={UMAK_VENUES}
+                      placeholder="Select venue or type custom room..."
+                      className="w-full"
                     />
                   </div>
 
