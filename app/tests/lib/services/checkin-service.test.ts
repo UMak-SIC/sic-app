@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const { updateMany, findFirst, findUnique, transaction, verifyQrTicket } = vi.hoisted(() => ({
+const { updateMany, findFirst, findUnique, eventFindUnique, transaction, verifyQrTicket } = vi.hoisted(() => ({
   updateMany: vi.fn(),
   findFirst: vi.fn(),
   findUnique: vi.fn(),
+  eventFindUnique: vi.fn(),
   transaction: vi.fn(),
   verifyQrTicket: vi.fn(),
 }));
@@ -11,6 +12,7 @@ const { updateMany, findFirst, findUnique, transaction, verifyQrTicket } = vi.ho
 vi.mock("@/lib/prisma", () => ({
   getPrismaClient: () => ({
     $transaction: transaction,
+    event: { findUnique: eventFindUnique },
     eventRosterEntry: { findFirst, findUnique, updateMany },
   }),
 }));
@@ -20,8 +22,14 @@ vi.mock("@/lib/security/qr-signer", () => ({ verifyQrTicket }));
 import { checkInRosterEntry, recordCheckIn, updateAttendanceRecord } from "@/lib/services/checkin-service";
 
 beforeEach(() => {
-  transaction.mockImplementation((callback) => callback({ eventRosterEntry: { updateMany, findUnique } }));
+  transaction.mockImplementation((callback) =>
+    callback({
+      event: { findUnique: eventFindUnique },
+      eventRosterEntry: { updateMany, findUnique },
+    }),
+  );
   updateMany.mockResolvedValue({ count: 1 });
+  eventFindUnique.mockResolvedValue(null);
 });
 
 afterEach(() => vi.resetAllMocks());
@@ -37,13 +45,34 @@ test("marks a pending event roster entry attended atomically", async () => {
       scannedByAdminId: "admin-id",
       arrivedAt,
     }),
-  ).resolves.toEqual({ status: "checked_in", arrivedAt });
+  ).resolves.toEqual({ status: "checked_in", arrivedAt, isLate: false });
 
   expect(updateMany).toHaveBeenCalledWith({
     where: { id: "entry-id", eventId: "event-id", status: "PENDING" },
     data: { status: "ATTENDED", arrivedAt, scannedByAdminId: "admin-id" },
   });
   expect(findUnique).not.toHaveBeenCalled();
+});
+
+test("marks a pending event roster entry late if arriving past 15 minutes", async () => {
+  const startsAt = new Date("2026-10-01T09:00:00.000Z");
+  const arrivedAt = new Date("2026-10-01T09:20:00.000Z");
+  eventFindUnique.mockResolvedValue({ startsAt });
+  updateMany.mockResolvedValue({ count: 1 });
+
+  await expect(
+    checkInRosterEntry({
+      eventId: "event-id",
+      rosterEntryId: "entry-id",
+      scannedByAdminId: "admin-id",
+      arrivedAt,
+    }),
+  ).resolves.toEqual({ status: "checked_in", arrivedAt, isLate: true });
+
+  expect(updateMany).toHaveBeenCalledWith({
+    where: { id: "entry-id", eventId: "event-id", status: "PENDING" },
+    data: { status: "LATE", arrivedAt, scannedByAdminId: "admin-id" },
+  });
 });
 
 test("reports the original arrival time when an attended ticket is scanned again", async () => {
@@ -295,7 +324,66 @@ test("falls back to a student ID only when the input is not a QR ticket", async 
     where: {
       eventId: "event-id",
       attendee: { deletedAt: null },
-      OR: [{ id: "student-id" }, { attendee: { studentId: "student-id" } }],
+      OR: [{ attendee: { studentId: "student-id" } }],
+    },
+    select: { id: true },
+  });
+});
+
+test("searches the roster by id as well when the input looks like a UUID", async () => {
+  verifyQrTicket.mockReturnValue({
+    valid: false,
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+  findFirst.mockResolvedValue(null);
+
+  const rosterId = "9f3cd6b0-1111-4222-8333-444455556666";
+  await expect(
+    recordCheckIn({ eventId: "event-id", ticketTokenOrCode: rosterId, adminId: "admin-id" }),
+  ).resolves.toEqual({
+    status: "invalid",
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      eventId: "event-id",
+      attendee: { deletedAt: null },
+      OR: [{ id: rosterId }, { attendee: { studentId: rosterId } }],
+    },
+    select: { id: true },
+  });
+});
+
+test("keeps a scanned non-ticket code away from the roster id column", async () => {
+  verifyQrTicket.mockReturnValue({
+    valid: false,
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+  findFirst.mockResolvedValue(null);
+
+  // A random scanned code (here, a URL) is not a UUID and would make the
+  // database reject a comparison against the UUID id column outright.
+  await expect(
+    recordCheckIn({
+      eventId: "event-id",
+      ticketTokenOrCode: "https://example.com/rsvp",
+      adminId: "admin-id",
+    }),
+  ).resolves.toEqual({
+    status: "invalid",
+    reason: "malformed",
+    message: "This is not a valid QR ticket.",
+  });
+
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      eventId: "event-id",
+      attendee: { deletedAt: null },
+      OR: [{ attendee: { studentId: "https://example.com/rsvp" } }],
     },
     select: { id: true },
   });

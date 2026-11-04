@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, CheckCircle, QrCode, WarningCircle } from "@phosphor-icons/react";
+import { Camera, CheckCircle, QrCode, WarningCircle, X } from "@phosphor-icons/react";
 
 import { startQrScan } from "@/lib/scanner/qr-scanner";
 import type { CheckInResponse } from "@/lib/services/checkin-service";
@@ -66,8 +66,9 @@ export function QrScanner({ events }: { events: CheckInEvent[] }) {
 
       setError(null);
       setIsScanning(true);
+      // Keep scanning continuously: each read submits the ticket, and the
+      // scanner's built-in cooldown stops a held ticket from firing twice.
       controlsRef.current = await startQrScan(video, (payload) => {
-        stopScanner();
         void submitTicket(payload);
       });
     } catch {
@@ -114,9 +115,9 @@ export function QrScanner({ events }: { events: CheckInEvent[] }) {
         <div aria-hidden="true" className="pointer-events-none absolute inset-[16%] border-2 border-cyan" />
       </div>
 
-      <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-[6px] bg-cyan px-4 py-3 font-sans text-sm font-semibold text-paper transition-colors hover:bg-cyan-hover disabled:cursor-not-allowed disabled:opacity-60" disabled={isScanning || !eventId} onClick={startScanner} type="button">
-        <Camera aria-hidden="true" size={18} weight="bold" />
-        {isScanning ? "Looking for ticket" : "Open camera"}
+      <button className="mt-4 flex w-full items-center justify-center gap-2 rounded-[6px] bg-cyan px-4 py-3 font-sans text-sm font-semibold text-paper transition-colors hover:bg-cyan-hover disabled:cursor-not-allowed disabled:opacity-60" disabled={!eventId} onClick={isScanning ? stopScanner : startScanner} type="button">
+        {isScanning ? <X aria-hidden="true" size={18} weight="bold" /> : <Camera aria-hidden="true" size={18} weight="bold" />}
+        {isScanning ? "Stop camera" : "Open camera"}
       </button>
       {error && <p className="mt-3 rounded-[6px] border border-red/30 bg-red-soft p-3 font-sans text-sm text-red" role="alert">{error}</p>}
 

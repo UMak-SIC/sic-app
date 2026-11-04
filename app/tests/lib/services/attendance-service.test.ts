@@ -32,7 +32,9 @@ test("searches attendance by attendee identity", async () => {
       }),
     }),
   });
-  expect(count).toHaveBeenCalledWith({ where: { eventId: "event-id", status: "ATTENDED" } });
+  expect(count).toHaveBeenCalledWith({
+    where: { eventId: "event-id", status: { in: ["ATTENDED", "LATE"] } },
+  });
 });
 
 test("keeps event-wide totals when roster rows are filtered", async () => {

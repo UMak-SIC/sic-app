@@ -10,6 +10,8 @@ import { EventsTableSkeleton } from "@/components/events/events-table-skeleton";
 import { EventsToolbar } from "@/components/events/events-toolbar";
 import { EventFormDialog, type EditableEvent } from "@/components/events/event-form-dialog";
 import { EventPeopleDialog } from "@/components/events/event-people-dialog";
+import { DeleteEventDialog } from "@/components/events/delete-event-dialog";
+import { DuplicateEventDialog } from "@/components/events/duplicate-event-dialog";
 import { downloadExport } from "@/lib/exports";
 
 type Event = EditableEvent & {
@@ -47,6 +49,10 @@ export default function EventsPage() {
   const [editing, setEditing] = React.useState<EditableEvent | undefined>();
   const [formOpen, setFormOpen] = React.useState(false);
   const [managingPeople, setManagingPeople] = React.useState<Event | null>(null);
+  const [deletingEvent, setDeletingEvent] = React.useState<EventItem | null>(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [duplicatingEvent, setDuplicatingEvent] = React.useState<EventItem | null>(null);
+  const [isDuplicating, setIsDuplicating] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
@@ -113,6 +119,58 @@ export default function EventsPage() {
     }
   }
 
+  const handleDeleteEvent = async () => {
+    if (!deletingEvent) return;
+    setIsDeleting(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/events/${deletingEvent.id}`, { method: "DELETE" });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "The event could not be deleted.");
+      }
+      setDeletingEvent(null);
+      await loadEvents();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The event could not be deleted.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDuplicateEvent = async (newName: string, newDate: string) => {
+    if (!duplicatingEvent) return;
+    setIsDuplicating(true);
+    setError("");
+    try {
+      const source = events.find((e) => e.id === duplicatingEvent.id);
+      const startsAt = new Date(`${newDate}T09:00:00`).toISOString();
+      const endsAt = new Date(`${newDate}T10:00:00`).toISOString();
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName,
+          details: source?.details ?? "Duplicated event.",
+          venue: source?.venue ?? null,
+          startsAt,
+          endsAt,
+          imageAssetId: source?.imageAssetId ?? null,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "The event could not be duplicated.");
+      }
+      setDuplicatingEvent(null);
+      await loadEvents();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The event could not be duplicated.");
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
+
   return (
     <div className="flex w-full flex-col gap-6 pb-10">
       <PageHeader
@@ -151,12 +209,28 @@ export default function EventsPage() {
             }}
             onCheckInClick={(item) => router.push(`/ems/events/${item.id}`)}
             onExportClick={exportEvents}
+            onDeleteClick={(item) => setDeletingEvent(item)}
+            onDuplicateClick={(item) => setDuplicatingEvent(item)}
           />
           <EventsPagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredEvents.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </div>
       )}
       <EventFormDialog open={formOpen} onOpenChange={setFormOpen} event={editing} timezone={timezone} onSaved={loadEvents} />
       {managingPeople && <EventPeopleDialog eventId={managingPeople.id} eventName={managingPeople.name} open onOpenChange={(open) => { if (!open) setManagingPeople(null); }} />}
+      <DeleteEventDialog
+        open={deletingEvent !== null}
+        onOpenChange={(open) => { if (!open) setDeletingEvent(null); }}
+        event={deletingEvent}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteEvent}
+      />
+      <DuplicateEventDialog
+        open={duplicatingEvent !== null}
+        onOpenChange={(open) => { if (!open) setDuplicatingEvent(null); }}
+        event={duplicatingEvent}
+        isDuplicating={isDuplicating}
+        onConfirm={handleDuplicateEvent}
+      />
     </div>
   );
 }

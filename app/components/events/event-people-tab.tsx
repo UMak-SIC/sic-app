@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { DownloadSimple, MagnifyingGlass, PencilSimpleLine, Ticket, UsersThree } from "@phosphor-icons/react";
+import { CheckCircle, DownloadSimple, MagnifyingGlass, PencilSimpleLine, Ticket, UsersThree, WarningCircle } from "@phosphor-icons/react";
 import { ProfileCircle } from "@/components/attendees/profile-circle";
 import {
   AttendanceStatusBadge,
@@ -9,6 +9,7 @@ import {
   type AttendanceStatus,
 } from "@/components/attendance/attendance-status-badge";
 import { EventPeopleTableSkeleton } from "@/components/events/event-people-table-skeleton";
+import { QuickCheckinDialog } from "@/components/events/quick-checkin-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,17 +29,18 @@ type Person = {
   name: string;
   studentId: string;
   email: string;
-  attendanceStatus: "PENDING" | "ATTENDED" | "ABSENT";
+  attendanceStatus: AttendanceStatus;
   attendedAt: string | null;
   ticketSentAt: string | null;
 };
 
-const ATTENDANCE_FILTERS = ["ALL", "ATTENDED", "ABSENT", "PENDING"] as const;
+const ATTENDANCE_FILTERS = ["ALL", "ATTENDED", "LATE", "ABSENT", "PENDING"] as const;
 type AttendanceFilter = (typeof ATTENDANCE_FILTERS)[number];
 
 const FILTER_LABELS: Record<AttendanceFilter, string> = {
   ALL: "All",
   ATTENDED: "Attended",
+  LATE: "Late",
   ABSENT: "Absent",
   PENDING: "Not recorded",
 };
@@ -86,6 +88,8 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
   const [editingTime, setEditingTime] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const [editError, setEditError] = React.useState("");
+  const [quickCheckingPerson, setQuickCheckingPerson] = React.useState<Person | null>(null);
+  const [quickCheckinSaving, setQuickCheckinSaving] = React.useState(false);
 
   const loadPeople = React.useEffectEvent(async () => {
     setLoading(true);
@@ -123,9 +127,9 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
     setSaving(true);
     setEditError("");
     try {
-      const attended = editingStatus === "ATTENDED";
+      const attended = editingStatus === "ATTENDED" || editingStatus === "LATE";
       // Leave the arrival blank to keep the recorded arrival (or stamp "now"
-      // for someone newly marked attended) — omit it so the API decides.
+      // for someone newly marked attended/late) — omit it so the API decides.
       const arrivalSeconds = (() => {
         if (!attended) return null as string | null;
         if (!editingDate && !editingTime) return undefined;
@@ -168,6 +172,41 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
       setEditError(saveFailure instanceof Error ? saveFailure.message : "This record could not be saved. Try again.");
     } finally {
       setSaving(false);
+    }
+  });
+
+  const quickCheckin = React.useEffectEvent(async (person: Person, status: "ATTENDED" | "LATE") => {
+    setQuickCheckinSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/events/${eventId}/people/status/${person.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, arrivedAt: new Date().toISOString() }),
+      });
+      const rawBody = await response.text();
+      let payload: { entry?: { attendanceStatus: AttendanceStatus; attendedAt: string | null }; error?: string } = {};
+      try {
+        payload = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        // Fall back to default error below
+      }
+      if (!response.ok || !payload.entry) {
+        throw new Error(payload.error ?? "This attendee could not be checked in right now. Try again.");
+      }
+      const entry = payload.entry;
+      setPeople((current) => current.map((item) =>
+        item.id === person.id
+          ? { ...item, attendanceStatus: entry.attendanceStatus, attendedAt: entry.attendedAt }
+          : item
+      ));
+      setSavedMessage(`Checked in ${person.name}.`);
+      setQuickCheckingPerson(null);
+      window.setTimeout(() => setSavedMessage(""), 4000);
+    } catch (checkinError) {
+      setError(checkinError instanceof Error ? checkinError.message : "Could not check in attendee.");
+    } finally {
+      setQuickCheckinSaving(false);
     }
   });
 
@@ -263,16 +302,29 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
                 <TableCell className="py-3 text-center">{person.ticketSentAt ? <TicketSentBadge /> : <TicketNotSentBadge />}</TableCell>
                 <TableCell className="py-3 text-center"><AttendanceStatusBadge status={person.attendanceStatus} /></TableCell>
                 <TableCell className="py-3 pr-5 text-right">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => openEdit(person)}
-                    className="h-8 gap-1.5 rounded-[6px] border-line px-3 text-xs font-semibold text-ink hover:bg-canvas"
-                    aria-label={`Edit attendance record for ${person.name}`}
-                  >
-                    <PencilSimpleLine size={16} weight="bold" aria-hidden="true" />
-                    Edit
-                  </Button>
+                  <div className="flex items-center justify-end gap-1.5">
+                    {(person.attendanceStatus === "PENDING" || person.attendanceStatus === "ABSENT") && (
+                      <Button
+                        type="button"
+                        onClick={() => setQuickCheckingPerson(person)}
+                        className="h-8 gap-1 rounded-[6px] border border-green-border bg-green-soft text-green hover:bg-green hover:text-white px-2.5 text-xs font-semibold cursor-pointer shadow-none"
+                        aria-label={`Check in ${person.name}`}
+                      >
+                        <CheckCircle size={15} weight="bold" aria-hidden="true" />
+                        Check in
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => openEdit(person)}
+                      className="h-8 gap-1.5 rounded-[6px] border-line px-3 text-xs font-semibold text-ink hover:bg-canvas"
+                      aria-label={`Edit attendance record for ${person.name}`}
+                    >
+                      <PencilSimpleLine size={16} weight="bold" aria-hidden="true" />
+                      Edit
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}</TableBody>
@@ -302,7 +354,19 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
               </Select>
             </div>
 
-            {editingStatus === "ATTENDED" && (
+            {editing?.attendedAt && (editingStatus === "ABSENT" || editingStatus === "PENDING") && (
+              <div className="flex items-start gap-2.5 rounded-[9px] border border-amber-border bg-amber-soft p-3 text-xs text-amber">
+                <WarningCircle size={18} weight="bold" className="mt-0.5 shrink-0 text-amber" aria-hidden="true" />
+                <div>
+                  <p className="font-semibold text-ink">Clearing arrival time</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-ink/80">
+                    This student has a recorded arrival time of {new Intl.DateTimeFormat("en-US", { timeStyle: "short" }).format(new Date(editing.attendedAt))}. Saving this record as {attendanceStatusLabel(editingStatus)} will clear their arrival timestamp from the official attendance log.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {(editingStatus === "ATTENDED" || editingStatus === "LATE") && (
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="attendance-arrival-date" className="text-xs font-semibold text-ink">Arrived at</label>
                 <div className="flex items-center gap-2">
@@ -354,6 +418,16 @@ export function EventPeopleTab({ eventId, eventName }: { eventId: string; eventN
           </div>
         </DialogContent>
       </Dialog>
+
+      <QuickCheckinDialog
+        open={quickCheckingPerson !== null}
+        onOpenChange={(open) => {
+          if (!open) setQuickCheckingPerson(null);
+        }}
+        person={quickCheckingPerson}
+        isSaving={quickCheckinSaving}
+        onConfirm={(person, status) => void quickCheckin(person as Person, status)}
+      />
     </section>
   );
 }
