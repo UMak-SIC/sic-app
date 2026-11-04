@@ -34,8 +34,8 @@ export function DeleteAssetDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-[12px] border-line bg-card p-6 font-sans">
         <DialogHeader className="flex flex-col gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-red-soft text-red">
-            <WarningCircle size={22} weight="bold" aria-hidden="true" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-[9px] bg-red-soft text-red">
+            <WarningCircle size={24} weight="bold" aria-hidden="true" />
           </div>
           <DialogTitle className="font-display text-lg font-bold text-ink">
             Delete file?
@@ -46,7 +46,7 @@ export function DeleteAssetDialog({
         </DialogHeader>
 
         <div className="mt-2 flex items-center gap-3 rounded-[9px] border border-line bg-paper p-3.5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] bg-cyan-soft text-cyan">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[9px] bg-cyan-soft text-cyan">
             {asset.category === "image" ? (
               <ImageIcon size={20} weight="bold" aria-hidden="true" />
             ) : (

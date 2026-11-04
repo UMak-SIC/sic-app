@@ -50,8 +50,8 @@ export function DuplicateEventDialog({
       <DialogContent className="max-w-md rounded-[12px] border-line bg-card p-6 font-sans">
         <form onSubmit={handleSubmit}>
           <DialogHeader className="flex flex-col gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-cyan-soft text-cyan">
-              <Copy size={22} weight="bold" aria-hidden="true" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-[9px] bg-cyan-soft text-cyan">
+              <Copy size={24} weight="bold" aria-hidden="true" />
             </div>
             <DialogTitle className="font-display text-lg font-bold text-ink">
               Duplicate event
@@ -90,7 +90,7 @@ export function DuplicateEventDialog({
               />
             </div>
 
-            <div className="rounded-[8px] bg-paper p-3 text-xs text-muted border border-line flex items-center gap-2">
+            <div className="rounded-[9px] bg-paper p-3 text-xs text-muted border border-line flex items-center gap-2">
               <MapPin size={15} weight="bold" className="text-cyan shrink-0" aria-hidden="true" />
               <span className="truncate">Venue: <strong className="text-ink font-medium">{event.venue}</strong></span>
             </div>

@@ -44,8 +44,8 @@ export function QuickCheckinDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-[12px] border-line bg-card p-6 font-sans">
         <DialogHeader className="flex flex-col gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-green-soft text-green">
-            <UserCheck size={22} weight="bold" aria-hidden="true" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-[9px] bg-green-soft text-green">
+            <UserCheck size={24} weight="bold" aria-hidden="true" />
           </div>
           <DialogTitle className="font-display text-lg font-bold text-ink">
             Check in attendee
@@ -63,7 +63,7 @@ export function QuickCheckinDialog({
           </div>
         </div>
 
-        <div className="rounded-[8px] bg-canvas/70 p-3 text-[11px] text-muted">
+        <div className="rounded-[9px] bg-canvas/70 p-3 text-[11px] text-muted">
           <p>Arrival timestamp will be stamped with the current time.</p>
         </div>
 

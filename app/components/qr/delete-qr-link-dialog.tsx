@@ -34,8 +34,8 @@ export function DeleteQrLinkDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md rounded-[12px] border-line bg-card p-6 font-sans">
         <DialogHeader className="flex flex-col gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-red-soft text-red">
-            <WarningCircle size={22} weight="bold" aria-hidden="true" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-[9px] bg-red-soft text-red">
+            <WarningCircle size={24} weight="bold" aria-hidden="true" />
           </div>
           <DialogTitle className="font-display text-lg font-bold text-ink">
             Delete QR link?
