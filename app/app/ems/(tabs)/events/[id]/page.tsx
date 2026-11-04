@@ -21,6 +21,7 @@ import { EventFormDialog, type EditableEvent } from "@/components/events/event-f
 import { EventPeopleDialog } from "@/components/events/event-people-dialog";
 import { EventPeopleTab } from "@/components/events/event-people-tab";
 import { EventStatusBadge, type EventStatus } from "@/components/events/event-status-badge";
+import { PublishEventDialog } from "@/components/events/publish-event-dialog";
 import { Button } from "@/components/ui/button";
 
 type Event = EditableEvent & {
@@ -47,6 +48,7 @@ export default function EventDetailPage() {
   const [notice, setNotice] = React.useState("");
   const [editing, setEditing] = React.useState(false);
   const [publishing, setPublishing] = React.useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = React.useState(false);
   const [managingPeople, setManagingPeople] = React.useState(false);
   const [scannerOpen, setScannerOpen] = React.useState(false);
 
@@ -166,9 +168,9 @@ export default function EventDetailPage() {
                 <PencilSimple size={15} aria-hidden="true" />
                 <span>Edit</span>
               </Button>
-              <Button type="button" onClick={() => void publish()} disabled={publishing} className="h-9 cursor-pointer gap-1.5 rounded-[6px] bg-cyan px-4 text-xs font-semibold text-white shadow-xs hover:bg-cyan-hover">
+              <Button type="button" onClick={() => setPublishDialogOpen(true)} disabled={publishing} className="h-9 cursor-pointer gap-1.5 rounded-[6px] bg-cyan px-4 text-xs font-semibold text-white shadow-xs hover:bg-cyan-hover">
                 <PaperPlaneTilt size={14} weight="bold" aria-hidden="true" />
-                <span>{publishing ? "Publishing..." : "Publish"}</span>
+                <span>Publish</span>
               </Button>
             </>}
           </div>
@@ -191,6 +193,24 @@ export default function EventDetailPage() {
         onSaved={async () => {
           await loadEvent();
           setNotice("Event people saved successfully.");
+        }}
+      />
+      <PublishEventDialog
+        open={publishDialogOpen}
+        onOpenChange={setPublishDialogOpen}
+        event={event ? {
+          id: event.id,
+          name: event.name,
+          startsAt: event.startsAt,
+          endsAt: event.endsAt,
+          venue: event.venue,
+          rosterCount: selectedPeople,
+        } : null}
+        timezone={timezone}
+        isPublishing={publishing}
+        onConfirm={async () => {
+          await publish();
+          setPublishDialogOpen(false);
         }}
       />
       <LiveCheckinDialog open={scannerOpen} onOpenChange={setScannerOpen} eventId={event.id} eventName={event.name} totalAttended={0} totalRegistered={selectedPeople} />

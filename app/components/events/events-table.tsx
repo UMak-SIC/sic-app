@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { motion, useReducedMotion } from "motion/react";
 import {
   Table,
@@ -69,6 +70,8 @@ interface EventsTableProps {
   onPeopleClick?: (event: EventItem) => void;
   onComposeClick?: (event: EventItem) => void;
   onEditClick?: (event: EventItem) => void;
+  onDuplicateClick?: (event: EventItem) => void;
+  onDeleteClick?: (event: EventItem) => void;
 }
 
 // Status accent configuration matching DESIGN.md color palette
@@ -105,12 +108,26 @@ export function EventsTable({
   onPeopleClick,
   onComposeClick,
   onEditClick,
+  onDuplicateClick,
+  onDeleteClick,
 }: EventsTableProps) {
   const reduced = useReducedMotion();
   const wrap = React.useRef<HTMLDivElement>(null);
+  const mounted = React.useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
-  const [pos, setPos] = React.useState({ x: 0, y: 0 });
-  const [bounds, setBounds] = React.useState({ width: 800, height: 500 });
+  const [pointerPos, setPointerPos] = React.useState({ x: 0, y: 0 });
+
+  // Dismiss hover preview if the window is scrolled
+  React.useEffect(() => {
+    if (hoverIndex === null) return;
+    const handleScroll = () => setHoverIndex(null);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [hoverIndex]);
 
   // Local list state to support immediate responsive reordering
   const [prevEvents, setPrevEvents] = React.useState(events);
@@ -122,11 +139,7 @@ export function EventsTable({
   }
 
   const onMove = (e: React.PointerEvent) => {
-    const r = wrap.current?.getBoundingClientRect();
-    if (r) {
-      setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
-      setBounds({ width: r.width, height: r.height });
-    }
+    setPointerPos({ x: e.clientX, y: e.clientY });
   };
 
   // Drag and drop state
@@ -247,7 +260,7 @@ export function EventsTable({
     >
       <div className="overflow-x-auto w-full">
         <Table className="table-fixed min-w-[700px]">
-        <TableHeader>
+        <TableHeader onPointerEnter={() => setHoverIndex(null)}>
           <TableRow className="bg-canvas/50 hover:bg-canvas/50 border-b border-line">
             <TableHead className="w-14 pl-3">
               <div className="flex items-center gap-1.5">
@@ -471,12 +484,12 @@ export function EventsTable({
                           <DownloadSimple size={15} className="mr-2 text-muted" />
                           Export
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-xs">
+                        <DropdownMenuItem onClick={() => onDuplicateClick?.(evt)} className="text-xs cursor-pointer">
                           <Copy size={15} className="mr-2 text-muted" />
                           Duplicate
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-xs text-red focus:text-red focus:bg-red-soft">
+                        <DropdownMenuItem onClick={() => onDeleteClick?.(evt)} className="text-xs text-red focus:text-red focus:bg-red-soft cursor-pointer">
                           <Trash size={15} className="mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -491,90 +504,98 @@ export function EventsTable({
       </Table>
     </div>
 
-      {/* Floating cover preview - only alive on desktop while an event row is hovered */}
-      <motion.div
-        aria-hidden="true"
-        className="pointer-events-none absolute z-30 hidden md:block w-[240px] overflow-hidden rounded-[12px] border border-line bg-card shadow-2xl"
-        style={{
-          left: 0,
-          top: 0,
-          boxShadow:
-            "0 20px 40px -10px rgba(18, 51, 58, 0.25), 0 0 0 1px var(--line)",
-        }}
-        animate={{
-          x: Math.max(
-            12,
-            Math.min(pos.x + 24, bounds.width - 252)
-          ),
-          y: Math.max(
-            10,
-            Math.min(pos.y - 70, bounds.height - 210)
-          ),
-          opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
-          scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.96,
-        }}
-        transition={
-          reduced
-            ? { duration: 0 }
-            : {
-                type: "spring",
-                stiffness: 260,
-                damping: 28,
-                opacity: { duration: 0.2, ease: EASE },
-              }
-        }
-      >
-        {items.map((r, i) => {
-          const isCurrent = hoverIndex === i;
-          return (
-            <div
-              key={r.id || r.title}
-              aria-hidden="true"
-              className="relative w-full"
-              style={{ display: isCurrent ? "block" : "none" }}
-            >
+      {/* Floating cover preview - portaled to document.body so it is never clipped by table overflow */}
+      {mounted && typeof document !== "undefined" && createPortal(
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none fixed top-0 left-0 z-50 hidden md:block w-[240px] overflow-hidden rounded-[12px] border border-line bg-card shadow-2xl"
+          style={{
+            boxShadow:
+              "0 20px 40px -10px rgba(18, 51, 58, 0.25), 0 0 0 1px var(--line)",
+          }}
+          animate={{
+            x: Math.max(
+              16,
+              Math.min(
+                pointerPos.x + 20 + 240 > (typeof window !== "undefined" ? window.innerWidth : 1200) - 16
+                  ? pointerPos.x - 240 - 20
+                  : pointerPos.x + 20,
+                (typeof window !== "undefined" ? window.innerWidth : 1200) - 240 - 16
+              )
+            ),
+            y: Math.max(
+              16,
+              Math.min(
+                pointerPos.y - 70,
+                (typeof window !== "undefined" ? window.innerHeight : 800) - 215 - 16
+              )
+            ),
+            opacity: hoverIndex !== null && draggedIndex === null ? 1 : 0,
+            scale: hoverIndex !== null && draggedIndex === null ? 1 : 0.96,
+          }}
+          transition={
+            reduced
+              ? { duration: 0 }
+              : {
+                  type: "spring",
+                  stiffness: 260,
+                  damping: 28,
+                  opacity: { duration: 0.2, ease: EASE },
+                }
+          }
+        >
+          {items.map((r, i) => {
+            if (hoverIndex !== i) return null;
+            return (
               <div
-                className="relative aspect-[16/10] w-full overflow-hidden bg-canvas"
-                style={{ background: r.grad }}
+                key={r.id || r.title}
+                aria-hidden="true"
+                className="relative w-full"
               >
-                {r.image ? (
-                  <img
-                    src={r.image}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="relative h-full w-full p-4 flex flex-col justify-between">
-                    {/* Skeleton chrome so the gradient reads as a product cover */}
-                    <span className="absolute left-[8%] top-[12%] h-[6%] w-[34%] rounded-full bg-ink/15" />
-                    <span className="absolute left-[8%] top-[24%] h-[5%] w-[52%] rounded-full bg-ink/10" />
-                    <span className="absolute inset-x-[8%] bottom-[12%] top-[42%] rounded-[6px] border border-ink/10 bg-paper/40 backdrop-blur-xs flex items-center justify-center text-xs font-display font-bold text-ink/70 px-2 text-center">
+                <div
+                  className="relative aspect-[16/10] w-full overflow-hidden bg-canvas"
+                  style={{ background: r.grad }}
+                >
+                  {r.image ? (
+                    <img
+                      src={r.image}
+                      alt=""
+                      className="absolute inset-0 h-full w-full object-cover"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="relative h-full w-full p-4 flex flex-col justify-between">
+                      {/* Skeleton chrome so the gradient reads as a product cover */}
+                      <span className="absolute left-[8%] top-[12%] h-[6%] w-[34%] rounded-full bg-ink/15" />
+                      <span className="absolute left-[8%] top-[24%] h-[5%] w-[52%] rounded-full bg-ink/10" />
+                      <span className="absolute inset-x-[8%] bottom-[12%] top-[42%] rounded-[6px] border border-ink/10 bg-paper/40 backdrop-blur-xs flex items-center justify-center text-xs font-display font-bold text-ink/70 px-2 text-center">
+                        {r.title}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Floating preview summary footer */}
+                <div className="p-3 border-t border-line/60 bg-card">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-display text-xs font-bold text-ink truncate">
                       {r.title}
                     </span>
+                    <span className="font-sans text-[10px] font-semibold text-muted px-1.5 py-0.5 rounded-[4px] bg-canvas shrink-0 capitalize">
+                      {STATUS_ACCENTS[r.status]?.label || r.status}
+                    </span>
                   </div>
-                )}
-              </div>
-
-              {/* Floating preview summary footer */}
-              <div className="p-3 border-t border-line/60 bg-card">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-display text-xs font-bold text-ink truncate">
-                    {r.title}
-                  </span>
-                  <span className="font-sans text-[10px] font-semibold text-muted px-1.5 py-0.5 rounded-[4px] bg-canvas shrink-0 capitalize">
-                    {STATUS_ACCENTS[r.status]?.label || r.status}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-muted font-sans mt-1">
-                  <span className="truncate">{r.venue}</span>
-                  <span className="tabular-nums shrink-0">{r.date}</span>
+                  <div className="flex items-center justify-between text-[11px] text-muted font-sans mt-1">
+                    <span className="truncate">{r.venue}</span>
+                    <span className="tabular-nums shrink-0">{r.date}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </motion.div>
+            );
+          })}
+        </motion.div>,
+        document.body
+      )}
     </div>
   );
 }
