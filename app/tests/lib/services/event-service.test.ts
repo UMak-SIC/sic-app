@@ -88,6 +88,22 @@ test("leaves the venue null when the caller omits it", async () => {
   );
 });
 
+test("rejects an event name that is too long", async () => {
+  await expect(
+    createEvent({ ...eventInput, name: "N".repeat(101) }, "admin-id"),
+  ).rejects.toThrow("Event name must be at most 100 characters.");
+
+  expect(eventCreate).not.toHaveBeenCalled();
+});
+
+test("rejects event details that are too long", async () => {
+  await expect(
+    createEvent({ ...eventInput, details: "D".repeat(1001) }, "admin-id"),
+  ).rejects.toThrow("Event details must be at most 1000 characters.");
+
+  expect(eventCreate).not.toHaveBeenCalled();
+});
+
 test("rejects a venue that is too long", async () => {
   await expect(
     createEvent({ ...eventInput, venue: "V".repeat(121) }, "admin-id"),

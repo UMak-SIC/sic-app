@@ -36,6 +36,8 @@ export function publicImageUrl(asset: PublicImageAsset | null): string | null {
  * Bounds the venue so one pasted paragraph cannot become a single "where" cell.
  * A building plus a room is well inside this.
  */
+const EVENT_NAME_MAX_LENGTH = 100;
+const EVENT_DETAILS_MAX_LENGTH = 1000;
 const EVENT_VENUE_MAX_LENGTH = 120;
 
 function validateEventInput(input: EventInput): EventInput {
@@ -47,6 +49,18 @@ function validateEventInput(input: EventInput): EventInput {
 
   if (!name || !details) {
     throw new EventLifecycleError("An event requires a name and details.");
+  }
+
+  if (name.length > EVENT_NAME_MAX_LENGTH) {
+    throw new EventLifecycleError(
+      `Event name must be at most ${EVENT_NAME_MAX_LENGTH} characters.`,
+    );
+  }
+
+  if (details.length > EVENT_DETAILS_MAX_LENGTH) {
+    throw new EventLifecycleError(
+      `Event details must be at most ${EVENT_DETAILS_MAX_LENGTH} characters.`,
+    );
   }
 
   if (venue && venue.length > EVENT_VENUE_MAX_LENGTH) {
@@ -160,3 +174,31 @@ export async function getEvent(eventId: string) {
     },
   });
 }
+
+export async function deleteDraftEvent(eventId: string) {
+  const event = await getPrismaClient().event.findUnique({
+    where: { id: eventId },
+    include: {
+      _count: { select: { rosterEntries: true, campaigns: true } },
+    },
+  });
+
+  if (!event) {
+    throw new EventLifecycleError("Event not found.");
+  }
+
+  if (event.status !== "DRAFT") {
+    throw new EventLifecycleError("Only draft events can be deleted.");
+  }
+
+  if (event._count.campaigns > 0) {
+    throw new EventLifecycleError("Cannot delete an event with email announcements.");
+  }
+
+  await getPrismaClient().$transaction([
+    getPrismaClient().eventOrganizer.deleteMany({ where: { eventId } }),
+    getPrismaClient().eventRosterEntry.deleteMany({ where: { eventId } }),
+    getPrismaClient().event.delete({ where: { id: eventId } }),
+  ]);
+}
+
