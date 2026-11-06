@@ -10,6 +10,7 @@ import {
   type QrLink,
   setQrLinkStatus,
 } from "@/components/qr/qr-client";
+import { DeleteQrLinkDialog } from "@/components/qr/delete-qr-link-dialog";
 import { QrLinkFormDialog } from "@/components/qr/qr-link-form-dialog";
 import { QrLinkRow } from "@/components/qr/qr-link-row";
 import { QrPreviewDialog } from "@/components/qr/qr-preview-dialog";
@@ -25,6 +26,7 @@ export function QrWorkspace() {
   const [editing, setEditing] = useState<QrLink | null>(null);
   const [previewing, setPreviewing] = useState<QrLink | null>(null);
   const [downloadWhenReady, setDownloadWhenReady] = useState(false);
+  const [deletingLink, setDeletingLink] = useState<QrLink | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -132,9 +134,7 @@ export function QrWorkspace() {
                   () => setQrLinkStatus(selected.id, selected.status === "ACTIVE" ? "DISABLED" : "ACTIVE"),
                 )}
                 onDelete={(selected) => {
-                  if (window.confirm(`Delete “${selected.name}”? This cannot be undone.`)) {
-                    void mutate(selected, () => deleteQrLink(selected.id));
-                  }
+                  setDeletingLink(selected);
                 }}
               />
             ))}
@@ -163,6 +163,20 @@ export function QrWorkspace() {
           }}
         />
       )}
+      <DeleteQrLinkDialog
+        open={deletingLink !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingLink(null);
+        }}
+        link={deletingLink}
+        isDeleting={busyId === deletingLink?.id}
+        onConfirm={async () => {
+          if (!deletingLink) return;
+          const target = deletingLink;
+          await mutate(target, () => deleteQrLink(target.id));
+          setDeletingLink(null);
+        }}
+      />
     </main>
   );
 }

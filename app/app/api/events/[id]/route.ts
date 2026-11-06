@@ -1,6 +1,12 @@
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { getOrganizationTimezone } from "@/lib/events/organization-timezone";
-import { EventLifecycleError, getEvent, publicImageUrl, updateDraft } from "@/lib/services/event-service";
+import {
+  deleteDraftEvent,
+  EventLifecycleError,
+  getEvent,
+  publicImageUrl,
+  updateDraft,
+} from "@/lib/services/event-service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -44,6 +50,22 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       endsAt: new Date(input.endsAt),
       imageAssetId: input.imageAssetId ?? null,
     });
+    return Response.json({ ok: true });
+  } catch (error) {
+    if (error instanceof EventLifecycleError) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+
+    throw error;
+  }
+}
+
+export async function DELETE(_: Request, { params }: RouteContext) {
+  const authorization = await requireAdmin();
+  if (authorization instanceof Response) return authorization;
+
+  try {
+    await deleteDraftEvent((await params).id);
     return Response.json({ ok: true });
   } catch (error) {
     if (error instanceof EventLifecycleError) {

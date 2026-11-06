@@ -6,7 +6,7 @@ import {
 
 type RouteContext = { params: Promise<{ id: string; rosterEntryId: string }> };
 
-const ATTENDANCE_STATUSES = ["ATTENDED", "ABSENT", "PENDING"] as const;
+const ATTENDANCE_STATUSES = ["ATTENDED", "LATE", "ABSENT", "PENDING"] as const;
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   const authorization = await requireAdmin();
@@ -25,7 +25,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
   if (typeof input.status !== "string" || !(ATTENDANCE_STATUSES as readonly string[]).includes(input.status)) {
     return Response.json(
-      { error: "Choose a valid attendance record: attended, absent, or not recorded." },
+      { error: "Choose a valid attendance record: attended, late, absent, or not recorded." },
       { status: 400 },
     );
   }
