@@ -66,7 +66,28 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await applyAttendeeImport(approved);
+  let result: Awaited<ReturnType<typeof applyAttendeeImport>>;
+  try {
+    result = await applyAttendeeImport(approved);
+  } catch (error) {
+    // The transaction rolled back, so nothing was written. Answer with a
+    // message the dialog can show instead of an empty 500.
+    if (isUniqueConflict(error)) {
+      return NextResponse.json(
+        {
+          error:
+            "Someone in this file was added to the directory while you were reviewing. Import the file again to refresh the matches.",
+        },
+        { status: 409 }
+      );
+    }
+
+    console.error("Attendee import commit failed", error);
+    return NextResponse.json(
+      { error: "Those students could not be imported. Nothing was changed. Try again." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json(
     {
@@ -79,4 +100,8 @@ export async function POST(request: Request) {
     },
     { status: 200 }
   );
+}
+
+function isUniqueConflict(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2002");
 }

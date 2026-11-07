@@ -94,6 +94,41 @@ describe("POST /api/attendees/import/commit", () => {
     vi.resetAllMocks();
   });
 
+  function arrangeApprovedImport() {
+    requireAdmin.mockResolvedValue({ adminId: "admin-1" });
+    buildImportPreview.mockResolvedValue({
+      parse: { records: [], errors: [] },
+      preview: { newAttendees: [{ row: 1 }], updates: [], conflicts: [] },
+      withheld: [],
+    });
+    filterPreviewToRows.mockReturnValue({ newAttendees: [{ row: 1 }], updates: [], conflicts: [] });
+  }
+
+  it("answers a failed transaction with a readable error instead of an empty 500", async () => {
+    arrangeApprovedImport();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    applyAttendeeImport.mockRejectedValue(Object.assign(new Error("expired"), { code: "P2028" }));
+
+    const res = await commitPost(
+      post("/api/attendees/import/commit", { mode: "csv", content: "x", approvedRows: [1] })
+    );
+
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toMatch(/Nothing was changed/);
+  });
+
+  it("asks for a fresh import when someone was added since the preview", async () => {
+    arrangeApprovedImport();
+    applyAttendeeImport.mockRejectedValue(Object.assign(new Error("unique"), { code: "P2002" }));
+
+    const res = await commitPost(
+      post("/api/attendees/import/commit", { mode: "csv", content: "x", approvedRows: [1] })
+    );
+
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/Import the file again/);
+  });
+
   it("refuses an unauthenticated caller", async () => {
     requireAdmin.mockResolvedValue(Response.json({ error: "Forbidden" }, { status: 403 }));
 
