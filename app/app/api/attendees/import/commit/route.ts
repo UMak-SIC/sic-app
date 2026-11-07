@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error("Attendee import commit failed", error);
+    console.error("Attendee import commit failed", { adminId: authResult.adminId, error });
     return NextResponse.json(
       { error: "Those students could not be imported. Nothing was changed. Try again." },
       { status: 500 }
