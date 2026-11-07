@@ -336,6 +336,13 @@ export type ApplyAttendeeImportResult = {
 };
 
 /**
+ * Prisma's default of 5s is too tight for a large roster: each remaining
+ * per-row update is a round trip, and the API region is not guaranteed to be
+ * next to the database.
+ */
+const IMPORT_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 } as const;
+
+/**
  * Applies an approved import in a single transaction.
  *
  * `attendees.id` is the target of `event_roster_entries.attendee_id`, so an
@@ -414,6 +421,7 @@ export async function applyAttendeeImport(
       updatedIds.push(update.attendeeId);
     }
 
+    const creatable: (IngestionRecord & { studentId: string })[] = [];
     for (const record of preview.newAttendees) {
       if (!record.studentId) {
         unapplied.push({
@@ -423,9 +431,16 @@ export async function applyAttendeeImport(
         });
         continue;
       }
+      creatable.push({ ...record, studentId: record.studentId });
+    }
 
-      const created = await transaction.attendee.create({
-        data: {
+    // One INSERT for every new attendee. Creating them one at a time cost a
+    // database round trip each, and a roster of ~100 students blew through the
+    // transaction timeout (P2028) when the function and database are in
+    // different regions.
+    if (creatable.length > 0) {
+      const created = await transaction.attendee.createManyAndReturn({
+        data: creatable.map((record) => ({
           name: record.name ?? record.displayEmail,
           studentId: record.studentId,
           normalizedEmail: record.normalizedEmail,
@@ -433,13 +448,13 @@ export async function applyAttendeeImport(
           course: record.course,
           program: record.program,
           section: record.section,
-        },
+        })),
         select: { id: true },
       });
 
-      createdIds.push(created.id);
+      createdIds.push(...created.map((row) => row.id));
     }
 
     return { createdIds, updatedIds, unapplied };
-  });
+  }, IMPORT_TRANSACTION_OPTIONS);
 }
