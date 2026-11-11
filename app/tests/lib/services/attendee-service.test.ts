@@ -1,10 +1,10 @@
 import { afterEach, expect, test, vi } from "vitest";
 
 const { create, update, transaction } = vi.hoisted(() => {
-  const attendee = { create: vi.fn(), update: vi.fn() };
+  const attendee = { createManyAndReturn: vi.fn(), update: vi.fn() };
   const run = vi.fn();
 
-  return { create: attendee.create, update: attendee.update, transaction: run };
+  return { create: attendee.createManyAndReturn, update: attendee.update, transaction: run };
 });
 
 vi.mock("@/lib/prisma", () => ({
@@ -37,7 +37,7 @@ function preview(overrides: Partial<ConflictPreview> = {}): ConflictPreview {
 
 function runTransaction() {
   transaction.mockImplementation(async (callback) =>
-    callback({ attendee: { create, update } }),
+    callback({ attendee: { createManyAndReturn: create, update } }),
   );
 }
 
@@ -48,7 +48,7 @@ afterEach(() => {
 
 test("runs the whole import inside one transaction", async () => {
   update.mockResolvedValue({ id: "attendee-1" });
-  create.mockResolvedValue({ id: "attendee-2" });
+  create.mockResolvedValue([{ id: "attendee-2" }]);
 
   await applyAttendeeImport(
     preview({
@@ -149,7 +149,7 @@ test("applies a changed section", async () => {
 });
 
 test("stores the course, program and section of a newly created attendee", async () => {
-  create.mockResolvedValue({ id: "attendee-new" });
+  create.mockResolvedValue([{ id: "attendee-new" }]);
 
   await applyAttendeeImport(
     preview({
@@ -170,11 +170,13 @@ test("stores the course, program and section of a newly created attendee", async
 
   expect(create).toHaveBeenCalledWith(
     expect.objectContaining({
-      data: expect.objectContaining({
-        course: "BSINS",
-        program: "BS Information Systems",
-        section: "BSINS-1B",
-      }),
+      data: [
+        expect.objectContaining({
+          course: "BSINS",
+          program: "BS Information Systems",
+          section: "BSINS-1B",
+        }),
+      ],
     })
   );
 });
@@ -232,7 +234,7 @@ test("skips the write when the record already matches", async () => {
 });
 
 test("creates new attendees with both email columns", async () => {
-  create.mockResolvedValue({ id: "attendee-new" });
+  create.mockResolvedValue([{ id: "attendee-new" }]);
 
   const result = await applyAttendeeImport(
     preview({
@@ -249,29 +251,31 @@ test("creates new attendees with both email columns", async () => {
   );
 
   expect(create).toHaveBeenCalledWith({
-    data: {
-      name: "Ana Reyes",
-      studentId: "2023-4",
-      normalizedEmail: "ana@example.com",
-      displayEmail: "Ana@Example.com",
-      course: null,
-      program: null,
-      section: null,
-    },
+    data: [
+      {
+        name: "Ana Reyes",
+        studentId: "2023-4",
+        normalizedEmail: "ana@example.com",
+        displayEmail: "Ana@Example.com",
+        course: null,
+        program: null,
+        section: null,
+      },
+    ],
     select: { id: true },
   });
   expect(result.createdIds).toEqual(["attendee-new"]);
 });
 
 test("falls back to the display email when a new row has no name", async () => {
-  create.mockResolvedValue({ id: "attendee-new" });
+  create.mockResolvedValue([{ id: "attendee-new" }]);
 
   await applyAttendeeImport(
     preview({ newAttendees: [record({ studentId: "2023-5" })] }),
   );
 
   expect(create).toHaveBeenCalledWith(
-    expect.objectContaining({ data: expect.objectContaining({ name: "new@example.com" }) }),
+    expect.objectContaining({ data: [expect.objectContaining({ name: "new@example.com" })] }),
   );
 });
 
@@ -302,7 +306,7 @@ test("never writes a conflicted row", async () => {
 });
 
 test("reports a new row with no student ID instead of failing the import", async () => {
-  create.mockResolvedValue({ id: "attendee-new" });
+  create.mockResolvedValue([{ id: "attendee-new" }]);
 
   const result = await applyAttendeeImport(
     preview({
@@ -314,6 +318,7 @@ test("reports a new row with no student ID instead of failing the import", async
   );
 
   expect(create).toHaveBeenCalledTimes(1);
+  expect(create.mock.calls[0][0].data).toHaveLength(1);
   expect(result.createdIds).toEqual(["attendee-new"]);
   expect(result.unapplied).toHaveLength(1);
   expect(result.unapplied[0]).toMatchObject({
@@ -342,4 +347,29 @@ test("leaves a null proposed value untouched rather than clearing the field", as
   expect(update).toHaveBeenCalledWith(
     expect.objectContaining({ data: {} }),
   );
+});
+
+test("creates every new attendee in one insert, with a longer transaction timeout", async () => {
+  create.mockResolvedValue([{ id: "a" }, { id: "b" }, { id: "c" }]);
+
+  const result = await applyAttendeeImport(
+    preview({
+      newAttendees: [
+        record({ row: 2, studentId: "2023-1", displayEmail: "a@example.com" }),
+        record({ row: 3, studentId: "2023-2", displayEmail: "b@example.com" }),
+        record({ row: 4, studentId: "2023-3", displayEmail: "c@example.com" }),
+      ],
+    }),
+  );
+
+  expect(create).toHaveBeenCalledTimes(1);
+  expect(create.mock.calls[0][0].data).toHaveLength(3);
+  expect(result.createdIds).toEqual(["a", "b", "c"]);
+  expect(transaction.mock.calls[0][1]).toMatchObject({ timeout: 30_000 });
+});
+
+test("does not insert when there are no new attendees", async () => {
+  await applyAttendeeImport(preview());
+
+  expect(create).not.toHaveBeenCalled();
 });
