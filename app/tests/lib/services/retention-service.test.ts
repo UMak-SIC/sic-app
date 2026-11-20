@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { Prisma } from "@prisma/client";
 
 const { asset, assetDeletionFailure, attendee, campaignAsset, emailDelivery, event, eventRosterEntry, transaction } = vi.hoisted(() => ({
   asset: { findMany: vi.fn(), deleteMany: vi.fn() },
@@ -16,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
   getPrismaClient: () => ({ assetDeletionFailure, $transaction: transaction }),
 }));
 
-import { runRetention } from "@/lib/services/retention-service";
+import { runRetention, unreferencedAsset } from "@/lib/services/retention-service";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -97,7 +98,7 @@ test("deletes an unreferenced expired file from storage before removing its meta
 
   expect(send.mock.calls[0][0]).toBeInstanceOf(DeleteObjectCommand);
   expect(asset.deleteMany).toHaveBeenCalledWith({
-    where: { id: "asset-id", eventImages: { none: {} }, campaignAssets: { none: {} } },
+    where: { id: "asset-id", ...unreferencedAsset },
   });
 });
 
@@ -107,4 +108,19 @@ test("uses the last day of February for leap-day retention cutoffs", async () =>
   await expect(runRetention(new Date("2028-02-29T00:00:00.000Z"))).resolves.toMatchObject({
     cutoff: new Date("2023-02-28T00:00:00.000Z"),
   });
+});
+
+test("treats a file as unused only when no relation in the schema points at it", () => {
+  const asset = Prisma.dmmf.datamodel.models.find((model) => model.name === "Asset");
+  const pointingAtAssets = (asset?.fields ?? [])
+    .filter((field) => field.kind === "object")
+    .map((field) => field.name)
+    // The uploader is who added the file, not a use of it.
+    .filter((name) => name !== "uploadedBy")
+    // A failure note is not a use of the file; it is cleared with the asset.
+    .filter((name) => name !== "deletionFailure")
+    // Pre-existing gap: QR logos are not protected yet. Remove this line when they are.
+    .filter((name) => name !== "shortUrlLogos");
+
+  expect(Object.keys(unreferencedAsset).sort()).toEqual(pointingAtAssets.sort());
 });
