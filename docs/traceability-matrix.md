@@ -160,6 +160,16 @@ The delivery resolver's supported placeholder set is `student_name`, `student_id
 
 ---
 
+### EPIC-11: SIC App Data Model, Sprint 1 (#187)
+**Target Subsystem**: `Database` | **Scope**: The allowlist with roles that replaces the single administrator, the append-only audit log, and the tables the public site reads. Requirement IDs AC, PS and SY refer to the SIC App Documentation.
+
+| Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **TSK-1101** | Replace `admins` with `allowlist_entries` (roles, end dates, soft removal) and add the append-only `audit_log` | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/auth/require-admin.ts`, `app/scripts/bootstrap-admin.mjs` | DMA-01, DMA-14, AC-02, AC-03, AC-04, SY-10 | Existing administrator carried over; removed or expired entries refused by the guard and by `search_global_attendees`; the last System Administrator cannot be removed; audit entries cannot be changed or deleted outside the retention opt-in. | `[/] In Progress` |
+| **TSK-1102** | Add the public site content tables and keep their files out of retention | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/retention-service.ts` | DMA-15 to DMA-22, PS-02 to PS-13, SY-02.5, SY-05, SY-07, SY-08 | One `site_content` row; committee members removed with their committee; published news has a publish time; https-only sponsor links; at most five featured FAQs; retention keeps files the public site uses. | `[/] In Progress` |
+
+---
+
 ## Reverse Traceability Matrix (Requirements to Tasks)
 
 Verifies that every requirement defined in the PRD, Data Model Addendum, and Non-Functional Architecture has associated tasks and verification criteria.
@@ -204,7 +214,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 
 | Requirement ID | Requirement Summary | Assigned Task ID(s) | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **DMA-01** | `admins` table keyed by `neon_auth_user_id`; exactly one record; credentials and sessions owned by Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202 | `[ ] Planned` |
+| **DMA-01** | `allowlist_entries`: one row per allowlisted email with exactly one role, an optional end date and soft removal; replaces the single-row `admins` table. Linked to the Neon Auth user ID; credentials and sessions stay in Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202, TSK-1101 | `[/] In Progress` |
 | **DMA-02** | `attendees` table with UUID PK, normalized email, display email, required name, required unique `student_id`; conflict preview and overwrite | TSK-0102, TSK-0501, TSK-0503, TSK-0504, TSK-0506 | `[ ] Planned` |
 | **DMA-03** | `events` table with UUID PK, name, details, Neon Object Storage banner ref, UTC timestamps, org timezone display, status | TSK-0102, TSK-0401, TSK-0402 | `[ ] Planned` |
 | **DMA-04** | `event_roster_entries` replaces standalone attendance; unique `(event_id, attendee_id)`, status: `pending` \| `attended` \| `absent`, `arrived_at`, `scanned_by_admin_id` | TSK-0102, TSK-0801, TSK-0903 | `[ ] Planned` |
@@ -217,6 +227,15 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **DMA-11** | `assets` table for Neon Object Storage object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303, TSK-0607 | `[ ] Planned` |
 | **DMA-12** | Data retention rule: 5-year maximum retention, then delete or anonymize | TSK-1001 | `[ ] Planned` |
 | **DMA-13** | `campaign_assets` links uploaded assets to a campaign with an `inline` / `attachment` role; no `header` role and no `position` column | TSK-0102, TSK-0607, TSK-0608 | `[ ] Planned` |
+| **DMA-14** | `audit_log`: append-only record of who did what; actor stored as an email | TSK-1101 | `[/] In Progress` |
+| **DMA-15** | `site_content`: one row of public site text (Home, About, Join Us, Contact, Privacy Notice) | TSK-1102 | `[/] In Progress` |
+| **DMA-16** | `officers`: Executive Committee officers with optional photo and display order | TSK-1102 | `[/] In Progress` |
+| **DMA-17** | `committees` and `committee_members`: committees with ordered members; members removed with their committee | TSK-1102 | `[/] In Progress` |
+| **DMA-18** | `achievements`: title, year and description, newest first | TSK-1102 | `[/] In Progress` |
+| **DMA-19** | `news_posts`: draft or published posts with a Markdown body and optional cover | TSK-1102 | `[/] In Progress` |
+| **DMA-20** | `sponsors`: name, required logo and optional https link | TSK-1102 | `[/] In Progress` |
+| **DMA-21** | `resources`: downloadable form, by-law or report files | TSK-1102 | `[/] In Progress` |
+| **DMA-22** | `faqs`: one list for Home and Join Us; at most five featured | TSK-1102 | `[/] In Progress` |
 
 ---
 
@@ -309,3 +328,80 @@ Consequences worth stating rather than discovering:
   change on an existing table.
 - The table has never had rows written, since no task owned binding an asset to a
   campaign, so the migration needs no data backfill.
+
+### DMA-01: `allowlist_entries`
+
+Replaces the single-row `admins` table. One row per person allowed into the
+dashboard (AC-02 to AC-04).
+
+| Column | Type | Rule |
+| :--- | :--- | :--- |
+| `id` | UUID | Surrogate primary key |
+| `normalized_email` | TEXT | Nullable, UNIQUE, CHECK lower case with no surrounding spaces |
+| `role` | ENUM (`system_admin`, `executive`, `event_head`, `committee`) | NOT NULL |
+| `access_ends_on` | DATE | Nullable; required for `executive` and `committee` (AC-04.7) |
+| `neon_auth_user_id` | TEXT | Nullable, UNIQUE; linked on first sign-in |
+| `added_by_entry_id` | UUID | Nullable, FK → `allowlist_entries(id)` ON DELETE RESTRICT |
+| `removed_at` | TIMESTAMPTZ | Nullable; set instead of deleting the row |
+| `created_at`, `updated_at` | TIMESTAMPTZ | NOT NULL |
+
+CHECK `normalized_email IS NOT NULL OR neon_auth_user_id IS NOT NULL`.
+
+Rules:
+
+- Every "who did this" column (`events.created_by_admin_id`,
+  `event_roster_entries.scanned_by_admin_id`, `campaigns.created_by_admin_id`,
+  `assets.uploaded_by_admin_id`, `short_urls.created_by_admin_id`,
+  `news_posts.created_by_admin_id`, `site_content.updated_by_admin_id`) references
+  `neon_auth_user_id` ON DELETE RESTRICT. The column names were kept so existing rows
+  and services are unchanged.
+- An entry is active when `removed_at` is null and `access_ends_on` is null or not
+  yet past in the organization timezone. `requireAdmin` checks this on every request.
+  `search_global_attendees` refuses removed entries.
+- A trigger refuses any update or delete that would leave no active `system_admin`
+  (AC-04.6).
+- The migration carried the existing administrator over as a `system_admin`, with
+  the email filled from Neon Auth when readable. `pnpm admin:bootstrap` with
+  `ADMIN_EMAIL` fills it otherwise.
+
+Not yet decided here: enforcing each role's permissions (AC-03) and linking an
+entry to a Neon Auth user on first sign-in. Both belong to the Access and Roles
+feature work.
+
+### DMA-14: `audit_log`
+
+| Column | Type | Rule |
+| :--- | :--- | :--- |
+| `id` | BIGSERIAL | Primary key |
+| `actor_email` | TEXT | NOT NULL; plain text so entries outlive the allowlist entry |
+| `action` | TEXT | NOT NULL, for example `allowlist.add` |
+| `target_type`, `target_id` | TEXT | Nullable |
+| `summary` | JSONB | Nullable; short before and after, never passwords, ticket secrets or full attendee records |
+| `occurred_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() |
+
+Indexes on `(occurred_at)` and `(actor_email, occurred_at)` for the date and actor
+filters (SY-10.5). A trigger rejects every UPDATE, and every DELETE unless the
+transaction ran `SET LOCAL app.audit_retention = 'on'`, which is reserved for the
+retention job (SY-10.7).
+
+### DMA-15 to DMA-22: public site content
+
+Images and files reference `assets(id)` ON DELETE RESTRICT, like
+`events.image_asset_id`. Retention deletes a stored file before its row, so
+`unreferencedAsset` in `app/lib/services/retention-service.ts` lists every relation
+that points at an asset, and a unit test fails when one is missing (SY-02.5).
+
+| DMA | Table | Columns | Rules |
+| :--- | :--- | :--- | :--- |
+| DMA-15 | `site_content` | home statement; mission, vision, history; adviser name, title, photo; `join_steps` JSONB; membership form location; contact email, location, `social_links` JSONB; privacy notice Markdown and `privacy_notice_updated_at`; `updated_by_admin_id` | One row: `singleton` BOOLEAN UNIQUE with CHECK (singleton). All content nullable until written |
+| DMA-16 | `officers` | name, position, optional photo, `sort_order` | Shown in `sort_order` |
+| DMA-17 | `committees`, `committee_members` | committee: UNIQUE name, description, `sort_order`; member: full name, role, optional photo, `sort_order` | Members ON DELETE CASCADE with their committee (SY-05.9) |
+| DMA-18 | `achievements` | title, `year` SMALLINT, description | CHECK year between 1900 and 2100 |
+| DMA-19 | `news_posts` | title, `post_date` DATE, body Markdown, optional cover, `status` (`draft`, `published`), `published_at`, `created_by_admin_id` | CHECK published rows have `published_at`; index `(status, post_date)` |
+| DMA-20 | `sponsors` | name, required logo, optional `link_url`, `sort_order` | CHECK `link_url` is https; logo alt text is the sponsor name |
+| DMA-21 | `resources` | title, `type` (`form`, `bylaw`, `report`), required file | Grouped by `type` on the page |
+| DMA-22 | `faqs` | question, answer, `is_featured`, `sort_order` | A trigger allows at most five featured rows (SY-07.6) |
+
+Open for review: officers are a separate table from committee members because the
+dashboard edits them in different places (SY-08 and SY-05). Transparency of Funds
+reports (PS-12, SY-06) wait for decision D-02.
