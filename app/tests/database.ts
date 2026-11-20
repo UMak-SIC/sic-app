@@ -27,7 +27,7 @@ const applicationTables = [
   "assets",
   "provider_daily_usage",
   "attendees",
-  "admins",
+  "allowlist_entries",
 ];
 
 export function hasTestDatabase(): boolean {

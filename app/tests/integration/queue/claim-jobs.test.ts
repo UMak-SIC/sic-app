@@ -30,7 +30,7 @@ test.skipIf(!hasTestDatabase())("does not claim the same job twice concurrently"
   const deliveryId = randomUUID();
 
   await seedTestDatabase(async (database) => {
-    await database.admin.create({ data: { neonAuthUserId: adminId } });
+    await database.allowlistEntry.create({ data: { neonAuthUserId: adminId, role: "SYSTEM_ADMIN" } });
     await database.attendee.create({
       data: {
         id: attendeeId,

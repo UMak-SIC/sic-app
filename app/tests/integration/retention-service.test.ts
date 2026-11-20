@@ -11,7 +11,7 @@ databaseTest("removes expired records and anonymizes attendees still referenced 
   const expired = new Date("2024-12-31T00:00:00.000Z");
   const current = new Date("2030-12-31T00:00:00.000Z");
 
-  await database.admin.create({ data: { neonAuthUserId: "admin-id" } });
+  await database.allowlistEntry.create({ data: { neonAuthUserId: "admin-id", role: "SYSTEM_ADMIN" } });
   const [expiredEvent, currentEvent] = await Promise.all([
     database.event.create({
       data: {

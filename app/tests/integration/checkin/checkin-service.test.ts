@@ -28,7 +28,7 @@ test.skipIf(!hasTestDatabase())("allows one concurrent check-in and returns the 
   const rosterEntryId = randomUUID();
 
   await seedTestDatabase(async (database) => {
-    await database.admin.create({ data: { neonAuthUserId: adminId } });
+    await database.allowlistEntry.create({ data: { neonAuthUserId: adminId, role: "SYSTEM_ADMIN" } });
     await database.attendee.create({
       data: {
         id: attendeeId,

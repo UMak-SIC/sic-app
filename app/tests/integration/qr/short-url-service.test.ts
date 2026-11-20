@@ -9,7 +9,7 @@ const adminId = "admin-short-url-test";
 
 async function seedAdmin(): Promise<void> {
   await seedTestDatabase(async (database) => {
-    await database.admin.create({ data: { neonAuthUserId: adminId } });
+    await database.allowlistEntry.create({ data: { neonAuthUserId: adminId, role: "SYSTEM_ADMIN" } });
   });
 }
 

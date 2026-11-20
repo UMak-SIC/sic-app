@@ -4,9 +4,11 @@
 
 ### Admin
 
-The single authorised application operator. The Admin authenticates through
-Neon Managed Better Auth and has a corresponding Neon record keyed by the Neon
-Auth user ID for audit references.
+Anyone on the allowlist who can sign in to the dashboard: a System Administrator,
+Executive Committee member, Event Head or Committee member. Each allowlisted email
+has exactly one role. An Admin authenticates through Neon Managed Better Auth; their
+allowlist entry is linked to the Neon Auth user ID, which every audit reference
+("created by", "scanned by", "uploaded by") stores.
 
 ### Attendee
 
