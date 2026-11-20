@@ -28,6 +28,7 @@ const applicationTables = [
   "provider_daily_usage",
   "attendees",
   "allowlist_entries",
+  "audit_log",
 ];
 
 export function hasTestDatabase(): boolean {
