@@ -57,3 +57,11 @@ export function formatPostDate(date: Date): string {
     day: "numeric",
   }).format(date);
 }
+
+/** The timezone's name for labels, such as "Philippine Standard Time". */
+export function formatZoneName(instant: Date, timeZone: string): string {
+  const part = new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "long" })
+    .formatToParts(instant)
+    .find((item) => item.type === "timeZoneName");
+  return part?.value ?? timeZone;
+}
