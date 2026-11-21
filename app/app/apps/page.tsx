@@ -9,7 +9,7 @@ import type { Icon } from "@phosphor-icons/react";
 
 import { requireAdminPage } from "@/lib/auth/require-admin-page";
 
-import { SignOutButton } from "./unauthorized/sign-out-button";
+import { SignOutButton } from "../unauthorized/sign-out-button";
 
 // The landing screen after sign-in. SIC-APP hosts more than one tool, so the
 // operator picks one here and each tool keeps its own section of the site

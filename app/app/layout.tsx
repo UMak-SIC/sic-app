@@ -4,8 +4,12 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "UMak SIC — Event & Operations Management",
-  description: "Official event and attendance operations system for UMak SIC.",
+  title: {
+    default: "UMak Society of Innovative Computing",
+    template: "%s | UMak SIC",
+  },
+  description:
+    "The UMak Society of Innovative Computing: events, news and how to join, for CCIS students at the University of Makati.",
 };
 
 export default function RootLayout({

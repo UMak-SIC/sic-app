@@ -50,18 +50,30 @@ test("forwards the original query string to the sign-in route", async ({
   expect((await redirectedTo(response, baseURL as string)).search).toBe("?event=123");
 });
 
-test("puts the root URL behind sign-in, since it is the tool selector", async ({
+test("puts the tool selector behind sign-in at /apps", async ({
   request,
   baseURL,
 }) => {
-  // app/app/page.tsx is the tool selector, which only an admin should see. This
-  // app is an internal tool, so the whole surface sits behind sign-in.
-  const response = await request.get("/", { maxRedirects: 0 });
+  // app/app/apps/page.tsx is the tool selector, which only an admin should see.
+  // It moved from / so the public site can own the root (AC-05).
+  const response = await request.get("/apps", { maxRedirects: 0 });
 
   expect(response.status()).toBe(307);
   expect((await redirectedTo(response, baseURL as string)).pathname).toBe(
     SIGN_IN
   );
+});
+
+test("does not send visitors of the public site to sign-in", async ({ request }) => {
+  // PS-01: every public page, including the root, is served without a session.
+  // This checks routing only. Rendering needs a database, which this job does
+  // not provision, so the pages themselves are covered by the unit and
+  // integration suites.
+  for (const path of ["/", "/about", "/events", "/news", "/privacy"]) {
+    const response = await request.get(path, { maxRedirects: 0 });
+
+    expect(response.status(), `expected ${path} not to redirect`).not.toBe(307);
+  }
 });
 
 test("guards the admin screens added after the original matcher", async ({
