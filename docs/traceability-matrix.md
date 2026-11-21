@@ -165,8 +165,8 @@ The delivery resolver's supported placeholder set is `student_name`, `student_id
 
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **TSK-1101** | Replace `admins` with `allowlist_entries` (roles, end dates, soft removal) and add the append-only `audit_log` | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/auth/require-admin.ts`, `app/scripts/bootstrap-admin.mjs` | DMA-01, DMA-14, AC-02, AC-03, AC-04, SY-10 | Existing administrator carried over; removed or expired entries refused by the guard and by `search_global_attendees`; the last System Administrator cannot be removed; audit entries cannot be changed or deleted outside the retention opt-in. | `[/] In Progress` |
-| **TSK-1102** | Add the public site content tables and keep their files out of retention | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/retention-service.ts` | DMA-15 to DMA-22, PS-02 to PS-13, SY-02.5, SY-05, SY-07, SY-08 | One `site_content` row; committee members removed with their committee; published news has a publish time; https-only sponsor links; at most five featured FAQs; retention keeps files the public site uses. | `[/] In Progress` |
+| **TSK-1101** | Replace `admins` with `allowlist_entries` (roles, end dates, soft removal) and add the append-only `audit_log` | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/auth/require-admin.ts`, `app/scripts/bootstrap-admin.mjs` | DMA-01, DMA-14, AC-02, AC-03, AC-04, SY-10 | Existing administrator carried over; removed or expired entries refused by the guard and by `search_global_attendees`; the last System Administrator cannot be removed; audit entries cannot be changed or deleted outside the retention opt-in. | `[x] Completed` |
+| **TSK-1102** | Add the public site content tables and keep their files out of retention | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/retention-service.ts` | DMA-15 to DMA-22, PS-02 to PS-13, SY-02.5, SY-05, SY-07, SY-08 | One `site_content` row; committee members removed with their committee; published news has a publish time; https-only sponsor links; at most five featured FAQs; retention keeps files the public site uses. | `[x] Completed` |
 
 ---
 
@@ -214,7 +214,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 
 | Requirement ID | Requirement Summary | Assigned Task ID(s) | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **DMA-01** | `allowlist_entries`: one row per allowlisted email with exactly one role, an optional end date and soft removal; replaces the single-row `admins` table. Linked to the Neon Auth user ID; credentials and sessions stay in Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202, TSK-1101 | `[/] In Progress` |
+| **DMA-01** | `allowlist_entries`: one row per allowlisted email with exactly one role, an optional end date and soft removal; replaces the single-row `admins` table. Linked to the Neon Auth user ID; credentials and sessions stay in Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202, TSK-1101 | `[x] Completed` |
 | **DMA-02** | `attendees` table with UUID PK, normalized email, display email, required name, required unique `student_id`; conflict preview and overwrite | TSK-0102, TSK-0501, TSK-0503, TSK-0504, TSK-0506 | `[ ] Planned` |
 | **DMA-03** | `events` table with UUID PK, name, details, Neon Object Storage banner ref, UTC timestamps, org timezone display, status | TSK-0102, TSK-0401, TSK-0402 | `[ ] Planned` |
 | **DMA-04** | `event_roster_entries` replaces standalone attendance; unique `(event_id, attendee_id)`, status: `pending` \| `attended` \| `absent`, `arrived_at`, `scanned_by_admin_id` | TSK-0102, TSK-0801, TSK-0903 | `[ ] Planned` |
@@ -227,15 +227,15 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **DMA-11** | `assets` table for Neon Object Storage object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303, TSK-0607 | `[ ] Planned` |
 | **DMA-12** | Data retention rule: 5-year maximum retention, then delete or anonymize | TSK-1001 | `[ ] Planned` |
 | **DMA-13** | `campaign_assets` links uploaded assets to a campaign with an `inline` / `attachment` role; no `header` role and no `position` column | TSK-0102, TSK-0607, TSK-0608 | `[ ] Planned` |
-| **DMA-14** | `audit_log`: append-only record of who did what; actor stored as an email | TSK-1101 | `[/] In Progress` |
-| **DMA-15** | `site_content`: one row of public site text (Home, About, Join Us, Contact, Privacy Notice) | TSK-1102 | `[/] In Progress` |
-| **DMA-16** | `officers`: Executive Committee officers with optional photo and display order | TSK-1102 | `[/] In Progress` |
-| **DMA-17** | `committees` and `committee_members`: committees with ordered members; members removed with their committee | TSK-1102 | `[/] In Progress` |
-| **DMA-18** | `achievements`: title, year and description, newest first | TSK-1102 | `[/] In Progress` |
-| **DMA-19** | `news_posts`: draft or published posts with a Markdown body and optional cover | TSK-1102 | `[/] In Progress` |
-| **DMA-20** | `sponsors`: name, required logo and optional https link | TSK-1102 | `[/] In Progress` |
-| **DMA-21** | `resources`: downloadable form, by-law or report files | TSK-1102 | `[/] In Progress` |
-| **DMA-22** | `faqs`: one list for Home and Join Us; at most five featured | TSK-1102 | `[/] In Progress` |
+| **DMA-14** | `audit_log`: append-only record of who did what; actor stored as an email | TSK-1101 | `[x] Completed` |
+| **DMA-15** | `site_content`: one row of public site text (Home, About, Join Us, Contact, Privacy Notice) | TSK-1102 | `[x] Completed` |
+| **DMA-16** | `officers`: Executive Committee officers with optional photo and display order | TSK-1102 | `[x] Completed` |
+| **DMA-17** | `committees` and `committee_members`: committees with ordered members; members removed with their committee | TSK-1102 | `[x] Completed` |
+| **DMA-18** | `achievements`: title, year and description, newest first | TSK-1102 | `[x] Completed` |
+| **DMA-19** | `news_posts`: draft or published posts with a Markdown body and optional cover | TSK-1102 | `[x] Completed` |
+| **DMA-20** | `sponsors`: name, required logo and optional https link | TSK-1102 | `[x] Completed` |
+| **DMA-21** | `resources`: downloadable form, by-law or report files | TSK-1102 | `[x] Completed` |
+| **DMA-22** | `faqs`: one list for Home and Join Us; at most five featured | TSK-1102 | `[x] Completed` |
 
 ---
 
