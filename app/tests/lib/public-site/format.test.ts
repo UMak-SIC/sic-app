@@ -1,6 +1,11 @@
 import { expect, test } from "vitest";
 
-import { formatEventDate, formatEventTime, formatPostDate } from "@/lib/public-site/format";
+import {
+  formatEventDate,
+  formatEventTime,
+  formatPostDate,
+  formatZoneName,
+} from "@/lib/public-site/format";
 
 const MANILA = "Asia/Manila";
 
@@ -22,4 +27,8 @@ test("names both days when an event runs past midnight", () => {
 test("writes a stored calendar date without shifting it a day", () => {
   // Prisma returns @db.Date values as UTC midnights.
   expect(formatPostDate(new Date("2026-11-21T00:00:00.000Z"))).toBe("November 21, 2026");
+});
+
+test("names the organization timezone for labels", () => {
+  expect(formatZoneName(new Date("2026-12-05T01:00:00.000Z"), MANILA)).toBe("Philippine Standard Time");
 });
