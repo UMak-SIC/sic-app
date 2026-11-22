@@ -38,6 +38,9 @@ export const unreferencedAsset = {
   newsPostCovers: { none: {} },
   sponsorLogos: { none: {} },
   resourceFiles: { none: {} },
+  sdeVideoFiles: { none: {} },
+  eventPhotoOriginals: { none: {} },
+  eventPhotoWebCopies: { none: {} },
 } satisfies Prisma.AssetWhereInput;
 
 function fiveYearsBefore(now: Date): Date {
