@@ -1,7 +1,7 @@
 import "server-only";
 
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 
 import { getPrismaClient } from "@/lib/prisma";
 import { getNeonStorageClient, type StorageClient } from "@/lib/storage/neon-storage-client";
@@ -22,6 +22,23 @@ type RetentionDependencies = {
 };
 
 const defaultDependencies: RetentionDependencies = { getNeonStorageClient };
+
+/**
+ * An uploaded file that no record uses. Retention deletes the stored file before
+ * its row, so every relation that points at an asset must be listed here, or a
+ * file still shown on the site would be deleted (SY-02.5). A unit test fails when
+ * a new asset relation is added to the schema without being listed.
+ */
+export const unreferencedAsset = {
+  eventImages: { none: {} },
+  campaignAssets: { none: {} },
+  siteContentAdviserPhotos: { none: {} },
+  officerPhotos: { none: {} },
+  committeeMemberPhotos: { none: {} },
+  newsPostCovers: { none: {} },
+  sponsorLogos: { none: {} },
+  resourceFiles: { none: {} },
+} satisfies Prisma.AssetWhereInput;
 
 function fiveYearsBefore(now: Date): Date {
   const year = now.getUTCFullYear() - 5;
@@ -88,8 +105,7 @@ export async function runRetention(
 
     const assets = await tx.asset.findMany({
       where: {
-        eventImages: { none: {} },
-        campaignAssets: { none: {} },
+        ...unreferencedAsset,
         OR: [
           { uploadedAt: { lt: cutoff } },
           { deletionFailure: { isNot: null } },
@@ -123,8 +139,7 @@ export async function runRetention(
         const deleted = await tx.asset.deleteMany({
           where: {
             id: asset.id,
-            eventImages: { none: {} },
-            campaignAssets: { none: {} },
+            ...unreferencedAsset,
           },
         });
         if (deleted.count > 0) await tx.assetDeletionFailure.deleteMany({ where: { assetId: asset.id } });

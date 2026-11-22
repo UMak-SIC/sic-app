@@ -29,6 +29,15 @@ const applicationTables = [
   "attendees",
   "allowlist_entries",
   "audit_log",
+  "site_content",
+  "officers",
+  "committee_members",
+  "committees",
+  "achievements",
+  "news_posts",
+  "sponsors",
+  "resources",
+  "faqs",
 ];
 
 export function hasTestDatabase(): boolean {

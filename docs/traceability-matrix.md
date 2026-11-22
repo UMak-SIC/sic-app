@@ -166,6 +166,7 @@ The delivery resolver's supported placeholder set is `student_name`, `student_id
 | Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-1101** | Replace `admins` with `allowlist_entries` (roles, end dates, soft removal) and add the append-only `audit_log` | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/auth/require-admin.ts`, `app/scripts/bootstrap-admin.mjs` | DMA-01, DMA-14, AC-02, AC-03, AC-04, SY-10 | Existing administrator carried over; removed or expired entries refused by the guard and by `search_global_attendees`; the last System Administrator cannot be removed; audit entries cannot be changed or deleted outside the retention opt-in. | `[x] Completed` |
+| **TSK-1102** | Add the public site content tables and keep their files out of retention | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/retention-service.ts` | DMA-15 to DMA-22, PS-02 to PS-13, SY-02.5, SY-05, SY-07, SY-08 | One `site_content` row; committee members removed with their committee; published news has a publish time; https-only sponsor links; at most five featured FAQs; retention keeps files the public site uses. | `[x] Completed` |
 
 ---
 
@@ -227,6 +228,14 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **DMA-12** | Data retention rule: 5-year maximum retention, then delete or anonymize | TSK-1001 | `[ ] Planned` |
 | **DMA-13** | `campaign_assets` links uploaded assets to a campaign with an `inline` / `attachment` role; no `header` role and no `position` column | TSK-0102, TSK-0607, TSK-0608 | `[ ] Planned` |
 | **DMA-14** | `audit_log`: append-only record of who did what; actor stored as an email | TSK-1101 | `[x] Completed` |
+| **DMA-15** | `site_content`: one row of public site text (Home, About, Join Us, Contact, Privacy Notice) | TSK-1102 | `[x] Completed` |
+| **DMA-16** | `officers`: Executive Committee officers with optional photo and display order | TSK-1102 | `[x] Completed` |
+| **DMA-17** | `committees` and `committee_members`: committees with ordered members; members removed with their committee | TSK-1102 | `[x] Completed` |
+| **DMA-18** | `achievements`: title, year and description, newest first | TSK-1102 | `[x] Completed` |
+| **DMA-19** | `news_posts`: draft or published posts with a Markdown body and optional cover | TSK-1102 | `[x] Completed` |
+| **DMA-20** | `sponsors`: name, required logo and optional https link | TSK-1102 | `[x] Completed` |
+| **DMA-21** | `resources`: downloadable form, by-law or report files | TSK-1102 | `[x] Completed` |
+| **DMA-22** | `faqs`: one list for Home and Join Us; at most five featured | TSK-1102 | `[x] Completed` |
 
 ---
 
@@ -374,3 +383,25 @@ Indexes on `(occurred_at)` and `(actor_email, occurred_at)` for the date and act
 filters (SY-10.5). A trigger rejects every UPDATE, and every DELETE unless the
 transaction ran `SET LOCAL app.audit_retention = 'on'`, which is reserved for the
 retention job (SY-10.7).
+
+### DMA-15 to DMA-22: public site content
+
+Images and files reference `assets(id)` ON DELETE RESTRICT, like
+`events.image_asset_id`. Retention deletes a stored file before its row, so
+`unreferencedAsset` in `app/lib/services/retention-service.ts` lists every relation
+that points at an asset, and a unit test fails when one is missing (SY-02.5).
+
+| DMA | Table | Columns | Rules |
+| :--- | :--- | :--- | :--- |
+| DMA-15 | `site_content` | home statement; mission, vision, history; adviser name, title, photo; `join_steps` JSONB; membership form location; contact email, location, `social_links` JSONB; privacy notice Markdown and `privacy_notice_updated_at`; `updated_by_admin_id` | One row: `singleton` BOOLEAN UNIQUE with CHECK (singleton). All content nullable until written |
+| DMA-16 | `officers` | name, position, optional photo, `sort_order` | Shown in `sort_order` |
+| DMA-17 | `committees`, `committee_members` | committee: UNIQUE name, description, `sort_order`; member: full name, role, optional photo, `sort_order` | Members ON DELETE CASCADE with their committee (SY-05.9) |
+| DMA-18 | `achievements` | title, `year` SMALLINT, description | CHECK year between 1900 and 2100 |
+| DMA-19 | `news_posts` | title, `post_date` DATE, body Markdown, optional cover, `status` (`draft`, `published`), `published_at`, `created_by_admin_id` | CHECK published rows have `published_at`; index `(status, post_date)` |
+| DMA-20 | `sponsors` | name, required logo, optional `link_url`, `sort_order` | CHECK `link_url` is https; logo alt text is the sponsor name |
+| DMA-21 | `resources` | title, `type` (`form`, `bylaw`, `report`), required file | Grouped by `type` on the page |
+| DMA-22 | `faqs` | question, answer, `is_featured`, `sort_order` | A trigger allows at most five featured rows (SY-07.6) |
+
+Open for review: officers are a separate table from committee members because the
+dashboard edits them in different places (SY-08 and SY-05). Transparency of Funds
+reports (PS-12, SY-06) wait for decision D-02.
