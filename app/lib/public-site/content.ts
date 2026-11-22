@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { ResourceType } from "@prisma/client";
+import { cache } from "react";
 
 import { compileMarkdown } from "@/lib/email/markdown-compiler";
 import { getPrismaClient } from "@/lib/prisma";
@@ -80,8 +81,13 @@ export function renderMarkdown(markdown: string): string {
   return compileMarkdown(markdown, { allowedImageHost });
 }
 
-export async function getSiteContent(): Promise<SiteContent> {
-  const row = await getPrismaClient().siteContent.findUnique({
+/**
+ * The single site_content row. The layout and the page both read it, so one read
+ * is shared per request. It uses findFirst on purpose: Prisma batches simultaneous
+ * findUnique calls into one `in` query, which a true/false column cannot take.
+ */
+export const getSiteContent = cache(async (): Promise<SiteContent> => {
+  const row = await getPrismaClient().siteContent.findFirst({
     where: { singleton: true },
     include: { adviserPhotoAsset: { select: { objectKey: true, storageBucket: true } } },
   });
@@ -107,7 +113,7 @@ export async function getSiteContent(): Promise<SiteContent> {
     privacyNoticeHtml: row.privacyNoticeMarkdown ? renderMarkdown(row.privacyNoticeMarkdown) : null,
     privacyNoticeUpdatedAt: row.privacyNoticeUpdatedAt,
   };
-}
+});
 
 export type PersonCard = { id: string; name: string; role: string; photoUrl: string | null };
 

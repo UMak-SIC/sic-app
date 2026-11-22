@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import {
   getPublishedNewsPost,
+  getSiteContent,
   listFaqs,
   listPublishedNews,
   listResourcesByType,
@@ -175,5 +176,23 @@ describeWithDatabase("public site reads", () => {
     expect(groups[0].files).toEqual([
       expect.objectContaining({ fileName: "membership-form.pdf", fileType: "PDF", url: null }),
     ]);
+  });
+
+  test("reads site content when the layout and the page ask at the same time", async () => {
+    const db = getTestDatabase();
+    await db.siteContent.create({
+      data: { mission: "Empower members.", joinSteps: ["Enroll in CCIS.", ""], socialLinks: [{ label: "Facebook", url: "https://facebook.com/umaksic" }, { label: "Bad", url: "http://x.test" }] },
+    });
+
+    // Prisma batches simultaneous findUnique calls into one query, which a
+    // true/false unique column cannot take. Every public page does this.
+    const [fromLayout, fromPage] = await Promise.all([getSiteContent(), getSiteContent()]);
+
+    expect(fromLayout).toEqual(fromPage);
+    expect(fromPage).toMatchObject({
+      mission: "Empower members.",
+      joinSteps: ["Enroll in CCIS."],
+      socialLinks: [{ label: "Facebook", url: "https://facebook.com/umaksic" }],
+    });
   });
 });
