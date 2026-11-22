@@ -9,7 +9,7 @@ describeWithDatabase("closeExpiredEvents", () => {
   test("is safe under concurrent invocation and preserves attended entries", async () => {
     const db = getTestDatabase();
     const now = new Date("2026-10-01T12:00:00.000Z");
-    await db.admin.create({ data: { neonAuthUserId: "admin-id" } });
+    await db.allowlistEntry.create({ data: { neonAuthUserId: "admin-id", role: "SYSTEM_ADMIN" } });
     const pendingAttendee = await db.attendee.create({
       data: {
         normalizedEmail: "pending@example.com",

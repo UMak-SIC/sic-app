@@ -255,7 +255,7 @@ export async function importQrExport({
   fetchLogo,
   dryRun = false,
 }) {
-  const admin = await prisma.admin.findUnique({ where: { neonAuthUserId: adminId }, select: { neonAuthUserId: true } });
+  const admin = await prisma.allowlistEntry.findUnique({ where: { neonAuthUserId: adminId }, select: { neonAuthUserId: true } });
   if (!admin) {
     throw new Error("QR_MIGRATION_ADMIN_ID does not match an administrator in this database.");
   }
