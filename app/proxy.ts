@@ -4,8 +4,8 @@ import { getNeonAuth } from "@/lib/auth/server";
 
 // Protects administrator pages at the network boundary. The SDK middleware
 // redirects unauthenticated visitors to the sign-in route; authorization
-// against the single admins record stays in require-admin.ts so API routes
-// keep returning 401/403 instead of a redirect.
+// against the allowlist stays in require-admin.ts so API routes keep returning
+// 401/403 instead of a redirect.
 //
 // loginUrl must match the route the sign-in page actually serves. It lives at
 // app/app/(auth)/login/page.tsx, which the (auth) route group exposes as
@@ -51,11 +51,14 @@ export default proxy;
 // them answered 200 with no session. A deny-by-default matcher means the next
 // admin page added is protected without anyone having to remember this file.
 //
-// `/` is intentionally not excluded. app/app/page.tsx is the tool selector,
-// which only an admin should see; this app is an internal tool and the whole
-// surface sits behind sign-in.
+// The public site (PS-01) is excluded by name: the root (`$`, which matches the
+// empty path after the leading slash) and the ten public sections. Each name is
+// written as `name(?:/|$)` so it opens that section and its sub-pages but not a
+// look-alike such as /eventsx or /newsroom. Every other path, including the tool
+// selector at /apps and the admin event pages under /ems, stays guarded. A new
+// public section has to be added here and to tests/proxy.test.ts.
 export const config = {
   matcher: [
-    "/((?!login|register|url(?:/|$)|api|_next/static|_next/image|favicon.ico|.*[^/]*\\.[^/]*$).*)",
+    "/((?!$|about(?:/|$)|calendar(?:/|$)|events(?:/|$)|news(?:/|$)|join(?:/|$)|sponsors(?:/|$)|resources(?:/|$)|contact(?:/|$)|transparency(?:/|$)|privacy(?:/|$)|login|register|url(?:/|$)|api|_next/static|_next/image|favicon.ico|.*[^/]*\\.[^/]*$).*)",
   ],
 };

@@ -65,7 +65,7 @@ export function QrWorkspace() {
     <main className="min-h-[100dvh] bg-canvas px-4 py-6 font-sans text-ink sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-[1400px] space-y-6">
         <header className="rounded-[16px] border border-line bg-paper p-5 sm:p-7">
-          <Link href="/" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-cyan focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan">
+          <Link href="/apps" className="mb-5 inline-flex items-center gap-2 text-sm font-semibold text-muted hover:text-cyan focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan">
             <ArrowLeft size={18} aria-hidden="true" /> Back to all tools
           </Link>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
