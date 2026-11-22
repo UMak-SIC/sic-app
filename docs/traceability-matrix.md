@@ -167,6 +167,7 @@ The delivery resolver's supported placeholder set is `student_name`, `student_id
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **TSK-1101** | Replace `admins` with `allowlist_entries` (roles, end dates, soft removal) and add the append-only `audit_log` | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/auth/require-admin.ts`, `app/scripts/bootstrap-admin.mjs` | DMA-01, DMA-14, AC-02, AC-03, AC-04, SY-10 | Existing administrator carried over; removed or expired entries refused by the guard and by `search_global_attendees`; the last System Administrator cannot be removed; audit entries cannot be changed or deleted outside the retention opt-in. | `[x] Completed` |
 | **TSK-1102** | Add the public site content tables and keep their files out of retention | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/retention-service.ts` | DMA-15 to DMA-22, PS-02 to PS-13, SY-02.5, SY-05, SY-07, SY-08 | One `site_content` row; committee members removed with their committee; published news has a publish time; https-only sponsor links; at most five featured FAQs; retention keeps files the public site uses. | `[x] Completed` |
+| **TSK-1103** | Add event theme, registration link, SDE videos and photo gallery for the public event pages | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/services/retention-service.ts` | DMA-23, DMA-24, DMA-25, EV-01, EV-06, EV-07, PS-05, PS-14 | https-only registration and video links; each SDE video has exactly one source; photos need alt text; one cover per event; videos and photos leave with their event while their files stay protected. | `[x] Completed` |
 
 ---
 
@@ -236,6 +237,9 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **DMA-20** | `sponsors`: name, required logo and optional https link | TSK-1102 | `[x] Completed` |
 | **DMA-21** | `resources`: downloadable form, by-law or report files | TSK-1102 | `[x] Completed` |
 | **DMA-22** | `faqs`: one list for Home and Join Us; at most five featured | TSK-1102 | `[x] Completed` |
+| **DMA-23** | `events.theme` and `events.registration_link` (https only) for the public event pages | TSK-1103 | `[x] Completed` |
+| **DMA-24** | `event_sde_videos`: links or uploaded videos for a past event, exactly one source each | TSK-1103 | `[x] Completed` |
+| **DMA-25** | `event_photos`: past event gallery with required alt text, a resized copy and one cover | TSK-1103 | `[x] Completed` |
 
 ---
 
@@ -405,3 +409,14 @@ that points at an asset, and a unit test fails when one is missing (SY-02.5).
 Open for review: officers are a separate table from committee members because the
 dashboard edits them in different places (SY-08 and SY-05). Transparency of Funds
 reports (PS-12, SY-06) wait for decision D-02.
+
+### DMA-23 to DMA-25: event media
+
+| DMA | Table or column | Columns | Rules |
+| :--- | :--- | :--- | :--- |
+| DMA-23 | `events.theme`, `events.registration_link` | Both TEXT, nullable | CHECK `registration_link` is https. The site links to the form and never collects registrations (PS-05.3) |
+| DMA-24 | `event_sde_videos` | `event_id` FK CASCADE, `video_url`, `asset_id` FK RESTRICT, `title`, `caption`, `sort_order` | CHECK exactly one of `video_url` and `asset_id`; CHECK `video_url` is https |
+| DMA-25 | `event_photos` | `event_id` FK CASCADE, `asset_id` (original) and `web_asset_id` (resized) FK RESTRICT, `alt_text`, `sort_order`, `is_cover`, `uploaded_by_admin_id` | CHECK alt text is not blank (EV-07.3); a trigger allows one cover per event (EV-07.5) |
+
+Both tables are listed in `unreferencedAsset`, so retention never deletes a video or
+photo file that a gallery still shows. Speakers (AD-04) are not part of this slice.

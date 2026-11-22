@@ -38,6 +38,8 @@ const applicationTables = [
   "sponsors",
   "resources",
   "faqs",
+  "event_sde_videos",
+  "event_photos",
 ];
 
 export function hasTestDatabase(): boolean {
