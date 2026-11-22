@@ -18,6 +18,7 @@
     "db:studio": "prisma studio",
     "admin:bootstrap": "node scripts/bootstrap-admin.mjs",
     "attendees:seed": "node scripts/seed-attendees.mjs",
+    "site:seed": "node scripts/seed-site-content.mjs",
     "assets:backfill-buckets": "node scripts/backfill-asset-buckets.mjs",
     "qr:import": "node scripts/import-supabase-qr-data.mjs",
     "qr:verify": "node scripts/verify-qr-import.mjs"
