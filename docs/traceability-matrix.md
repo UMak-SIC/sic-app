@@ -226,6 +226,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 | **DMA-11** | `assets` table for Neon Object Storage object keys, original filename, media type, byte size, upload metadata | TSK-0102, TSK-0302, TSK-0303, TSK-0607 | `[ ] Planned` |
 | **DMA-12** | Data retention rule: 5-year maximum retention, then delete or anonymize | TSK-1001 | `[ ] Planned` |
 | **DMA-13** | `campaign_assets` links uploaded assets to a campaign with an `inline` / `attachment` role; no `header` role and no `position` column | TSK-0102, TSK-0607, TSK-0608 | `[ ] Planned` |
+| **DMA-14** | `audit_log`: append-only record of who did what; actor stored as an email | TSK-1101 | `[x] Completed` |
 
 ---
 
@@ -357,3 +358,19 @@ Rules:
 Not yet decided here: enforcing each role's permissions (AC-03) and linking an
 entry to a Neon Auth user on first sign-in. Both belong to the Access and Roles
 feature work.
+
+### DMA-14: `audit_log`
+
+| Column | Type | Rule |
+| :--- | :--- | :--- |
+| `id` | BIGSERIAL | Primary key |
+| `actor_email` | TEXT | NOT NULL; plain text so entries outlive the allowlist entry |
+| `action` | TEXT | NOT NULL, for example `allowlist.add` |
+| `target_type`, `target_id` | TEXT | Nullable |
+| `summary` | JSONB | Nullable; short before and after, never passwords, ticket secrets or full attendee records |
+| `occurred_at` | TIMESTAMPTZ | NOT NULL, DEFAULT NOW() |
+
+Indexes on `(occurred_at)` and `(actor_email, occurred_at)` for the date and actor
+filters (SY-10.5). A trigger rejects every UPDATE, and every DELETE unless the
+transaction ran `SET LOCAL app.audit_retention = 'on'`, which is reserved for the
+retention job (SY-10.7).
