@@ -372,3 +372,26 @@ model AssetDeletionFailure {
 
   @@map("asset_deletion_failures")
 }
+
+/// Read-only record of who did what (SY-10, DMA-14).
+///
+/// `actorEmail` is plain text rather than a link to the allowlist, so entries
+/// outlive the person's access. `summary` holds a short before and after, and
+/// never passwords, ticket secrets or full attendee records (SY-10.3).
+///
+/// A trigger in the migration rejects every UPDATE, and every DELETE except one
+/// made with `SET LOCAL app.audit_retention = 'on'`, which is reserved for the
+/// five-year retention job (SY-10.7).
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorEmail String   @map("actor_email")
+  action     String
+  targetType String?  @map("target_type")
+  targetId   String?  @map("target_id")
+  summary    Json?
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  @@index([occurredAt])
+  @@index([actorEmail, occurredAt])
+  @@map("audit_log")
+}
