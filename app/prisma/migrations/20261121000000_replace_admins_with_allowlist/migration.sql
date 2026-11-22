@@ -29,7 +29,11 @@ CREATE TABLE "allowlist_entries" (
       CHECK ("normalized_email" IS NOT NULL OR "neon_auth_user_id" IS NOT NULL),
     -- Executive Committee and Committee access ends with their term (AC-04.7).
     CONSTRAINT "allowlist_entries_term_end_required"
-      CHECK ("role" NOT IN ('executive', 'committee') OR "access_ends_on" IS NOT NULL)
+      CHECK ("role" NOT IN ('executive', 'committee') OR "access_ends_on" IS NOT NULL),
+    -- System Administrator access never ends by date. Otherwise the last one could
+    -- expire while still counting as "remaining" in the trigger below (AC-04.6).
+    CONSTRAINT "allowlist_entries_system_admin_no_end_date"
+      CHECK ("role" <> 'system_admin' OR "access_ends_on" IS NULL)
 );
 
 CREATE UNIQUE INDEX "allowlist_entries_normalized_email_key" ON "allowlist_entries"("normalized_email");

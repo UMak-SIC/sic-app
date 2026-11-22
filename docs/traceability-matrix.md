@@ -329,7 +329,7 @@ dashboard (AC-02 to AC-04).
 | `id` | UUID | Surrogate primary key |
 | `normalized_email` | TEXT | Nullable, UNIQUE, CHECK lower case with no surrounding spaces |
 | `role` | ENUM (`system_admin`, `executive`, `event_head`, `committee`) | NOT NULL |
-| `access_ends_on` | DATE | Nullable; required for `executive` and `committee` (AC-04.7) |
+| `access_ends_on` | DATE | Nullable; required for `executive` and `committee` (AC-04.7); always null for `system_admin` (AC-04.6) |
 | `neon_auth_user_id` | TEXT | Nullable, UNIQUE; linked on first sign-in |
 | `added_by_entry_id` | UUID | Nullable, FK → `allowlist_entries(id)` ON DELETE RESTRICT |
 | `removed_at` | TIMESTAMPTZ | Nullable; set instead of deleting the row |

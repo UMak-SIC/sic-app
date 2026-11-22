@@ -81,6 +81,26 @@ describeWithDatabase("allowlist_entries", () => {
     ).resolves.toMatchObject({ id: only.id });
   });
 
+  // AC-04.6: an end date would let the last System Administrator expire while still
+  // counting as "remaining", so System Administrator entries never have one.
+  test("refuses an end date on a System Administrator", async () => {
+    const db = getTestDatabase();
+    const endDate = new Date("2026-01-31T00:00:00.000Z");
+
+    await expect(
+      db.allowlistEntry.create({
+        data: { neonAuthUserId: "admin-1", role: "SYSTEM_ADMIN", accessEndsOn: endDate },
+      }),
+    ).rejects.toThrow(/allowlist_entries_system_admin_no_end_date/);
+
+    const only = await db.allowlistEntry.create({
+      data: { neonAuthUserId: "admin-1", role: "SYSTEM_ADMIN" },
+    });
+    await expect(
+      db.allowlistEntry.update({ where: { id: only.id }, data: { accessEndsOn: endDate } }),
+    ).rejects.toThrow(/allowlist_entries_system_admin_no_end_date/);
+  });
+
   test("lets allowlisted users keep creating records under their user ID", async () => {
     const db = getTestDatabase();
     await db.allowlistEntry.create({
