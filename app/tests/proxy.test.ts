@@ -83,9 +83,11 @@ test("guards every administration page, not just check-in and events", async () 
     "/ems/settings",
     // The QR Generator section.
     "/qr",
-    // The root is the tool selector, so guarding it is what puts the whole app
-    // behind sign-in rather than only the admin screens.
-    "/",
+    // The tool selector moved from / to /apps so the public site can own the
+    // root (AC-05). It stays behind sign-in.
+    "/apps",
+    // The access-denied page is for signed-in accounts only.
+    "/unauthorized",
   ]) {
     expect(
       config.matcher.some((pattern) => matches(pattern, path)),
@@ -128,6 +130,56 @@ test("leaves the sign-in screens, API routes, and static assets reachable", asyn
       config.matcher.some((pattern) => matches(pattern, path)),
       `expected ${path} to be reachable`
     ).toBe(false);
+  }
+});
+
+test("serves every public site page without sign-in (PS-01)", async () => {
+  const { config } = await import("@/proxy");
+
+  for (const path of [
+    "/",
+    "/about",
+    "/about/adviser",
+    "/about/executive-committee",
+    "/about/committees",
+    "/about/achievements",
+    "/calendar",
+    "/events",
+    "/events/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
+    "/news",
+    "/news/9fdcd48a-170a-4af7-862e-a511ad9d7b94",
+    "/join",
+    "/sponsors",
+    "/resources",
+    "/contact",
+    "/transparency",
+    "/privacy",
+  ]) {
+    expect(
+      config.matcher.some((pattern) => matches(pattern, path)),
+      `expected ${path} to be public`
+    ).toBe(false);
+  }
+});
+
+test("opens public sections by whole path segment only", async () => {
+  const { config } = await import("@/proxy");
+
+  // A public name must not open look-alike paths, and the admin event pages
+  // live under /ems, so they stay guarded even though /events is public.
+  for (const path of [
+    "/eventsx",
+    "/events-admin",
+    "/newsroom",
+    "/aboutus",
+    "/privacy-admin",
+    "/ems/events",
+    "/apps",
+  ]) {
+    expect(
+      config.matcher.some((pattern) => matches(pattern, path)),
+      `expected ${path} to be protected`
+    ).toBe(true);
   }
 });
 

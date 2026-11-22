@@ -66,7 +66,7 @@ export default function LoginPage() {
       // access-denied page, so this is the right destination either way.
       // refresh() is what makes the new session visible to the server
       // components behind it.
-      router.replace("/");
+      router.replace("/apps");
       router.refresh();
     } catch {
       setErrorMessage(

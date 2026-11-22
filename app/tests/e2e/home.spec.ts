@@ -1,10 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-// The whole app sits behind sign-in, and "/" is the tool selector, so an
-// unauthenticated visit to the root lands on /login. The
-// heading below matches the sign-in screen, which is why this used to pass
-// against the home page and would otherwise keep passing while testing
-// something else entirely.
+// The tool selector lives at /apps (AC-05) and sits behind sign-in, so an
+// unauthenticated visit lands on /login. The root now serves the public site
+// (PS-01); route-protection.spec.ts checks that it is not redirected.
 //
 // Asserting the real tool selector render needs an authenticated fixture, which
 // this harness does not set up yet. Route protection is covered in
@@ -21,7 +19,7 @@ import { expect, test } from "@playwright/test";
 test("presents an unauthenticated visitor with the sign-in screen", async ({
   page,
 }) => {
-  await page.goto("/", { waitUntil: "commit" });
+  await page.goto("/apps", { waitUntil: "commit" });
 
   await expect(page).toHaveURL(/\/login$/);
   await expect(
