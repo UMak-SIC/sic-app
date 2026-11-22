@@ -95,6 +95,8 @@ model AllowlistEntry {
   createdCampaigns     Campaign[]         @relation("CampaignCreator")
   uploadedAssets       Asset[]            @relation("AssetUploader")
   createdShortUrls     ShortUrl[]         @relation("ShortUrlCreator")
+  siteContentEdits     SiteContent[]      @relation("SiteContentEditor")
+  newsPosts            NewsPost[]         @relation("NewsPostAuthor")
 
   @@map("allowlist_entries")
 }
@@ -319,6 +321,12 @@ model Asset {
   campaignAssets CampaignAsset[]
   deletionFailure AssetDeletionFailure?
   shortUrlLogos  ShortUrl[]      @relation("ShortUrlLogo")
+  siteContentAdviserPhotos SiteContent[]     @relation("SiteContentAdviserPhoto")
+  officerPhotos            Officer[]         @relation("OfficerPhoto")
+  committeeMemberPhotos    CommitteeMember[] @relation("CommitteeMemberPhoto")
+  newsPostCovers           NewsPost[]        @relation("NewsPostCover")
+  sponsorLogos             Sponsor[]         @relation("SponsorLogo")
+  resourceFiles            Resource[]        @relation("ResourceFile")
 
   @@map("assets")
 }
@@ -394,4 +402,185 @@ model AuditLog {
   @@index([occurredAt])
   @@index([actorEmail, occurredAt])
   @@map("audit_log")
+}
+
+// ---------------------------------------------------------------------------
+// Public site content (PS-02 to PS-13, edited through SY-05, SY-07 and SY-08)
+//
+// Images and files reference `assets` with ON DELETE RESTRICT, the same way
+// `Event.imageAsset` does, and the retention job never deletes an asset that
+// any of these tables still uses (SY-02.5).
+// ---------------------------------------------------------------------------
+
+enum PublishStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+}
+
+enum ResourceType {
+  FORM   @map("form")
+  BYLAW  @map("bylaw")
+  REPORT @map("report")
+}
+
+/// The single-copy text of the public site: Home, About, Join Us, Contact and the
+/// Privacy Notice (DMA-15). The migration adds CHECK (singleton) so only one row exists.
+model SiteContent {
+  id                     String    @id @default(uuid()) @db.Uuid
+  singleton              Boolean   @unique @default(true)
+  homeStatement          String?   @map("home_statement") @db.Text
+  mission                String?   @db.Text
+  vision                 String?   @db.Text
+  history                String?   @db.Text
+  adviserName            String?   @map("adviser_name")
+  adviserTitle           String?   @map("adviser_title")
+  adviserPhotoAssetId    String?   @map("adviser_photo_asset_id") @db.Uuid
+  /// The numbered steps to become a member, in order (PS-07.1).
+  joinSteps              Json      @default("[]") @map("join_steps")
+  membershipFormLocation String?   @map("membership_form_location")
+  contactEmail           String?   @map("contact_email")
+  location               String?
+  /// Each link as { "label": ..., "url": ... }, in display order.
+  socialLinks            Json      @default("[]") @map("social_links")
+  privacyNoticeMarkdown  String?   @map("privacy_notice_markdown") @db.Text
+  /// Shown on the notice as the date it was last updated (PS-15.3).
+  privacyNoticeUpdatedAt DateTime? @map("privacy_notice_updated_at") @db.Timestamptz(6)
+  updatedById            String?   @map("updated_by_admin_id")
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  adviserPhotoAsset Asset?          @relation("SiteContentAdviserPhoto", fields: [adviserPhotoAssetId], references: [id], onDelete: Restrict)
+  updatedBy         AllowlistEntry? @relation("SiteContentEditor", fields: [updatedById], references: [neonAuthUserId], onDelete: Restrict)
+
+  @@map("site_content")
+}
+
+/// Executive Committee officers on About (PS-03.4, DMA-16).
+model Officer {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  position     String
+  photoAssetId String?  @map("photo_asset_id") @db.Uuid
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  photoAsset Asset? @relation("OfficerPhoto", fields: [photoAssetId], references: [id], onDelete: Restrict)
+
+  @@index([sortOrder])
+  @@map("officers")
+}
+
+/// Committees on About, including the Development Team (PS-11, SY-05, DMA-17).
+model Committee {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  members CommitteeMember[]
+
+  @@index([sortOrder])
+  @@map("committees")
+}
+
+/// A member card under a committee. Removing the committee removes its members
+/// (SY-05.9), so the link cascades.
+model CommitteeMember {
+  id           String   @id @default(uuid()) @db.Uuid
+  committeeId  String   @map("committee_id") @db.Uuid
+  fullName     String   @map("full_name")
+  role         String
+  photoAssetId String?  @map("photo_asset_id") @db.Uuid
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  committee  Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  photoAsset Asset?    @relation("CommitteeMemberPhoto", fields: [photoAssetId], references: [id], onDelete: Restrict)
+
+  @@index([committeeId, sortOrder])
+  @@map("committee_members")
+}
+
+/// Achievements on About, newest year first (PS-03.6, DMA-18).
+model Achievement {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  year        Int      @db.SmallInt
+  description String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([year])
+  @@map("achievements")
+}
+
+/// News and announcements (PS-06, PS-02.4, SY-08.3, DMA-19). Drafts never
+/// appear publicly; the migration requires `published_at` on published posts.
+model NewsPost {
+  id           String        @id @default(uuid()) @db.Uuid
+  title        String
+  postDate     DateTime      @map("post_date") @db.Date
+  bodyMarkdown String        @map("body_markdown") @db.Text
+  coverAssetId String?       @map("cover_asset_id") @db.Uuid
+  status       PublishStatus @default(DRAFT)
+  publishedAt  DateTime?     @map("published_at") @db.Timestamptz(6)
+  createdById  String        @map("created_by_admin_id")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  coverAsset Asset?         @relation("NewsPostCover", fields: [coverAssetId], references: [id], onDelete: Restrict)
+  createdBy  AllowlistEntry @relation("NewsPostAuthor", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
+
+  @@index([status, postDate])
+  @@map("news_posts")
+}
+
+/// Sponsors and partners (PS-08, SY-08.4, DMA-20). The logo alt text is the
+/// sponsor name. The migration allows only https links.
+model Sponsor {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  logoAssetId String   @map("logo_asset_id") @db.Uuid
+  linkUrl     String?  @map("link_url")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  logoAsset Asset @relation("SponsorLogo", fields: [logoAssetId], references: [id], onDelete: Restrict)
+
+  @@index([sortOrder])
+  @@map("sponsors")
+}
+
+/// Downloadable forms, by-laws and reports (PS-09, SY-08.5, DMA-21).
+model Resource {
+  id          String       @id @default(uuid()) @db.Uuid
+  title       String
+  type        ResourceType
+  fileAssetId String       @map("file_asset_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  fileAsset Asset @relation("ResourceFile", fields: [fileAssetId], references: [id], onDelete: Restrict)
+
+  @@index([type])
+  @@map("resources")
+}
+
+/// One FAQ list shared by Home and Join Us (PS-07, PS-13, SY-07, DMA-22). A
+/// trigger in the migration allows at most five featured FAQs (SY-07.6).
+model Faq {
+  id         String   @id @default(uuid()) @db.Uuid
+  question   String   @db.Text
+  answer     String   @db.Text
+  isFeatured Boolean  @default(false) @map("is_featured")
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([isFeatured, sortOrder])
+  @@map("faqs")
 }
