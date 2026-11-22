@@ -54,11 +54,41 @@ enum ShortUrlStatus {
   DISABLED @map("disabled")
 }
 
-model Admin {
-  neonAuthUserId String   @id @map("neon_auth_user_id")
-  // The initial migration adds CHECK (singleton) so the unique value permits one row.
-  singleton   Boolean  @unique @default(true)
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+enum AllowlistRole {
+  SYSTEM_ADMIN @map("system_admin")
+  EXECUTIVE    @map("executive")
+  EVENT_HEAD   @map("event_head")
+  COMMITTEE    @map("committee")
+}
+
+/// One email allowed into the dashboard, with exactly one role (AC-02 to AC-04).
+///
+/// An entry is added by email before the person has ever signed in, so
+/// `neonAuthUserId` starts empty and is linked on first sign-in. Every
+/// "who did this" column in the schema references `neonAuthUserId`.
+///
+/// Removing someone sets `removedAt` rather than deleting the row, so the events,
+/// scans and uploads they made keep resolving to them (AC-04.9).
+///
+/// Rules the migration enforces in the database, because Prisma cannot express them:
+/// - `normalized_email` is lower case with no surrounding spaces.
+/// - An entry has an email, a linked user, or both.
+/// - Executive Committee and Committee entries carry an end date (AC-04.7).
+/// - The last active System Administrator cannot be removed or demoted (AC-04.6).
+model AllowlistEntry {
+  id              String        @id @default(uuid()) @db.Uuid
+  normalizedEmail String?       @unique @map("normalized_email")
+  role            AllowlistRole
+  /// Access ends at the close of this day in the organization timezone (AC-04.8).
+  accessEndsOn    DateTime?     @map("access_ends_on") @db.Date
+  neonAuthUserId  String?       @unique @map("neon_auth_user_id")
+  addedById       String?       @map("added_by_entry_id") @db.Uuid
+  removedAt       DateTime?     @map("removed_at") @db.Timestamptz(6)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  addedBy      AllowlistEntry?  @relation("AllowlistEntryAdder", fields: [addedById], references: [id], onDelete: Restrict)
+  addedEntries AllowlistEntry[] @relation("AllowlistEntryAdder")
 
   createdEvents        Event[]            @relation("EventCreator")
   scannedRosterEntries EventRosterEntry[] @relation("RosterEntryScanner")
@@ -66,7 +96,7 @@ model Admin {
   uploadedAssets       Asset[]            @relation("AssetUploader")
   createdShortUrls     ShortUrl[]         @relation("ShortUrlCreator")
 
-  @@map("admins")
+  @@map("allowlist_entries")
 }
 
 model Attendee {
@@ -119,7 +149,7 @@ model Event {
   updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   imageAsset    Asset?             @relation("EventImage", fields: [imageAssetId], references: [id], onDelete: Restrict)
-  createdBy     Admin              @relation("EventCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
+  createdBy     AllowlistEntry     @relation("EventCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
   rosterEntries EventRosterEntry[]
   organizers    EventOrganizer[]
   campaigns     Campaign[]
@@ -140,7 +170,7 @@ model EventRosterEntry {
 
   event          Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   attendee       Attendee        @relation(fields: [attendeeId], references: [id], onDelete: Restrict)
-  scannedByAdmin Admin?          @relation("RosterEntryScanner", fields: [scannedByAdminId], references: [neonAuthUserId], onDelete: Restrict)
+  scannedByAdmin AllowlistEntry? @relation("RosterEntryScanner", fields: [scannedByAdminId], references: [neonAuthUserId], onDelete: Restrict)
   deliveries     EmailDelivery[]
 
   @@unique([eventId, attendeeId])
@@ -173,7 +203,7 @@ model Campaign {
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   event           Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdBy       Admin           @relation("CampaignCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
+  createdBy       AllowlistEntry  @relation("CampaignCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
   assets          CampaignAsset[]
   emailDeliveries EmailDelivery[]
 
@@ -284,7 +314,7 @@ model Asset {
   uploadedById     String   @map("uploaded_by_admin_id")
   uploadedAt       DateTime @default(now()) @map("uploaded_at") @db.Timestamptz(6)
 
-  uploadedBy     Admin           @relation("AssetUploader", fields: [uploadedById], references: [neonAuthUserId], onDelete: Restrict)
+  uploadedBy     AllowlistEntry  @relation("AssetUploader", fields: [uploadedById], references: [neonAuthUserId], onDelete: Restrict)
   eventImages    Event[]         @relation("EventImage")
   campaignAssets CampaignAsset[]
   deletionFailure AssetDeletionFailure?
@@ -310,7 +340,7 @@ model ShortUrl {
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  createdBy   Admin           @relation("ShortUrlCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
+  createdBy   AllowlistEntry  @relation("ShortUrlCreator", fields: [createdById], references: [neonAuthUserId], onDelete: Restrict)
   qrLogoAsset Asset?          @relation("ShortUrlLogo", fields: [qrLogoAssetId], references: [id], onDelete: Restrict)
   visits      ShortUrlVisit[]
 

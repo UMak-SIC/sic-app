@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 // the half that can be tested without provisioning a real Neon Auth user.
 //
 // A successful sign-in is not covered. It needs a real user in Neon Auth and a
-// matching row in the `admins` table, neither of which this harness provisions,
+// matching row in the `allowlist_entries` table, neither of which this harness provisions,
 // so asserting it would be a test that passes for the wrong reason.
 //
 // These assertions are deliberately about the contract rather than about which

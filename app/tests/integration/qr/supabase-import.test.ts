@@ -79,7 +79,7 @@ async function pngLogo(): Promise<Uint8Array<ArrayBuffer>> {
 }
 
 async function setup() {
-  await seedTestDatabase((database) => database.admin.create({ data: { neonAuthUserId: adminId } }));
+  await seedTestDatabase((database) => database.allowlistEntry.create({ data: { neonAuthUserId: adminId, role: "SYSTEM_ADMIN" } }));
   const storage = { send: vi.fn<(command: unknown) => Promise<object>>(async () => ({})) };
   const logo = await pngLogo();
   const fetchLogo = vi.fn(async () => ({ bytes: logo, mediaType: "image/png" }));

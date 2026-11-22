@@ -160,6 +160,15 @@ The delivery resolver's supported placeholder set is `student_name`, `student_id
 
 ---
 
+### EPIC-11: SIC App Data Model, Sprint 1 (#187)
+**Target Subsystem**: `Database` | **Scope**: The allowlist with roles that replaces the single administrator, the append-only audit log, and the tables the public site reads. Requirement IDs AC, PS and SY refer to the SIC App Documentation.
+
+| Task ID | Description | Target Component | PRD / Contract Mapping | Verification Criteria | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **TSK-1101** | Replace `admins` with `allowlist_entries` (roles, end dates, soft removal) and add the append-only `audit_log` | `app/prisma/schema.prisma`, `app/prisma/migrations`, `app/lib/auth/require-admin.ts`, `app/scripts/bootstrap-admin.mjs` | DMA-01, DMA-14, AC-02, AC-03, AC-04, SY-10 | Existing administrator carried over; removed or expired entries refused by the guard and by `search_global_attendees`; the last System Administrator cannot be removed; audit entries cannot be changed or deleted outside the retention opt-in. | `[x] Completed` |
+
+---
+
 ## Reverse Traceability Matrix (Requirements to Tasks)
 
 Verifies that every requirement defined in the PRD, Data Model Addendum, and Non-Functional Architecture has associated tasks and verification criteria.
@@ -204,7 +213,7 @@ Verifies that every requirement defined in the PRD, Data Model Addendum, and Non
 
 | Requirement ID | Requirement Summary | Assigned Task ID(s) | Verification Status |
 | :--- | :--- | :--- | :--- |
-| **DMA-01** | `admins` table keyed by `neon_auth_user_id`; exactly one record; credentials and sessions owned by Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202 | `[ ] Planned` |
+| **DMA-01** | `allowlist_entries`: one row per allowlisted email with exactly one role, an optional end date and soft removal; replaces the single-row `admins` table. Linked to the Neon Auth user ID; credentials and sessions stay in Neon Managed Better Auth in `neon_auth` | TSK-0102, TSK-0201, TSK-0202, TSK-1101 | `[x] Completed` |
 | **DMA-02** | `attendees` table with UUID PK, normalized email, display email, required name, required unique `student_id`; conflict preview and overwrite | TSK-0102, TSK-0501, TSK-0503, TSK-0504, TSK-0506 | `[ ] Planned` |
 | **DMA-03** | `events` table with UUID PK, name, details, Neon Object Storage banner ref, UTC timestamps, org timezone display, status | TSK-0102, TSK-0401, TSK-0402 | `[ ] Planned` |
 | **DMA-04** | `event_roster_entries` replaces standalone attendance; unique `(event_id, attendee_id)`, status: `pending` \| `attended` \| `absent`, `arrived_at`, `scanned_by_admin_id` | TSK-0102, TSK-0801, TSK-0903 | `[ ] Planned` |
@@ -309,3 +318,42 @@ Consequences worth stating rather than discovering:
   change on an existing table.
 - The table has never had rows written, since no task owned binding an asset to a
   campaign, so the migration needs no data backfill.
+
+### DMA-01: `allowlist_entries`
+
+Replaces the single-row `admins` table. One row per person allowed into the
+dashboard (AC-02 to AC-04).
+
+| Column | Type | Rule |
+| :--- | :--- | :--- |
+| `id` | UUID | Surrogate primary key |
+| `normalized_email` | TEXT | Nullable, UNIQUE, CHECK lower case with no surrounding spaces |
+| `role` | ENUM (`system_admin`, `executive`, `event_head`, `committee`) | NOT NULL |
+| `access_ends_on` | DATE | Nullable; required for `executive` and `committee` (AC-04.7); always null for `system_admin` (AC-04.6) |
+| `neon_auth_user_id` | TEXT | Nullable, UNIQUE; linked on first sign-in |
+| `added_by_entry_id` | UUID | Nullable, FK → `allowlist_entries(id)` ON DELETE RESTRICT |
+| `removed_at` | TIMESTAMPTZ | Nullable; set instead of deleting the row |
+| `created_at`, `updated_at` | TIMESTAMPTZ | NOT NULL |
+
+CHECK `normalized_email IS NOT NULL OR neon_auth_user_id IS NOT NULL`.
+
+Rules:
+
+- Every "who did this" column (`events.created_by_admin_id`,
+  `event_roster_entries.scanned_by_admin_id`, `campaigns.created_by_admin_id`,
+  `assets.uploaded_by_admin_id`, `short_urls.created_by_admin_id`,
+  `news_posts.created_by_admin_id`, `site_content.updated_by_admin_id`) references
+  `neon_auth_user_id` ON DELETE RESTRICT. The column names were kept so existing rows
+  and services are unchanged.
+- An entry is active when `removed_at` is null and `access_ends_on` is null or not
+  yet past in the organization timezone. `requireAdmin` checks this on every request.
+  `search_global_attendees` refuses removed entries.
+- A trigger refuses any update or delete that would leave no active `system_admin`
+  (AC-04.6).
+- The migration carried the existing administrator over as a `system_admin`, with
+  the email filled from Neon Auth when readable. `pnpm admin:bootstrap` with
+  `ADMIN_EMAIL` fills it otherwise.
+
+Not yet decided here: enforcing each role's permissions (AC-03) and linking an
+entry to a Neon Auth user on first sign-in. Both belong to the Access and Roles
+feature work.

@@ -12,7 +12,7 @@ describeWithDatabase("participant CSV exports", () => {
   test("reads event rosters and student history with both check-in timezones", async () => {
     vi.stubEnv("ORGANIZATION_TIMEZONE", "Asia/Manila");
     const db = getTestDatabase();
-    await db.admin.create({ data: { neonAuthUserId: "export-admin" } });
+    await db.allowlistEntry.create({ data: { neonAuthUserId: "export-admin", role: "SYSTEM_ADMIN" } });
     const student = await db.attendee.create({ data: {
       normalizedEmail: "andrea@example.test", displayEmail: "andrea@example.test",
       name: "Andrea Santos", studentId: "00123", course: "BSIT",

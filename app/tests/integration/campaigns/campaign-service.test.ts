@@ -22,7 +22,7 @@ async function seedCampaignContext() {
   const attendeeIds = Array.from({ length: 126 }, () => randomUUID());
 
   await seedTestDatabase(async (database) => {
-    await database.admin.create({ data: { neonAuthUserId: adminId } });
+    await database.allowlistEntry.create({ data: { neonAuthUserId: adminId, role: "SYSTEM_ADMIN" } });
     await database.event.create({
       data: {
         id: eventId,

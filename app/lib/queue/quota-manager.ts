@@ -2,7 +2,7 @@ import "server-only";
 
 import { EmailProvider } from "@prisma/client";
 
-import { getOrganizationTimezone } from "@/lib/events/organization-timezone";
+import { getOrganizationDate } from "@/lib/events/organization-timezone";
 import { getPrismaClient } from "@/lib/prisma";
 
 /**
@@ -90,14 +90,7 @@ export function getDailyLimit(
  * starts at 8am local time, so the organization's own calendar day is used.
  */
 export function getUsageDate(now: Date = new Date()): Date {
-  const yearMonthDay = new Intl.DateTimeFormat("en-CA", {
-    timeZone: getOrganizationTimezone(),
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-
-  return new Date(`${yearMonthDay}T00:00:00.000Z`);
+  return getOrganizationDate(now);
 }
 
 function key(provider: EmailProvider, usageDate: Date) {

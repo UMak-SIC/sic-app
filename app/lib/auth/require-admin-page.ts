@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "./require-admin";
 
 // The page-side half of EPIC-02. The proxy decides whether there is a session at
-// all; it cannot decide whether that session belongs to the admins record, so
+// all; it cannot decide whether that session belongs to someone on the allowlist, so
 // every layout that guards admin screens calls this. It resolves the same
 // 401/403 contract the API routes use and turns it into a redirect, which keeps
 // one rule for both surfaces.

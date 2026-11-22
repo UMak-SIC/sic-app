@@ -19,24 +19,35 @@ const prisma = new PrismaClient({
   adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL }),
 });
 
-try {
-  const existingAdmin = await prisma.admin.findFirst();
+// The first System Administrator (AC-04.11). Later entries are added in the
+// dashboard. Running this again is safe: it links or reports the existing entry.
+const neonAuthUserId = process.env.ADMIN_NEON_AUTH_USER_ID;
+const email = process.env.ADMIN_EMAIL?.trim().toLowerCase() || null;
 
-  if (existingAdmin) {
-    if (existingAdmin.neonAuthUserId !== process.env.ADMIN_NEON_AUTH_USER_ID) {
-      throw new Error("The configured Neon Auth user ID does not match the existing administrator.");
+try {
+  const existing = await prisma.allowlistEntry.findUnique({ where: { neonAuthUserId } });
+
+  if (existing) {
+    if (existing.role !== "SYSTEM_ADMIN" || existing.removedAt) {
+      throw new Error(
+        `Neon Auth user ${neonAuthUserId} is on the allowlist but is not an active System Administrator.`,
+      );
     }
 
-    console.log(
-      `Neon Auth user ${existingAdmin.neonAuthUserId} is already configured as the SIC administrator.`,
-    );
+    if (email && !existing.normalizedEmail) {
+      await prisma.allowlistEntry.update({
+        where: { id: existing.id },
+        data: { normalizedEmail: email },
+      });
+      console.log(`Added ${email} to the existing System Administrator ${neonAuthUserId}.`);
+    } else {
+      console.log(`Neon Auth user ${neonAuthUserId} is already a System Administrator.`);
+    }
   } else {
-    await prisma.admin.create({
-      data: { neonAuthUserId: process.env.ADMIN_NEON_AUTH_USER_ID },
+    await prisma.allowlistEntry.create({
+      data: { neonAuthUserId, normalizedEmail: email, role: "SYSTEM_ADMIN" },
     });
-    console.log(
-      `Configured Neon Auth user ${process.env.ADMIN_NEON_AUTH_USER_ID} as the SIC administrator.`,
-    );
+    console.log(`Configured Neon Auth user ${neonAuthUserId} as a System Administrator.`);
   }
 } finally {
   await prisma.$disconnect();

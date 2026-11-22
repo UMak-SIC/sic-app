@@ -92,7 +92,7 @@ const ATTENDEES = [
 ];
 
 try {
-  const admin = await prisma.admin.findUnique({
+  const admin = await prisma.allowlistEntry.findUnique({
     where: { neonAuthUserId: createdById },
     select: { neonAuthUserId: true },
   });

@@ -1,7 +1,7 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
-const { findUnique, getNeonAuth, getPrismaClient } = vi.hoisted(() => ({
-  findUnique: vi.fn(),
+const { findFirst, getNeonAuth, getPrismaClient } = vi.hoisted(() => ({
+  findFirst: vi.fn(),
   getNeonAuth: vi.fn(),
   getPrismaClient: vi.fn(),
 }));
@@ -12,9 +12,15 @@ vi.mock("@/lib/prisma", () => ({ getPrismaClient }));
 import { requireAdmin } from "@/lib/auth/require-admin";
 import { createFakeNeonAuth, fakeAdminSession, fakeNonAdminSession } from "@/tests/fakes";
 
+beforeEach(() => {
+  vi.stubEnv("ORGANIZATION_TIMEZONE", "Asia/Manila");
+  getPrismaClient.mockReturnValue({ allowlistEntry: { findFirst } });
+});
+
 afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
   vi.resetAllMocks();
-  getPrismaClient.mockReturnValue({ admin: { findUnique } });
 });
 
 test("rejects requests without an authenticated session", async () => {
@@ -24,26 +30,57 @@ test("rejects requests without an authenticated session", async () => {
 
   expect(result).toBeInstanceOf(Response);
   expect((result as Response).status).toBe(401);
-  expect(findUnique).not.toHaveBeenCalled();
+  expect(findFirst).not.toHaveBeenCalled();
 });
 
-test("rejects authenticated users who are not administrators", async () => {
+test("rejects signed-in users without an active allowlist entry", async () => {
   getNeonAuth.mockReturnValue(createFakeNeonAuth(fakeNonAdminSession()));
-  findUnique.mockResolvedValue(null);
+  findFirst.mockResolvedValue(null);
 
   const result = await requireAdmin();
 
   expect(result).toBeInstanceOf(Response);
   expect((result as Response).status).toBe(403);
-  expect(findUnique).toHaveBeenCalledWith({
-    where: { neonAuthUserId: "user-id" },
+});
+
+test("looks up only entries that are not removed and have not ended", async () => {
+  // 23:30 on 21 Nov in Manila is still 21 Nov there, but already 15:30 UTC.
+  vi.useFakeTimers({ now: new Date("2026-11-21T15:30:00.000Z"), toFake: ["Date"] });
+  getNeonAuth.mockReturnValue(createFakeNeonAuth(fakeNonAdminSession()));
+  findFirst.mockResolvedValue(null);
+
+  await requireAdmin();
+
+  expect(findFirst).toHaveBeenCalledWith({
+    where: {
+      neonAuthUserId: "user-id",
+      removedAt: null,
+      OR: [
+        { accessEndsOn: null },
+        { accessEndsOn: { gte: new Date("2026-11-21T00:00:00.000Z") } },
+      ],
+    },
     select: { neonAuthUserId: true },
   });
 });
 
-test("returns the allowlisted administrator ID", async () => {
+test("uses the organization's day once it has rolled over before UTC", async () => {
+  // 00:30 on 22 Nov in Manila is still 21 Nov in UTC, so an entry ending
+  // on 21 Nov has expired.
+  vi.useFakeTimers({ now: new Date("2026-11-21T16:30:00.000Z"), toFake: ["Date"] });
+  getNeonAuth.mockReturnValue(createFakeNeonAuth(fakeNonAdminSession()));
+  findFirst.mockResolvedValue(null);
+
+  await requireAdmin();
+
+  expect(findFirst.mock.calls[0][0].where.OR[1]).toEqual({
+    accessEndsOn: { gte: new Date("2026-11-22T00:00:00.000Z") },
+  });
+});
+
+test("returns the allowlisted user ID", async () => {
   getNeonAuth.mockReturnValue(createFakeNeonAuth(fakeAdminSession()));
-  findUnique.mockResolvedValue({ neonAuthUserId: "admin-id" });
+  findFirst.mockResolvedValue({ neonAuthUserId: "admin-id" });
 
   await expect(requireAdmin()).resolves.toEqual({ adminId: "admin-id" });
 });
